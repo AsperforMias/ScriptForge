@@ -22,22 +22,17 @@ import (
 )
 
 func TestRouterJobLifecycleWithFixtures(t *testing.T) {
-	server, _ := newTestServer(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
-	defer server.Close()
+	router, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
 
 	requestBody, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "novels", "night-rain-request.json"))
 	if err != nil {
 		t.Fatalf("read request fixture: %v", err)
 	}
 
-	createResp, err := http.Post(server.URL+"/api/v1/jobs", "application/json", bytes.NewReader(requestBody))
-	if err != nil {
-		t.Fatalf("post jobs: %v", err)
-	}
-	defer createResp.Body.Close()
+	createResp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(requestBody))
 
-	if createResp.StatusCode != http.StatusAccepted {
-		t.Fatalf("expected 202, got %d", createResp.StatusCode)
+	if createResp.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", createResp.Code)
 	}
 
 	var createEnvelope struct {
@@ -60,27 +55,33 @@ func TestRouterJobLifecycleWithFixtures(t *testing.T) {
 	defer cancel()
 
 	for {
-		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/api/v1/jobs/"+jobID, nil)
-		statusResp, err := http.DefaultClient.Do(req)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/jobs/"+jobID, nil)
 		if err != nil {
-			t.Fatalf("get job status: %v", err)
+			t.Fatalf("build status request: %v", err)
 		}
+		statusResp := performRequestRecorder(router, req)
 
 		var statusEnvelope struct {
 			Data struct {
 				Job struct {
-					Status string `json:"status"`
+					Status          string `json:"status"`
+					ProgressPercent int    `json:"progress_percent"`
+					ErrorMessage    string `json:"error_message"`
 				} `json:"job"`
 			} `json:"data"`
 		}
 		if err := json.NewDecoder(statusResp.Body).Decode(&statusEnvelope); err != nil {
-			statusResp.Body.Close()
 			t.Fatalf("decode status response: %v", err)
 		}
-		statusResp.Body.Close()
 
 		if statusEnvelope.Data.Job.Status == "succeeded" {
+			if statusEnvelope.Data.Job.ProgressPercent != 100 {
+				t.Fatalf("expected succeeded job progress to be 100, got %d", statusEnvelope.Data.Job.ProgressPercent)
+			}
 			break
+		}
+		if statusEnvelope.Data.Job.Status == "failed" {
+			t.Fatalf("job failed unexpectedly: %s", statusEnvelope.Data.Job.ErrorMessage)
 		}
 
 		select {
@@ -90,14 +91,10 @@ func TestRouterJobLifecycleWithFixtures(t *testing.T) {
 		}
 	}
 
-	resultResp, err := http.Get(server.URL + "/api/v1/jobs/" + jobID + "/result")
-	if err != nil {
-		t.Fatalf("get job result: %v", err)
-	}
-	defer resultResp.Body.Close()
+	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+jobID+"/result", nil)
 
-	if resultResp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 result status, got %d", resultResp.StatusCode)
+	if resultResp.Code != http.StatusOK {
+		t.Fatalf("expected 200 result status, got %d", resultResp.Code)
 	}
 
 	var resultEnvelope struct {
@@ -118,30 +115,21 @@ func TestRouterJobLifecycleWithFixtures(t *testing.T) {
 		t.Fatalf("unexpected yaml output\nexpected:\n%s\n\ngot:\n%s", string(expectedYAML), resultEnvelope.Data.YAMLText)
 	}
 
-	exportResp, err := http.Get(server.URL + "/api/v1/jobs/" + jobID + "/export")
-	if err != nil {
-		t.Fatalf("export job result: %v", err)
-	}
-	defer exportResp.Body.Close()
+	exportResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+jobID+"/export", nil)
 
-	if exportResp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 export status, got %d", exportResp.StatusCode)
+	if exportResp.Code != http.StatusOK {
+		t.Fatalf("expected 200 export status, got %d", exportResp.Code)
 	}
 }
 
 func TestRouterRejectsInvalidChapterCount(t *testing.T) {
-	server, _ := newTestServer(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
-	defer server.Close()
+	router, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
 
 	body := []byte(`{"source":{"title":"Broken","chapters":[{"index":1,"title":"One","content":"A"},{"index":2,"title":"Two","content":"B"}]},"adaptation":{"style":"Suspense"},"generation":{"mode":"deterministic"}}`)
-	resp, err := http.Post(server.URL+"/api/v1/jobs", "application/json", bytes.NewReader(body))
-	if err != nil {
-		t.Fatalf("post invalid jobs request: %v", err)
-	}
-	defer resp.Body.Close()
+	resp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(body))
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.Code)
 	}
 
 	var envelope struct {
@@ -159,8 +147,7 @@ func TestRouterRejectsInvalidChapterCount(t *testing.T) {
 
 func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 	runner := &blockingRunner{release: make(chan struct{})}
-	server, _ := newTestServer(t, runner)
-	defer server.Close()
+	router, _ := newTestHarness(t, runner)
 	defer close(runner.release)
 
 	requestBody, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "novels", "night-rain-request.json"))
@@ -168,11 +155,7 @@ func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 		t.Fatalf("read request fixture: %v", err)
 	}
 
-	createResp, err := http.Post(server.URL+"/api/v1/jobs", "application/json", bytes.NewReader(requestBody))
-	if err != nil {
-		t.Fatalf("post jobs: %v", err)
-	}
-	defer createResp.Body.Close()
+	createResp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(requestBody))
 
 	var createEnvelope struct {
 		Data struct {
@@ -187,18 +170,42 @@ func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	resultResp, err := http.Get(server.URL + "/api/v1/jobs/" + createEnvelope.Data.Job.ID + "/result")
-	if err != nil {
-		t.Fatalf("get pending job result: %v", err)
-	}
-	defer resultResp.Body.Close()
+	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+createEnvelope.Data.Job.ID+"/result", nil)
 
-	if resultResp.StatusCode != http.StatusConflict {
-		t.Fatalf("expected 409, got %d", resultResp.StatusCode)
+	if resultResp.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", resultResp.Code)
+	}
+
+	statusResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+createEnvelope.Data.Job.ID, nil)
+
+	if statusResp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", statusResp.Code)
+	}
+
+	var statusEnvelope struct {
+		Data struct {
+			Job struct {
+				Status          string `json:"status"`
+				CurrentStage    string `json:"current_stage"`
+				ProgressPercent int    `json:"progress_percent"`
+			} `json:"job"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(statusResp.Body).Decode(&statusEnvelope); err != nil {
+		t.Fatalf("decode pending status response: %v", err)
+	}
+	if statusEnvelope.Data.Job.Status != "running" {
+		t.Fatalf("expected running status, got %s", statusEnvelope.Data.Job.Status)
+	}
+	if statusEnvelope.Data.Job.CurrentStage != "ingest" {
+		t.Fatalf("expected current stage ingest, got %s", statusEnvelope.Data.Job.CurrentStage)
+	}
+	if statusEnvelope.Data.Job.ProgressPercent != 5 {
+		t.Fatalf("expected ingest progress 5, got %d", statusEnvelope.Data.Job.ProgressPercent)
 	}
 }
 
-func newTestServer(t *testing.T, runner job.Runner) (*httptest.Server, *sqlite.Store) {
+func newTestHarness(t *testing.T, runner job.Runner) (http.Handler, *sqlite.Store) {
 	t.Helper()
 
 	tmpDir := t.TempDir()
@@ -216,13 +223,12 @@ func newTestServer(t *testing.T, runner job.Runner) (*httptest.Server, *sqlite.S
 	cfg.SQLitePath = dbPath
 	cfg.ArtifactDir = artifactDir
 
-	server := httptest.NewServer(NewRouter(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), service))
+	router := NewRouter(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), service)
 	t.Cleanup(func() {
-		server.Close()
 		_ = repo.Close()
 	})
 
-	return server, repo
+	return router, repo
 }
 
 type blockingRunner struct {
@@ -232,4 +238,24 @@ type blockingRunner struct {
 func (r *blockingRunner) Run(_ context.Context, _ string, _ job.CreateJobRequest) (job.ExecutionResult, error) {
 	<-r.release
 	return job.ExecutionResult{}, nil
+}
+
+func performRequest(t *testing.T, router http.Handler, method, path string, body io.Reader) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req, err := http.NewRequest(method, path, body)
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	if method == http.MethodPost {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	return performRequestRecorder(router, req)
+}
+
+func performRequestRecorder(router http.Handler, req *http.Request) *httptest.ResponseRecorder {
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	return recorder
 }

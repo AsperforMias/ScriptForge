@@ -152,8 +152,10 @@ backend/
 - `source_title TEXT NOT NULL`
 - `status TEXT NOT NULL`
 - `current_stage TEXT NOT NULL`
+- `progress_percent INTEGER NOT NULL DEFAULT 0`
 - `generation_mode TEXT NOT NULL`
 - `warning_count INTEGER NOT NULL DEFAULT 0`
+- `warnings_json TEXT NOT NULL DEFAULT '[]'`
 - `error_message TEXT NOT NULL DEFAULT ''`
 - `input_snapshot_path TEXT NOT NULL`
 - `result_yaml_path TEXT NOT NULL DEFAULT ''`
@@ -296,12 +298,18 @@ tmp/
 - `GET /jobs/{id}` 返回阶段状态
 - `GET /jobs/{id}/result` 在未完成时返回 `409`
 - deterministic 模式可生成合法 YAML
+- HTTP 测试优先直接走 `ServeHTTP`，避免依赖本地监听端口
 
 ### Fixture Requirements
 
 - 至少一组合法 3 章输入
 - 至少一组非法输入
 - 至少一组期望 YAML 输出
+
+### Sandbox Verification Note
+
+- agent / CI 场景下执行 Go 校验时，优先设置 `GOCACHE=/tmp/scriptforge-gocache`
+- 构建校验建议使用：`go build -o /tmp/scriptforge-api ./cmd/api`
 
 ## Logging Key Conventions
 

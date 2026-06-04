@@ -154,6 +154,7 @@ func (s *Service) execute(jobID string, req CreateJobRequest) {
 
 	record.Status = "running"
 	record.CurrentStage = "ingest"
+	record.ProgressPercent = ProgressPercentForStage("ingest")
 	record.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	if err := s.repo.UpdateJob(ctx, record); err != nil {
 		s.logger.Error("failed to mark job running", slog.String("job_id", jobID), slog.String("error", err.Error()))
@@ -171,6 +172,7 @@ func (s *Service) execute(jobID string, req CreateJobRequest) {
 
 	if runErr != nil {
 		record.Status = "failed"
+		record.ProgressPercent = ProgressPercentForStage(result.CurrentStage)
 		record.ErrorMessage = runErr.Error()
 		record.Warnings = nil
 		_ = s.repo.UpdateJob(ctx, record)
