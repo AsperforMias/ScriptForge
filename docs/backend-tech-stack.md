@@ -149,6 +149,7 @@ backend/
 ### 本地凭证约定
 
 本地真实 provider 调试时：
+- 先执行 `cp .env.local.example .env.local`
 - 在仓库根目录维护 `.env.local`
 - 通过 `set -a && source .env.local && set +a` 导出环境变量
 - `.env.local` 必须保持 gitignored

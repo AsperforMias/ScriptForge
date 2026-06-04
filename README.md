@@ -35,9 +35,15 @@ cd backend
 go run ./cmd/api
 ```
 
+Local/deployment prerequisite for real provider runs:
+```bash
+cp .env.local.example .env.local
+# edit .env.local and fill your real key
+set -a && source .env.local && set +a
+```
+
 Backend quick start with a local external provider:
 ```bash
-set -a && source .env.local && set +a
 cd backend
 go run ./cmd/api
 ```
@@ -57,11 +63,22 @@ export LLM_API_KEY=your-api-key
 Local secret handling:
 - keep provider credentials in a repo-root `.env.local`
 - `.env.local` is gitignored and must never be committed
+- start from `.env.local.example` so other human/agent sessions inherit the same expected variable names
 - `openai_compatible` has been validated with DeepSeek using `deepseek-v4-flash` as the current low-cost chain-test model
+- DeepSeek official docs currently list the OpenAI-format base URL as `https://api.deepseek.com`, `/chat/completions` as the chat endpoint, and `deepseek-v4-flash` / `deepseek-v4-pro` as the active model IDs
+- reference docs:
+  - [DeepSeek Create Chat Completion](https://api-docs.deepseek.com/api/create-chat-completion)
+  - [DeepSeek Models & Pricing](https://api-docs.deepseek.com/quick_start/pricing)
+  - [DeepSeek JSON Output](https://api-docs.deepseek.com/guides/json_mode)
+
+OpenAI-compatible provider note:
+- keep `LLM_PROVIDER=openai_compatible`
+- swap only `LLM_BASE_URL`, `LLM_MODEL`, and `LLM_API_KEY` when moving from DeepSeek to another compatible provider
+- the current backend path remains YAML-first because the project output contract is YAML, even though DeepSeek also documents JSON Output support
 
 Current backend focus:
 - extend regression coverage for real-world loose YAML variants returned by `openai_compatible` providers
-- decide whether to persist provider raw-response snapshots for faster demo-time compatibility debugging
+- continue polishing provider prompt/normalization quality while keeping the current YAML-first output contract
 
 Backend self-check:
 ```bash

@@ -26,6 +26,7 @@ Startup and deployment:
 - Local-first delivery is the default target.
 - Primary demo target is a locally runnable web app with separate `backend/` and `frontend/` modules.
 - Public deployment is optional; reproducible local startup matters more for the first MVP.
+- For any real-provider run, start from repo-root `.env.local.example`, copy it to `.env.local`, fill credentials, then `set -a && source .env.local && set +a`.
 
 Self-check entry before coding:
 1. Confirm your planned change is in scope according to `final-solution.md`.
@@ -41,6 +42,7 @@ Agent session rules:
 - When handing off work, update `implementation-progress.md` first.
 - If `decision-log.md` marks an item as requiring human input, stop and ask instead of guessing.
 - Keep local provider credentials in repo-root `.env.local`; it is gitignored and must not appear in commits, PR text, or docs.
+- Prefer repo-root `.env.local.example` as the handoff template so new agent sessions inherit the same provider variable contract.
 
 Initial repository structure:
 ```text
