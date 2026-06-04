@@ -136,7 +136,7 @@ backend/
 | `JOB_MAX_CONCURRENCY` | no | `2` | 同时运行 job 数 |
 | `CORS_ALLOW_ORIGIN` | no | `*` | 本地联调用 |
 | `GENERATION_MODE_DEFAULT` | no | `deterministic` | 默认生成模式 |
-| `LLM_PROVIDER` | no | `disabled` | LLM provider selector，首版支持 `disabled` / `mock` |
+| `LLM_PROVIDER` | no | `disabled` | LLM provider selector，首版支持 `disabled` / `mock` / `openai_compatible` |
 | `LLM_MODEL` | no | `` | 预留模型名 |
 | `LLM_BASE_URL` | no | `` | 预留 provider base URL |
 | `LLM_API_KEY` | no | `` | 预留 provider API key |
@@ -337,4 +337,4 @@ tmp/
 - 不把 pipeline 直接塞进 handler
 - 不把 YAML 仅作为展示字符串，而必须保留结构化对象
 - 不新增会显著增加本地运行门槛的重依赖，除非文档先更新
-- 在真实供应商未锁定前，只允许实现 provider abstraction 和 `mock`/`disabled` 这类本地适配器
+- 在真实供应商未锁定前，允许保留 vendor-neutral 的 `openai_compatible` 适配器，但不得把项目耦合到特定厂商 SDK

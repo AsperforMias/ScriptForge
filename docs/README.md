@@ -18,9 +18,9 @@ Recommended read order:
 13. [`collaboration-rules.md`](/Users/asperformias/Code/github/ScriptForge/docs/collaboration-rules.md): PR, commit, branch, pairing, and agent operating rules
 
 Current runnable ability:
-- No application service is intentionally started in this initialization session.
-- The repository is in document-first bootstrap state with locked backend execution contracts.
-- The next implementation session should begin from `implementation-progress.md`, not from assumptions.
+- The backend job API and deterministic pipeline are runnable locally.
+- `generation.mode=llm` supports both `mock` and `openai_compatible` provider paths.
+- Real external LLM execution is blocked only by provider configuration and credentials.
 
 Startup and deployment:
 - Local-first delivery is the default target.

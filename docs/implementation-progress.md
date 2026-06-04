@@ -33,6 +33,7 @@
 - failed job 结果接口错误码对齐（`generation_failed`）
 - LLM provider abstraction 与预留配置
 - `generation.mode=llm` 已接入 provider abstraction，并支持 `mock` 本地链路验证
+- vendor-neutral `openai_compatible` adapter 已就位，真实外部调用仅差 base URL / model / API key
 
 未开始：
 - LLM 调用适配层
