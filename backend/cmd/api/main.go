@@ -11,6 +11,9 @@ import (
 	"github.com/AsperforMias/ScriptForge/backend/internal/config"
 	"github.com/AsperforMias/ScriptForge/backend/internal/httpx"
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
+	"github.com/AsperforMias/ScriptForge/backend/internal/pipeline"
+	"github.com/AsperforMias/ScriptForge/backend/internal/storage/artifact"
+	"github.com/AsperforMias/ScriptForge/backend/internal/storage/sqlite"
 )
 
 func main() {
@@ -30,7 +33,16 @@ func main() {
 		slog.String("generation_mode_default", cfg.GenerationModeDefault),
 	)
 
-	jobService := job.NewService(logger)
+	repo, err := sqlite.Open(cfg.SQLitePath)
+	if err != nil {
+		logger.Error("failed to open sqlite store", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer repo.Close()
+
+	artifactStore := artifact.New(cfg.ArtifactDir)
+	runner := pipeline.NewRunner(artifactStore)
+	jobService := job.NewService(logger, repo, runner, artifactStore, cfg.JobMaxConcurrency)
 	router := httpx.NewRouter(cfg, logger, jobService)
 
 	server := &http.Server{
