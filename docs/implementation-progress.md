@@ -37,6 +37,7 @@
 - 真实 provider 的 loose YAML 已可归一化为项目 canonical screenplay schema，并通过 `/result` 与 `/export` 链路返回
 - 当真实 provider 省略地点、时间或对话信息时，后端会回退到既有 scene plan，补全 slugline 与关键 dialogue beat
 - `generation.mode=llm` 现在会为每个 job 额外落盘 `provider_debug.json`，保存 provider、model、parse mode 与原始返回内容，便于 demo 前排查兼容问题
+- repo-root `.env.local.example` 已补齐，可作为人类与 agent session 的统一 provider 配置模板
 - deterministic workflow 规则已补强为中文目标、对话、开放问题生成
 - deterministic workflow 单测与 fixture 回归测试
 
