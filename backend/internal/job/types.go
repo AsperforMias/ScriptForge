@@ -71,6 +71,7 @@ type ExecutionResult struct {
 	YAMLText             string
 	InputSnapshotPath    string
 	NormalizedSourcePath string
+	ProviderDebugPath    string
 	YAMLPath             string
 	Warnings             []string
 	Stages               []Stage

@@ -73,7 +73,7 @@ func (r *Runner) Run(ctx context.Context, jobID string, req job.CreateJobRequest
 	markStageSucceeded(stages, "scene_planning")
 
 	markStageRunning(stages, "screenplay_generation")
-	document, err := r.generateDocument(ctx, jobID, req, source, outline, entities, plan)
+	document, providerDebug, err := r.generateDocument(ctx, jobID, req, source, outline, entities, plan)
 	if err != nil {
 		return failResult(stages, "screenplay_generation", err), err
 	}
@@ -87,6 +87,13 @@ func (r *Runner) Run(ctx context.Context, jobID string, req job.CreateJobRequest
 	markStageSucceeded(stages, "validation")
 
 	markStageRunning(stages, "persistence")
+	providerDebugPath := ""
+	if providerDebug != nil {
+		providerDebugPath, err = r.artifacts.WriteProviderDebug(jobID, providerDebug)
+		if err != nil {
+			return failResult(stages, "persistence", err), err
+		}
+	}
 	yamlPath, err := r.artifacts.WriteYAML(jobID, validated.YAMLText)
 	if err != nil {
 		return failResult(stages, "persistence", err), err
@@ -98,6 +105,7 @@ func (r *Runner) Run(ctx context.Context, jobID string, req job.CreateJobRequest
 		YAMLText:             validated.YAMLText,
 		InputSnapshotPath:    inputPath,
 		NormalizedSourcePath: normalizedPath,
+		ProviderDebugPath:    providerDebugPath,
 		YAMLPath:             yamlPath,
 		Warnings:             validated.Warnings,
 		Stages:               stages,
@@ -123,9 +131,9 @@ func markStageRunning(stages []job.Stage, stageName string) {
 	}
 }
 
-func (r *Runner) generateDocument(ctx context.Context, jobID string, req job.CreateJobRequest, source ingest.NormalizedSource, outline workflow.OutlineBundle, entities workflow.EntityBundle, plan workflow.ScenePlan) (screenplay.Document, error) {
+func (r *Runner) generateDocument(ctx context.Context, jobID string, req job.CreateJobRequest, source ingest.NormalizedSource, outline workflow.OutlineBundle, entities workflow.EntityBundle, plan workflow.ScenePlan) (screenplay.Document, *llm.DebugSnapshot, error) {
 	if req.Generation.Mode != "llm" {
-		return workflow.BuildDocument(req, source, outline, entities, plan), nil
+		return workflow.BuildDocument(req, source, outline, entities, plan), nil, nil
 	}
 
 	result, err := r.llmGenerator.Generate(ctx, llm.GenerateRequest{
@@ -137,12 +145,12 @@ func (r *Runner) generateDocument(ctx context.Context, jobID string, req job.Cre
 		Plan:     plan,
 	})
 	if err != nil {
-		return screenplay.Document{}, err
+		return screenplay.Document{}, nil, err
 	}
 	if len(result.Warnings) > 0 && len(result.Document.Validation.Warnings) == 0 {
 		result.Document.Validation.Warnings = append(result.Document.Validation.Warnings, result.Warnings...)
 	}
-	return result.Document, nil
+	return result.Document, result.Debug, nil
 }
 
 func markStageSucceeded(stages []job.Stage, stageName string) {

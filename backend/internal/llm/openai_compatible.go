@@ -111,7 +111,7 @@ func (g *OpenAICompatibleGenerator) Generate(ctx context.Context, req GenerateRe
 	}
 
 	yamlText := extractYAMLResponse(completion.Choices[0].Message.Content)
-	document, warnings, err := parseGeneratedDocument(yamlText, req)
+	document, warnings, parseMode, err := parseGeneratedDocument(yamlText, req)
 	if err != nil {
 		return GenerateResult{}, NewInvocationError(g.Name(), fmt.Errorf("parse yaml response: %w", err))
 	}
@@ -121,6 +121,12 @@ func (g *OpenAICompatibleGenerator) Generate(ctx context.Context, req GenerateRe
 	return GenerateResult{
 		Document: document,
 		Warnings: document.Validation.Warnings,
+		Debug: &DebugSnapshot{
+			Provider:   g.Name(),
+			Model:      g.model,
+			ParseMode:  parseMode,
+			RawContent: yamlText,
+		},
 	}, nil
 }
 
@@ -239,28 +245,25 @@ func normalizeGeneratedDocument(doc screenplay.Document) screenplay.Document {
 	return doc
 }
 
-func parseGeneratedDocument(yamlText string, req GenerateRequest) (screenplay.Document, []string, error) {
+func parseGeneratedDocument(yamlText string, req GenerateRequest) (screenplay.Document, []string, string, error) {
 	document, err := screenplay.ParseYAML(yamlText)
 	if err == nil {
 		document = normalizeGeneratedDocument(document)
 		if validateErr := screenplay.Validate(document); validateErr == nil {
-			return document, nil, nil
+			return document, nil, "canonical", nil
 		}
 	}
 
 	fallbackDocument, err := parseLooseDocument(yamlText, req)
 	if err != nil {
-		if err == nil {
-			err = screenplay.Validate(document)
-		}
-		return screenplay.Document{}, nil, err
+		return screenplay.Document{}, nil, "", err
 	}
 
 	fallbackDocument = normalizeGeneratedDocument(fallbackDocument)
 	if err := screenplay.Validate(fallbackDocument); err != nil {
-		return screenplay.Document{}, nil, err
+		return screenplay.Document{}, nil, "", err
 	}
-	return fallbackDocument, []string{"normalized from loose openai-compatible yaml"}, nil
+	return fallbackDocument, []string{"normalized from loose openai-compatible yaml"}, "loose_normalized", nil
 }
 
 func parseLooseDocument(yamlText string, req GenerateRequest) (screenplay.Document, error) {
