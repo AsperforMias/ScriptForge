@@ -45,6 +45,14 @@ func (s *Store) WriteYAML(jobID, content string) (string, error) {
 	return path, nil
 }
 
+func (s *Store) WriteProviderDebug(jobID string, payload any) (string, error) {
+	path := filepath.Join(s.baseDir, jobID, "provider_debug.json")
+	if err := writeJSON(path, payload); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
 func (s *Store) ReadYAML(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

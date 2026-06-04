@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
 	"github.com/AsperforMias/ScriptForge/backend/internal/llm"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/artifact"
+	"github.com/AsperforMias/ScriptForge/backend/internal/workflow"
 )
 
 func TestRunnerRunProducesArtifactsAndYAML(t *testing.T) {
@@ -82,6 +84,39 @@ func TestRunnerRunSupportsMockLLMMode(t *testing.T) {
 	}
 }
 
+func TestRunnerRunPersistsProviderDebugSnapshot(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := artifact.New(tmpDir)
+	runner := NewRunner(store, debugGenerator{})
+
+	req := validCreateJobRequest()
+	req.Generation.Mode = "llm"
+
+	result, err := runner.Run(context.Background(), "job_test_runner_llm_debug", req)
+	if err != nil {
+		t.Fatalf("unexpected llm run error: %v", err)
+	}
+	if result.ProviderDebugPath == "" {
+		t.Fatal("expected provider debug path")
+	}
+
+	data, err := os.ReadFile(result.ProviderDebugPath)
+	if err != nil {
+		t.Fatalf("read provider debug artifact: %v", err)
+	}
+
+	var snapshot llm.DebugSnapshot
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		t.Fatalf("unmarshal provider debug artifact: %v", err)
+	}
+	if snapshot.Provider != "debug-generator" {
+		t.Fatalf("expected provider debug-generator, got %s", snapshot.Provider)
+	}
+	if snapshot.ParseMode != "canonical" {
+		t.Fatalf("expected parse mode canonical, got %s", snapshot.ParseMode)
+	}
+}
+
 func TestRunnerRunFailsWhenLLMProviderIsUnavailable(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := artifact.New(tmpDir)
@@ -129,4 +164,26 @@ func fixtureCreateJobRequest() job.CreateJobRequest {
 		{Index: 3, Title: "第三章 清晨追踪", Content: "第二天清晨，林琪带着字条前往车站，试图顺着纸上的线索找到寄信人。"},
 	}
 	return req
+}
+
+type debugGenerator struct{}
+
+func (debugGenerator) Name() string {
+	return "debug-generator"
+}
+
+func (debugGenerator) Generate(_ context.Context, req llm.GenerateRequest) (llm.GenerateResult, error) {
+	document := workflow.BuildDocument(req.Input, req.Source, req.Outline, req.Entities, req.Plan)
+	document.Validation.Warnings = append(document.Validation.Warnings, "generated via debug generator")
+
+	return llm.GenerateResult{
+		Document: document,
+		Warnings: document.Validation.Warnings,
+		Debug: &llm.DebugSnapshot{
+			Provider:   "debug-generator",
+			Model:      "fixture-model",
+			ParseMode:  "canonical",
+			RawContent: "version: \"1.0\"",
+		},
+	}, nil
 }

@@ -29,6 +29,14 @@ type GenerateRequest struct {
 type GenerateResult struct {
 	Document screenplay.Document
 	Warnings []string
+	Debug    *DebugSnapshot
+}
+
+type DebugSnapshot struct {
+	Provider   string `json:"provider"`
+	Model      string `json:"model,omitempty"`
+	ParseMode  string `json:"parse_mode,omitempty"`
+	RawContent string `json:"raw_content"`
 }
 
 type Generator interface {

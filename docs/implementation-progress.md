@@ -36,6 +36,7 @@
 - vendor-neutral `openai_compatible` adapter 已就位，并已完成 DeepSeek-compatible `/chat/completions` 真实外部调用验证
 - 真实 provider 的 loose YAML 已可归一化为项目 canonical screenplay schema，并通过 `/result` 与 `/export` 链路返回
 - 当真实 provider 省略地点、时间或对话信息时，后端会回退到既有 scene plan，补全 slugline 与关键 dialogue beat
+- `generation.mode=llm` 现在会为每个 job 额外落盘 `provider_debug.json`，保存 provider、model、parse mode 与原始返回内容，便于 demo 前排查兼容问题
 - deterministic workflow 规则已补强为中文目标、对话、开放问题生成
 - deterministic workflow 单测与 fixture 回归测试
 
@@ -75,7 +76,6 @@
 
 优先级 1：
 - 扩展真实 provider loose YAML 变体的回归测试与 fixture
-- 评估是否需要再补一层 provider 原始响应快照，便于 demo 前定位兼容性问题
 - 固化 demo 演示路径、README 运行说明和评审入口
 
 优先级 2：
