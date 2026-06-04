@@ -53,7 +53,7 @@ func ExtractEntities(source ingest.NormalizedSource) EntityBundle {
 			ID:          "char_" + slugify(mainCharacterName),
 			Name:        mainCharacterName,
 			Role:        "protagonist",
-			Description: "Primary viewpoint character inferred from the source input.",
+			Description: "从章节行动线中推断出的主视角人物，负责把发现转化为调查行动。",
 		},
 	}
 
@@ -90,7 +90,7 @@ func BuildScenePlan(source ingest.NormalizedSource, outline OutlineBundle, entit
 				Time:             inferTime(chapter.Content),
 			},
 			Summary:   chapterOutline.Summary,
-			Objective: fmt.Sprintf("Adapt chapter %d into a filmable dramatic beat.", chapter.Index),
+			Objective: buildObjective(chapterOutline, chapter.Content),
 			Beats: []screenplay.Beat{
 				{
 					Type:    "action",
@@ -99,13 +99,13 @@ func BuildScenePlan(source ingest.NormalizedSource, outline OutlineBundle, entit
 				{
 					Type:        "dialogue",
 					CharacterID: characterID,
-					Content:     buildDialogue(chapterOutline.Summary),
-					Emotion:     "focused",
+					Content:     buildDialogue(chapterOutline, chapter.Content),
+					Emotion:     inferEmotion(chapter.Content),
 				},
 			},
 			Notes: screenplay.SceneNotes{
-				AdaptationReason: "Convert chapter-level prose into one traceable scene with clear visual action.",
-				OpenQuestions:    []string{},
+				AdaptationReason: "将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。",
+				OpenQuestions:    inferOpenQuestions(chapter.Content),
 			},
 		}
 		scenes = append(scenes, scene)
@@ -160,11 +160,66 @@ func summarize(content string) string {
 }
 
 func buildConflict(summary string) string {
-	return "The chapter introduces pressure that pushes the protagonist into the next dramatic decision."
+	switch {
+	case containsAny(summary, "线索", "车站", "寄信人", "追踪"):
+		return "主角决定主动追查线索，把被动戒备转化为现实行动。"
+	case containsAny(summary, "门锁", "被人动过", "停在走廊"):
+		return "主角意识到私人空间可能已经被入侵，必须先判断危险是否仍在现场。"
+	case containsAny(summary, "字条", "别睡", "提前进入"):
+		return "匿名警告把模糊的不安变成了明确威胁，主角必须判断这是不是针对她的布局。"
+	default:
+		return "章节中的新信息迫使主角做出下一步戏剧行动。"
+	}
 }
 
-func buildDialogue(summary string) string {
-	return "Something here does not add up."
+func buildObjective(chapter OutlineChapter, content string) string {
+	switch {
+	case containsAny(content, "线索", "车站", "寄信人", "追踪"):
+		return "顺着已有线索主动追查寄信人，让故事从受威胁转向反向调查。"
+	case containsAny(content, "门锁", "被人动过", "走廊"):
+		return "确认房间是否已经失守，并决定主角该撤离还是进入现场。"
+	case containsAny(content, "字条", "别睡", "提前进入"):
+		return "弄清匿名警告的可信度，并把威胁来源从猜测推进到具体目标。"
+	default:
+		return fmt.Sprintf("把第 %d 章的核心事件整理成明确、可拍摄的戏剧动作。", chapter.Index)
+	}
+}
+
+func buildDialogue(chapter OutlineChapter, content string) string {
+	switch {
+	case containsAny(content, "线索", "车站", "寄信人", "追踪"):
+		return "线索既然指向车站，我就不能再等了。"
+	case containsAny(content, "门锁", "被人动过", "走廊"):
+		return "门锁被动过，屋里也许还有人。"
+	case containsAny(content, "字条", "别睡", "提前进入"):
+		return "这张字条不是恶作剧，对方知道我今晚会回来。"
+	default:
+		return chapter.Conflict
+	}
+}
+
+func inferEmotion(content string) string {
+	switch {
+	case containsAny(content, "门锁", "别睡", "被人动过", "危险"):
+		return "tense"
+	case containsAny(content, "线索", "前往", "追踪", "决定"):
+		return "determined"
+	default:
+		return "focused"
+	}
+}
+
+func inferOpenQuestions(content string) []string {
+	questions := make([]string, 0, 2)
+	switch {
+	case containsAny(content, "线索", "寄信人", "车站"):
+		questions = append(questions, "车站线索会把主角引向谁？")
+	case containsAny(content, "门锁", "被人动过"):
+		questions = append(questions, "是谁在主角回家前动过门锁？")
+	case containsAny(content, "字条", "别睡"):
+		questions = append(questions, "留下字条的人为什么知道主角的作息？")
+	}
+	return questions
 }
 
 func inferCharacterName(source ingest.NormalizedSource) string {
@@ -252,6 +307,15 @@ func containsStopWord(input string) bool {
 	stopWords := []string{"今天", "第二", "第三", "第一", "凌晨", "晚上", "清晨"}
 	for _, stopWord := range stopWords {
 		if input == stopWord {
+			return true
+		}
+	}
+	return false
+}
+
+func containsAny(input string, keywords ...string) bool {
+	for _, keyword := range keywords {
+		if strings.Contains(input, keyword) {
 			return true
 		}
 	}
