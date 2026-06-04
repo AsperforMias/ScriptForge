@@ -18,7 +18,7 @@ Read in this order before making changes:
 
 Current state:
 - Documentation baseline: ready and executable
-- Backend implementation: phase 2 MVP is in place
+- Backend implementation: deterministic pipeline and `llm` provider path are both runnable
 - Goal: keep future human/agent sessions aligned to the same scope and judging constraints
 
 Current runnable ability:
@@ -26,10 +26,18 @@ Current runnable ability:
 - background deterministic pipeline persists job status and YAML artifacts
 - `GET /api/v1/jobs/:id`, `GET /api/v1/jobs/:id/result`, and `GET /api/v1/jobs/:id/export` are available
 - `generation.mode=llm` now supports `mock` and `openai_compatible` providers behind the same job API
+- the `openai_compatible` path has been validated against DeepSeek-compatible `/chat/completions` and normalizes loose provider YAML into the canonical project schema
 - fixture-backed integration tests cover create, status, result, export, invalid input, not-ready, and llm mock behavior
 
 Backend quick start:
 ```bash
+cd backend
+go run ./cmd/api
+```
+
+Backend quick start with a local external provider:
+```bash
+set -a && source .env.local && set +a
 cd backend
 go run ./cmd/api
 ```
@@ -46,8 +54,14 @@ export LLM_MODEL=your-model-name
 export LLM_API_KEY=your-api-key
 ```
 
-Current external blocker:
-- real external `llm` mode now only depends on valid `LLM_BASE_URL`, `LLM_MODEL`, and `LLM_API_KEY`
+Local secret handling:
+- keep provider credentials in a repo-root `.env.local`
+- `.env.local` is gitignored and must never be committed
+- `openai_compatible` has been validated with DeepSeek using `deepseek-v4-flash` as the current low-cost chain-test model
+
+Current backend focus:
+- harden real-provider prompt fidelity so normalized scenes preserve better location, time, and dialogue details
+- extend regression coverage for real-world loose YAML variants returned by `openai_compatible` providers
 
 Backend self-check:
 ```bash

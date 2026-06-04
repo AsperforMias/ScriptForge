@@ -5,7 +5,7 @@
 更新时间：2026-06-05
 
 当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器。
-当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段，阻塞点已从架构实现收缩为“外部 provider 配置与前端接入”。
+当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段，外部 provider 已完成首轮真实链路验证，当前重点转为“真实 provider 输出质量补强与评审演示稳定性”。
 
 已完成：
 - 题目与赛事要求的精简总结
@@ -33,7 +33,8 @@
 - failed job 结果接口错误码对齐（`generation_failed`）
 - LLM provider abstraction 与预留配置
 - `generation.mode=llm` 已接入 provider abstraction，并支持 `mock` 本地链路验证
-- vendor-neutral `openai_compatible` adapter 已就位，真实外部调用仅差 base URL / model / API key
+- vendor-neutral `openai_compatible` adapter 已就位，并已完成 DeepSeek-compatible `/chat/completions` 真实外部调用验证
+- 真实 provider 的 loose YAML 已可归一化为项目 canonical screenplay schema，并通过 `/result` 与 `/export` 链路返回
 - deterministic workflow 规则已补强为中文目标、对话、开放问题生成
 - deterministic workflow 单测与 fixture 回归测试
 
@@ -72,8 +73,8 @@
 ## 下一步优先级
 
 优先级 1：
-- 给定真实 `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` 后验证外部 provider 链路
-- 启动前端应用脚手架并接入现有 job API
+- 补强 `openai_compatible` prompt 与归一化策略，减少真实 provider 输出退化为保守占位信息的情况
+- 扩展真实 provider loose YAML 变体的回归测试与 fixture
 - 固化 demo 演示路径、README 运行说明和评审入口
 
 优先级 2：
@@ -82,6 +83,7 @@
 - 增补存储层与 HTTP 失败场景回归
 
 优先级 3：
+- 前端应用脚手架与现有 job API 接入
 - 前端接入结果编辑与下载
 - 加入阶段状态与错误展示优化
 - 视时间决定是否提供公网演示环境
@@ -98,10 +100,12 @@
 - YAML 作为核心输出格式
 - 文档优先的协作方式
 - 后端 pipeline 作为核心展示点
+- `openai_compatible` 作为真实外部 LLM 接入协议
+- DeepSeek `deepseek-v4-flash` 作为当前低成本功能链路验证模型
 
 尚未锁定：
 - 前端框架选型
-- 具体模型供应商或兼容平台地址
+- 最终 demo 是否沿用当前验证模型，还是切换到更强但更贵的兼容模型
 - 是否提供公网演示环境
 
 已补充但尚未落地实现的文档约束：
@@ -113,5 +117,9 @@
 后续接手者必须先做两件事：
 1. 阅读 `docs/README.md` 的顺序索引
 2. 修改任何实现状态前先同步更新本文件
+
+当前人工输入依赖：
+- 若要继续真实 provider 调试，本地在仓库根目录维护 `.env.local`
+- `.env.local` 必须保持 gitignored，且不能在 commit、PR 描述或 README 示例中写入真实 key
 
 若后续代码实现与本文件状态不一致，以最新代码提交者更新过的本文件为准。
