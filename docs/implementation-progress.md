@@ -31,6 +31,7 @@
 - README 后端自检入口
 - job 状态持久化一致性（`progress_percent` / `warnings`）
 - failed job 结果接口错误码对齐（`generation_failed`）
+- LLM provider abstraction 与预留配置
 
 未开始：
 - LLM 调用适配层

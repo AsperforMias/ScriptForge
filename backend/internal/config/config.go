@@ -17,6 +17,11 @@ type Config struct {
 	JobMaxConcurrency     int
 	CORSAllowOrigin       string
 	GenerationModeDefault string
+	LLMProvider           string
+	LLMModel              string
+	LLMBaseURL            string
+	LLMAPIKey             string
+	LLMRequestTimeout     time.Duration
 }
 
 func Load() Config {
@@ -31,6 +36,11 @@ func Load() Config {
 		JobMaxConcurrency:     envInt("JOB_MAX_CONCURRENCY", 2),
 		CORSAllowOrigin:       envString("CORS_ALLOW_ORIGIN", "*"),
 		GenerationModeDefault: envString("GENERATION_MODE_DEFAULT", "deterministic"),
+		LLMProvider:           envString("LLM_PROVIDER", "disabled"),
+		LLMModel:              envString("LLM_MODEL", ""),
+		LLMBaseURL:            envString("LLM_BASE_URL", ""),
+		LLMAPIKey:             envString("LLM_API_KEY", ""),
+		LLMRequestTimeout:     envDuration("LLM_REQUEST_TIMEOUT", 45*time.Second),
 	}
 }
 
