@@ -73,15 +73,17 @@ PR 工作流：
 3. 本地验证通过后先 `push` 分支
 4. 基于该分支向 `main` 发起 PR
 5. PR 描述按模板补全：变更内容、原因、验证方式、风险
-6. 合并后本地切回 `main`
-7. 拉取最新 `main`
-8. 再从最新 `main` 切下一条 feature branch
+6. 若平台与权限允许，再执行 review / approve
+7. 合并后本地切回 `main`
+8. 拉取最新 `main`
+9. 再从最新 `main` 切下一条 feature branch
 
 执行约束：
 - `main` 只接受通过 PR 合并的改动
 - 不在同一条 feature branch 上串行堆多个无关功能
 - 若一个 PR 已合并，后续开发默认从最新 `main` 新开分支
 - 若使用 AI agent 执行该流程，需在最终说明中明确当前 branch、PR 目标和验证结果
+- GitHub 平台上 PR 作者不能批准自己的 PR；若仓库没有第二位 reviewer，可记录该限制并基于自检后合并
 
 ## Commit 规则
 
