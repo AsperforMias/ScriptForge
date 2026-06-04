@@ -5,6 +5,7 @@
 更新时间：2026-06-05
 
 当前仓库处于“文档先行的项目初始化”阶段。
+当前仓库已进入“后端 Phase 2: deterministic pipeline + persistence”阶段。
 
 已完成：
 - 题目与赛事要求的精简总结
@@ -19,16 +20,19 @@
 - 仓库初始目录骨架
 - `.gitignore`
 - PR 模板
+- Go 后端模块初始化
+- HTTP 路由与中间件骨架
+- `screenplay` 领域模型、YAML 序列化与校验
+- SQLite job store 与 artifact store
+- deterministic pipeline runner
+- 基础后端测试与 pipeline 端到端测试
 
 未开始：
-- Go 后端模块初始化
-- HTTP 与任务骨架实现
-- YAML Schema 程序化校验实现
 - LLM 调用适配层
-- 样例输入输出 fixture
 - 前端应用脚手架
 - 本地启动命令
-- 自动化测试
+- 更完整的 fixture 目录与回归样例
+- 更细粒度的存储与 HTTP 集成测试
 
 ## 里程碑拆分
 
@@ -37,11 +41,11 @@
 - 目标：把题目、规则、边界、协作方式固定下来
 
 阶段 1：后端骨架
-- 状态：未开始
+- 状态：已完成
 - 目标：建立 Go 服务入口、配置、路由、领域模型和 YAML 结构
 
 阶段 2：生成管线 MVP
-- 状态：未开始
+- 状态：进行中
 - 目标：实现最小可运行的章节输入 -> 结构化剧本 YAML 输出
 
 阶段 3：前端工作流
@@ -55,16 +59,14 @@
 ## 下一步优先级
 
 优先级 1：
-- 初始化 `backend/` Go 模块
-- 实现 HTTP 路由与中间件骨架
-- 固化 YAML 领域结构与序列化策略
-- 实现最小 API：创建任务、查询状态、查询结果、导出 YAML
+- 打通 `POST /jobs -> background execution -> GET /jobs/:id/result`
+- 补充基于 SQLite 的状态查询与错误场景测试
+- 增加样例 fixture 与 README 自检入口
 
 优先级 2：
-- 实现 SQLite job store 与本地产物目录
-- 准备一组不少于 3 章的样例小说输入
-- 打通最小的假数据或规则版生成链路
-- 让“合法 YAML 输出”先跑通
+- 完善 deterministic 规则质量
+- 让输出的 `characters / locations / scenes / beats` 更贴近剧本改编语义
+- 准备一组不少于 3 章的正式样例小说输入
 
 优先级 3：
 - 接入真实模型调用
