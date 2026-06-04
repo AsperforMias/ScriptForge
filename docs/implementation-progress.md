@@ -4,8 +4,8 @@
 
 更新时间：2026-06-05
 
-当前仓库处于“文档先行的项目初始化”阶段。
-当前仓库已进入“后端 Phase 2: deterministic pipeline + persistence”阶段。
+当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器。
+当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段，阻塞点已从架构实现收缩为“外部 provider 配置与前端接入”。
 
 已完成：
 - 题目与赛事要求的精简总结
@@ -34,13 +34,14 @@
 - LLM provider abstraction 与预留配置
 - `generation.mode=llm` 已接入 provider abstraction，并支持 `mock` 本地链路验证
 - vendor-neutral `openai_compatible` adapter 已就位，真实外部调用仅差 base URL / model / API key
+- deterministic workflow 规则已补强为中文目标、对话、开放问题生成
+- deterministic workflow 单测与 fixture 回归测试
 
 未开始：
-- LLM 调用适配层
 - 前端应用脚手架
 - 更丰富的 fixture 覆盖面
-- 更细粒度的存储层测试
-- 更完整的 README 部署说明
+- demo 视频与演示稿素材
+- 公网部署选项
 
 ## 里程碑拆分
 
@@ -53,7 +54,7 @@
 - 目标：建立 Go 服务入口、配置、路由、领域模型和 YAML 结构
 
 阶段 2：生成管线 MVP
-- 状态：进行中
+- 状态：已完成
 - 目标：实现最小可运行的章节输入 -> 结构化剧本 YAML 输出
 
 阶段 3：前端工作流
@@ -61,25 +62,29 @@
 - 目标：打通输入、生成、查看、编辑、导出
 
 阶段 4：评审强化
-- 状态：未开始
+- 状态：进行中
 - 目标：补 demo 样例、README、测试说明、部署说明、演示素材
+
+阶段 5：LLM 增强
+- 状态：进行中
+- 目标：保持 deterministic 基线不退化，并把真实外部 provider 接入收缩到配置层
 
 ## 下一步优先级
 
 优先级 1：
-- 补充基于 SQLite 的状态查询与错误场景测试
-- 继续补充失败场景与边界条件的 HTTP 集成测试
-- 增加 README 部署说明与演示入口
+- 给定真实 `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` 后验证外部 provider 链路
+- 启动前端应用脚手架并接入现有 job API
+- 固化 demo 演示路径、README 运行说明和评审入口
 
 优先级 2：
-- 完善 deterministic 规则质量
-- 让输出的 `characters / locations / scenes / beats` 更贴近剧本改编语义
-- 扩展更多题材的正式样例小说输入
+- 扩展 deterministic 与 llm 的 fixture 覆盖面
+- 补充更多题材样例输入输出
+- 增补存储层与 HTTP 失败场景回归
 
 优先级 3：
-- 接入真实模型调用
-- 加入阶段状态和错误展示
 - 前端接入结果编辑与下载
+- 加入阶段状态与错误展示优化
+- 视时间决定是否提供公网演示环境
 
 ## 已锁定决策
 
@@ -96,14 +101,12 @@
 
 尚未锁定：
 - 前端框架选型
-- 具体模型供应商
+- 具体模型供应商或兼容平台地址
 - 是否提供公网演示环境
 
 已补充但尚未落地实现的文档约束：
-- 后端技术栈与库选型
-- SQLite schema 与 artifact 目录规范
-- HTTP status / error code 映射
-- 后端测试矩阵
+- 前端应用形态
+- 外部 provider 的实际账号与部署参数
 
 ## 协作提醒
 
