@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/ingest"
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
@@ -167,8 +168,17 @@ func buildDialogue(summary string) string {
 }
 
 func inferCharacterName(source ingest.NormalizedSource) string {
+	for _, chapter := range source.Chapters {
+		if candidate := inferLeadingName(chapter.Content); candidate != "" {
+			return candidate
+		}
+	}
+
 	candidates := extractCJKPhrases(strings.Join(chapterContents(source.Chapters), " "))
 	if len(candidates) > 0 {
+		if utf8.RuneCountInString(candidates[0]) >= 2 {
+			return string([]rune(candidates[0])[:2])
+		}
 		return candidates[0]
 	}
 	return "主角"
@@ -185,7 +195,7 @@ func inferLocationName(chapter ingest.NormalizedChapter) string {
 }
 
 func inferInteriorExterior(content string) string {
-	if strings.Contains(content, "街") || strings.Contains(content, "路") || strings.Contains(content, "广场") {
+	if strings.Contains(content, "街") || strings.Contains(content, "路") || strings.Contains(content, "广场") || strings.Contains(content, "车站") || strings.Contains(content, "码头") {
 		return "EXT"
 	}
 	return "INT"
@@ -193,7 +203,7 @@ func inferInteriorExterior(content string) string {
 
 func inferTime(content string) string {
 	switch {
-	case strings.Contains(content, "夜"), strings.Contains(content, "凌晨"):
+	case strings.Contains(content, "夜"), strings.Contains(content, "凌晨"), strings.Contains(content, "今晚"), strings.Contains(content, "晚上"):
 		return "NIGHT"
 	case strings.Contains(content, "早"), strings.Contains(content, "清晨"):
 		return "MORNING"
@@ -217,6 +227,35 @@ func extractCJKPhrases(input string) []string {
 		}
 	}
 	return results
+}
+
+func inferLeadingName(content string) string {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return ""
+	}
+
+	runes := []rune(content)
+	if len(runes) < 2 {
+		return ""
+	}
+
+	candidate := string(runes[:2])
+	if containsStopWord(candidate) {
+		return ""
+	}
+
+	return candidate
+}
+
+func containsStopWord(input string) bool {
+	stopWords := []string{"今天", "第二", "第三", "第一", "凌晨", "晚上", "清晨"}
+	for _, stopWord := range stopWords {
+		if input == stopWord {
+			return true
+		}
+	}
+	return false
 }
 
 func chapterContents(chapters []ingest.NormalizedChapter) []string {
