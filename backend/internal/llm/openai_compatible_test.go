@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -47,12 +49,7 @@ func TestOpenAICompatibleGeneratorParsesYAMLResponse(t *testing.T) {
 				t.Fatalf("expected model in request body, got %s", string(body))
 			}
 
-			responseBody := `{"choices":[{"message":{"content":"version: \"1.0\"\nsource:\n  title: \"Night Rain\"\n  author: \"Demo Author\"\n  language: \"zh-CN\"\n  chapter_count: 3\n  chapters:\n    - index: 1\n      title: \"Chapter 1\"\n      summary: \"Summary 1\"\n    - index: 2\n      title: \"Chapter 2\"\n      summary: \"Summary 2\"\n    - index: 3\n      title: \"Chapter 3\"\n      summary: \"Summary 3\"\nadaptation:\n  style: \"Suspense Drama\"\n  audience: \"General\"\n  notes: []\ncharacters:\n  - id: \"char_linqi\"\n    name: \"林琪\"\n    role: \"protagonist\"\n    description: \"Main character\"\nlocations:\n  - id: \"loc_station\"\n    name: \"车站\"\n    description: \"Key location\"\nscenes:\n  - id: \"scene_001\"\n    title: \"Chapter 1\"\n    source_chapters: [1]\n    slugline:\n      interior_exterior: \"INT\"\n      location_id: \"loc_station\"\n      time: \"NIGHT\"\n    summary: \"Scene summary\"\n    objective: \"Objective\"\n    beats:\n      - type: \"action\"\n        content: \"Action beat\"\n    notes:\n      adaptation_reason: \"Reason\"\n      open_questions: []\nvalidation:\n  status: \"passed\"\n  warnings: []"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(responseBody)),
-				Header:     make(http.Header),
-			}, nil
+			return fixtureResponse(t, "canonical_night_rain.yaml"), nil
 		}),
 	}
 
@@ -91,13 +88,7 @@ func TestOpenAICompatibleGeneratorNormalizesVersionAndFences(t *testing.T) {
 	}).(*OpenAICompatibleGenerator)
 	generator.httpClient = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			responseBody := "```yaml\nversion: 1\nsource:\n  title: \"Night Rain\"\n  author: \"Demo Author\"\n  language: \"zh-CN\"\n  chapter_count: 3\n  chapters:\n    - index: 1\n      title: \"Chapter 1\"\n      summary: \"Summary 1\"\n    - index: 2\n      title: \"Chapter 2\"\n      summary: \"Summary 2\"\n    - index: 3\n      title: \"Chapter 3\"\n      summary: \"Summary 3\"\nadaptation:\n  style: \"Suspense Drama\"\n  audience: \"General\"\n  notes: []\ncharacters:\n  - id: \"char_linqi\"\n    name: \"林琪\"\n    role: \"protagonist\"\n    description: \"Main character\"\nlocations:\n  - id: \"loc_station\"\n    name: \"车站\"\n    description: \"Key location\"\nscenes:\n  - id: \"scene_001\"\n    title: \"Chapter 1\"\n    source_chapters: [1]\n    slugline:\n      interior_exterior: \"int\"\n      location_id: \"loc_station\"\n      time: \"night\"\n    summary: \"Scene summary\"\n    objective: \"Objective\"\n    beats:\n      - type: \"action\"\n        content: \"Action beat\"\n    notes:\n      adaptation_reason: \"Reason\"\n      open_questions: []\nvalidation:\n  status: \"\"\n  warnings: []\n```"
-			payload := `{"choices":[{"message":{"content":` + strconv.Quote(responseBody) + `}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(payload)),
-				Header:     make(http.Header),
-			}, nil
+			return fixtureResponse(t, "fenced_version1_night_rain.txt"), nil
 		}),
 	}
 
@@ -139,12 +130,7 @@ func TestOpenAICompatibleGeneratorTransformsLooseDeepSeekSchema(t *testing.T) {
 	}).(*OpenAICompatibleGenerator)
 	generator.httpClient = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			responseBody := `{"choices":[{"message":{"content":"metadata:\n  title: \"夜雨疑云\"\n  author: \"示例作者\"\n  language: zh-CN\n  chapter_count: 3\n  style: 悬疑短剧\n  audience: 大众向\ncharacters:\n  - id: lin_qi\n    name: 林琪\n    description: 女主角，单身女性\nscenes:\n  - index: 1\n    chapter: 1\n    location: 公寓走廊\n    time: 深夜\n    beats:\n      - type: action\n        text: 林琪深夜回到公寓，站在走廊里，发现门锁似乎被人动过。\n      - type: dialogue\n        character_id: lin_qi\n        text: 门锁好像被撬过……\n  - index: 2\n    chapter: 2\n    location: 公寓房间内\n    time: 深夜\n    beats:\n      - type: action\n        text: 林琪在房间里找到一张陌生字条，上面写着今晚别睡。\n      - type: dialogue\n        character_id: lin_qi\n        text: 今晚别睡？有人进来过……\n  - index: 3\n    chapter: 3\n    location: 车站\n    time: 清晨\n    beats:\n      - type: action\n        text: 第二天清晨，林琪带着字条前往车站。\n      - type: dialogue\n        character_id: lin_qi\n        text: 我一定要查出是谁写的这封信。\n"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(responseBody)),
-				Header:     make(http.Header),
-			}, nil
+			return fixtureResponse(t, "loose_deepseek_schema.yaml"), nil
 		}),
 	}
 
@@ -192,12 +178,7 @@ func TestOpenAICompatibleGeneratorBackfillsMissingLooseSceneFields(t *testing.T)
 	}).(*OpenAICompatibleGenerator)
 	generator.httpClient = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			responseBody := `{"choices":[{"message":{"content":"metadata:\n  title: \"夜雨疑云\"\nscenes:\n  - index: 1\n    chapter: 1\n    beats:\n      - type: action\n        text: 林琪深夜回到公寓，发现门锁似乎被人动过。\n  - index: 2\n    chapter: 2\n    beats:\n      - type: action\n        text: 她在房间里找到一张陌生字条，怀疑有人潜入。\n  - index: 3\n    chapter: 3\n    beats:\n      - type: action\n        text: 第二天清晨，她决定顺着线索前往车站。\n"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(responseBody)),
-				Header:     make(http.Header),
-			}, nil
+			return fixtureResponse(t, "loose_missing_scene_fields.yaml"), nil
 		}),
 	}
 
@@ -227,6 +208,65 @@ func TestOpenAICompatibleGeneratorBackfillsMissingLooseSceneFields(t *testing.T)
 	if result.Document.Locations[0].Name != "公寓" {
 		t.Fatalf("expected planned location name 公寓, got %s", result.Document.Locations[0].Name)
 	}
+}
+
+func TestOpenAICompatibleGeneratorRejectsLooseSchemaWithoutScenes(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return fixtureResponse(t, "invalid_no_scenes.yaml"), nil
+		}),
+	}
+
+	_, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_invalid_loose",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err == nil {
+		t.Fatal("expected parse error")
+	}
+	if !strings.Contains(err.Error(), "no scenes found in loose yaml") {
+		t.Fatalf("expected no scenes error, got %v", err)
+	}
+}
+
+func fixtureResponse(t *testing.T, name string) *http.Response {
+	t.Helper()
+
+	content := providerFixture(t, name)
+	payload := `{"choices":[{"message":{"content":` + strconv.Quote(content) + `}}]}`
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(payload)),
+		Header:     make(http.Header),
+	}
+}
+
+func providerFixture(t *testing.T, name string) string {
+	t.Helper()
+
+	path := filepath.Join("..", "..", "..", "testdata", "provider-fixtures", "openai-compatible", name)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read provider fixture %s: %v", name, err)
+	}
+	return string(data)
 }
 
 func validOpenAICompatibleCreateJobRequest() job.CreateJobRequest {

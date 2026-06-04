@@ -1,0 +1,48 @@
+version: "1.0"
+source:
+  title: "Night Rain"
+  author: "Demo Author"
+  language: "zh-CN"
+  chapter_count: 3
+  chapters:
+    - index: 1
+      title: "Chapter 1"
+      summary: "Summary 1"
+    - index: 2
+      title: "Chapter 2"
+      summary: "Summary 2"
+    - index: 3
+      title: "Chapter 3"
+      summary: "Summary 3"
+adaptation:
+  style: "Suspense Drama"
+  audience: "General"
+  notes: []
+characters:
+  - id: "char_linqi"
+    name: "林琪"
+    role: "protagonist"
+    description: "Main character"
+locations:
+  - id: "loc_station"
+    name: "车站"
+    description: "Key location"
+scenes:
+  - id: "scene_001"
+    title: "Chapter 1"
+    source_chapters: [1]
+    slugline:
+      interior_exterior: "INT"
+      location_id: "loc_station"
+      time: "NIGHT"
+    summary: "Scene summary"
+    objective: "Objective"
+    beats:
+      - type: "action"
+        content: "Action beat"
+    notes:
+      adaptation_reason: "Reason"
+      open_questions: []
+validation:
+  status: "passed"
+  warnings: []

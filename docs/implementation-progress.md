@@ -38,6 +38,7 @@
 - 当真实 provider 省略地点、时间或对话信息时，后端会回退到既有 scene plan，补全 slugline 与关键 dialogue beat
 - `generation.mode=llm` 现在会为每个 job 额外落盘 `provider_debug.json`，保存 provider、model、parse mode 与原始返回内容，便于 demo 前排查兼容问题
 - repo-root `.env.local.example` 已补齐，可作为人类与 agent session 的统一 provider 配置模板
+- `openai_compatible` 已补入 fixture 驱动的回归集，覆盖 canonical、fenced、loose schema、缺字段回填与无 scenes 失败场景
 - deterministic workflow 规则已补强为中文目标、对话、开放问题生成
 - deterministic workflow 单测与 fixture 回归测试
 
@@ -76,8 +77,8 @@
 ## 下一步优先级
 
 优先级 1：
-- 扩展真实 provider loose YAML 变体的回归测试与 fixture
 - 固化 demo 演示路径、README 运行说明和评审入口
+- 扩展真实 provider loose YAML 变体的回归测试与 fixture
 
 优先级 2：
 - 扩展 deterministic 与 llm 的 fixture 覆盖面
