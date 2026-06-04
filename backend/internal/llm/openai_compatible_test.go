@@ -176,6 +176,59 @@ func TestOpenAICompatibleGeneratorTransformsLooseDeepSeekSchema(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatibleGeneratorBackfillsMissingLooseSceneFields(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			responseBody := `{"choices":[{"message":{"content":"metadata:\n  title: \"夜雨疑云\"\nscenes:\n  - index: 1\n    chapter: 1\n    beats:\n      - type: action\n        text: 林琪深夜回到公寓，发现门锁似乎被人动过。\n  - index: 2\n    chapter: 2\n    beats:\n      - type: action\n        text: 她在房间里找到一张陌生字条，怀疑有人潜入。\n  - index: 3\n    chapter: 3\n    beats:\n      - type: action\n        text: 第二天清晨，她决定顺着线索前往车站。\n"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(responseBody)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	result, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_loose_backfill",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		t.Fatalf("unexpected generator error: %v", err)
+	}
+	if result.Document.Scenes[0].Slugline.LocationID != "loc_chapter_01" {
+		t.Fatalf("expected fallback planned location id loc_chapter_01, got %s", result.Document.Scenes[0].Slugline.LocationID)
+	}
+	if result.Document.Scenes[0].Slugline.Time != "NIGHT" {
+		t.Fatalf("expected fallback planned time NIGHT, got %s", result.Document.Scenes[0].Slugline.Time)
+	}
+	if result.Document.Scenes[2].Slugline.InteriorExterior != "EXT" {
+		t.Fatalf("expected third scene ext from planned slugline, got %s", result.Document.Scenes[2].Slugline.InteriorExterior)
+	}
+	if len(result.Document.Scenes[1].Beats) < 2 || result.Document.Scenes[1].Beats[1].Type != "dialogue" {
+		t.Fatalf("expected planned dialogue backfill, got %#v", result.Document.Scenes[1].Beats)
+	}
+	if result.Document.Locations[0].Name != "公寓" {
+		t.Fatalf("expected planned location name 公寓, got %s", result.Document.Locations[0].Name)
+	}
+}
+
 func validOpenAICompatibleCreateJobRequest() job.CreateJobRequest {
 	var req job.CreateJobRequest
 	req.Source.Title = "Night Rain"

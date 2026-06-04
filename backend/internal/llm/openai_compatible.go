@@ -149,14 +149,26 @@ func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, e
 			{
 				Role: "system",
 				Content: "You adapt Chinese novels into structured screenplay YAML. " +
-					"Return only valid YAML that matches the required screenplay schema. " +
+					"Return only valid YAML that matches this exact root schema: version, source, adaptation, characters, locations, scenes, validation. " +
+					"Do not invent alternative top-level keys such as metadata. " +
+					"Every scene must include slugline.interior_exterior, slugline.location_id, slugline.time, summary, objective, beats, and notes.open_questions. " +
+					"All scenes must reference a valid location_id declared in locations. " +
+					"Use Chinese content values where appropriate, but keep schema keys exactly as requested. " +
 					"Do not include markdown fences or explanations.",
 			},
 			{
 				Role: "user",
 				Content: "Generate a screenplay YAML document from this structured context:\n" +
 					string(contextJSON) +
-					"\nEnsure source.chapter_count matches the input, every scene references valid chapter indexes, and dialogue beats reference valid character_id values.",
+					"\nFollow this skeleton exactly:\n" +
+					"version: \"1.0\"\n" +
+					"source:\n  title: ...\n  author: ...\n  language: zh-CN\n  chapter_count: ...\n  chapters:\n    - index: 1\n      title: ...\n      summary: ...\n" +
+					"adaptation:\n  style: ...\n  audience: ...\n  notes: []\n" +
+					"characters:\n  - id: char_xxx\n    name: ...\n    role: protagonist\n    description: ...\n" +
+					"locations:\n  - id: loc_xxx\n    name: ...\n    description: ...\n" +
+					"scenes:\n  - id: scene_001\n    title: ...\n    source_chapters: [1]\n    slugline:\n      interior_exterior: INT\n      location_id: loc_xxx\n      time: NIGHT\n    summary: ...\n    objective: ...\n    beats:\n      - type: action\n        content: ...\n      - type: dialogue\n        character_id: char_xxx\n        content: ...\n        emotion: tense\n    notes:\n      adaptation_reason: ...\n      open_questions:\n        - ...\n" +
+					"validation:\n  status: passed\n  warnings: []\n" +
+					"Ensure source.chapter_count matches the input, every scene references valid chapter indexes, and dialogue beats reference valid character_id values.",
 			},
 		},
 	}
@@ -287,19 +299,29 @@ func parseLooseDocument(yamlText string, req GenerateRequest) (screenplay.Docume
 	scenes := make([]screenplay.Scene, 0, len(loose.Scenes))
 
 	for idx, looseScene := range loose.Scenes {
+		plannedScene, hasPlannedScene := lookupPlannedScene(req, looseScene.Chapter, idx)
+		plannedLocation, hasPlannedLocation := lookupPlannedLocation(req, looseScene.Chapter, idx)
 		locationName := strings.TrimSpace(looseScene.Location)
+		if locationName == "" && hasPlannedLocation {
+			locationName = plannedLocation.Name
+		}
 		if locationName == "" {
 			locationName = fmt.Sprintf("Scene %d Location", idx+1)
 		}
+
 		locationID, ok := locationIDs[locationName]
 		if !ok {
-			locationID = "loc_" + looseSlug(locationName)
-			locationIDs[locationName] = locationID
-			locations = append(locations, screenplay.Location{
-				ID:          locationID,
+			location := screenplay.Location{
+				ID:          "loc_" + looseSlug(locationName),
 				Name:        locationName,
 				Description: "Location normalized from openai-compatible provider output.",
-			})
+			}
+			if hasPlannedLocation && (strings.TrimSpace(looseScene.Location) == "" || locationName == plannedLocation.Name) {
+				location = plannedLocation
+			}
+			locationID = location.ID
+			locationIDs[locationName] = locationID
+			locations = append(locations, location)
 		}
 
 		chapterIndex := looseScene.Chapter
@@ -315,12 +337,10 @@ func parseLooseDocument(yamlText string, req GenerateRequest) (screenplay.Docume
 			if content == "" {
 				continue
 			}
-			characterID := strings.TrimSpace(beat.CharacterID)
-			if beat.Type == "dialogue" && characterID == "" && len(characters) > 0 {
-				characterID = characters[0].ID
-			}
+			beatType := normalizeLooseBeatType(beat.Type)
+			characterID := normalizeLooseCharacterID(strings.TrimSpace(beat.CharacterID), beatType, characters)
 			beats = append(beats, screenplay.Beat{
-				Type:        strings.TrimSpace(beat.Type),
+				Type:        beatType,
 				CharacterID: characterID,
 				Content:     content,
 				Emotion:     inferLooseEmotion(content),
@@ -329,6 +349,18 @@ func parseLooseDocument(yamlText string, req GenerateRequest) (screenplay.Docume
 		if len(beats) == 0 {
 			beats = append(beats, screenplay.Beat{Type: "action", Content: summary})
 		}
+		if hasPlannedScene {
+			beats = ensureDialogueBeat(beats, plannedScene)
+		}
+
+		interiorExterior := inferLooseInteriorExterior(locationName)
+		if strings.TrimSpace(looseScene.Location) == "" && hasPlannedScene {
+			interiorExterior = plannedScene.Slugline.InteriorExterior
+		}
+		timeValue := normalizeLooseTime(looseScene.Time)
+		if strings.TrimSpace(looseScene.Time) == "" && hasPlannedScene {
+			timeValue = plannedScene.Slugline.Time
+		}
 
 		sceneID := fmt.Sprintf("scene_%03d", idx+1)
 		scene := screenplay.Scene{
@@ -336,9 +368,9 @@ func parseLooseDocument(yamlText string, req GenerateRequest) (screenplay.Docume
 			Title:          title,
 			SourceChapters: []int{chapterIndex},
 			Slugline: screenplay.Slugline{
-				InteriorExterior: inferLooseInteriorExterior(locationName),
+				InteriorExterior: interiorExterior,
 				LocationID:       locationID,
-				Time:             normalizeLooseTime(looseScene.Time),
+				Time:             timeValue,
 			},
 			Summary:   summary,
 			Objective: lookupPlannedObjective(req, chapterIndex, idx),
@@ -449,6 +481,74 @@ func lookupPlannedOpenQuestions(req GenerateRequest, chapterIndex, fallbackIndex
 		return req.Plan.Scenes[fallbackIndex].Notes.OpenQuestions
 	}
 	return []string{}
+}
+
+func lookupPlannedScene(req GenerateRequest, chapterIndex, fallbackIndex int) (screenplay.Scene, bool) {
+	for _, scene := range req.Plan.Scenes {
+		if len(scene.SourceChapters) > 0 && scene.SourceChapters[0] == chapterIndex {
+			return scene, true
+		}
+	}
+	if fallbackIndex < len(req.Plan.Scenes) {
+		return req.Plan.Scenes[fallbackIndex], true
+	}
+	return screenplay.Scene{}, false
+}
+
+func lookupPlannedLocation(req GenerateRequest, chapterIndex, fallbackIndex int) (screenplay.Location, bool) {
+	scene, ok := lookupPlannedScene(req, chapterIndex, fallbackIndex)
+	if !ok {
+		return screenplay.Location{}, false
+	}
+	for _, location := range req.Entities.Locations {
+		if location.ID == scene.Slugline.LocationID {
+			return location, true
+		}
+	}
+	if fallbackIndex < len(req.Entities.Locations) {
+		return req.Entities.Locations[fallbackIndex], true
+	}
+	return screenplay.Location{}, false
+}
+
+func normalizeLooseBeatType(input string) string {
+	switch strings.TrimSpace(strings.ToLower(input)) {
+	case "dialogue":
+		return "dialogue"
+	default:
+		return "action"
+	}
+}
+
+func normalizeLooseCharacterID(input, beatType string, characters []screenplay.Character) string {
+	if beatType != "dialogue" {
+		return ""
+	}
+	if input != "" {
+		for _, character := range characters {
+			if character.ID == input {
+				return input
+			}
+		}
+	}
+	if len(characters) > 0 {
+		return characters[0].ID
+	}
+	return ""
+}
+
+func ensureDialogueBeat(beats []screenplay.Beat, plannedScene screenplay.Scene) []screenplay.Beat {
+	for _, beat := range beats {
+		if beat.Type == "dialogue" && strings.TrimSpace(beat.Content) != "" {
+			return beats
+		}
+	}
+	for _, beat := range plannedScene.Beats {
+		if beat.Type == "dialogue" && strings.TrimSpace(beat.Content) != "" {
+			return append(beats, beat)
+		}
+	}
+	return beats
 }
 
 func inferLooseInteriorExterior(locationName string) string {
