@@ -60,8 +60,8 @@ Local secret handling:
 - `openai_compatible` has been validated with DeepSeek using `deepseek-v4-flash` as the current low-cost chain-test model
 
 Current backend focus:
-- harden real-provider prompt fidelity so normalized scenes preserve better location, time, and dialogue details
 - extend regression coverage for real-world loose YAML variants returned by `openai_compatible` providers
+- decide whether to persist provider raw-response snapshots for faster demo-time compatibility debugging
 
 Backend self-check:
 ```bash

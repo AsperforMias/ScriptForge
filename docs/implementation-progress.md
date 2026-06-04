@@ -35,6 +35,7 @@
 - `generation.mode=llm` 已接入 provider abstraction，并支持 `mock` 本地链路验证
 - vendor-neutral `openai_compatible` adapter 已就位，并已完成 DeepSeek-compatible `/chat/completions` 真实外部调用验证
 - 真实 provider 的 loose YAML 已可归一化为项目 canonical screenplay schema，并通过 `/result` 与 `/export` 链路返回
+- 当真实 provider 省略地点、时间或对话信息时，后端会回退到既有 scene plan，补全 slugline 与关键 dialogue beat
 - deterministic workflow 规则已补强为中文目标、对话、开放问题生成
 - deterministic workflow 单测与 fixture 回归测试
 
@@ -73,8 +74,8 @@
 ## 下一步优先级
 
 优先级 1：
-- 补强 `openai_compatible` prompt 与归一化策略，减少真实 provider 输出退化为保守占位信息的情况
 - 扩展真实 provider loose YAML 变体的回归测试与 fixture
+- 评估是否需要再补一层 provider 原始响应快照，便于 demo 前定位兼容性问题
 - 固化 demo 演示路径、README 运行说明和评审入口
 
 优先级 2：
