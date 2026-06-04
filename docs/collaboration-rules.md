@@ -32,6 +32,7 @@
 
 共享协议与架构约束优先参考：
 - [`decision-log.md`](/Users/asperformias/Code/github/ScriptForge/docs/decision-log.md)
+- [`backend-tech-stack.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-tech-stack.md)
 - [`api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md)
 - [`backend-pipeline.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-pipeline.md)
 

@@ -50,6 +50,8 @@ backend/
   pkg/                      stable shared helpers only if needed
 ```
 
+具体库、配置项、SQLite schema、artifact 目录和测试约束以 [`backend-tech-stack.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-tech-stack.md) 为准。
+
 ## Go 中间件栈
 
 首版必须具备的中间件：

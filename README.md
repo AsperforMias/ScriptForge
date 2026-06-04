@@ -8,12 +8,13 @@ Read in this order before making changes:
 1. [`docs/final-solution.md`](/Users/asperformias/Code/github/ScriptForge/docs/final-solution.md)
 2. [`docs/implementation-progress.md`](/Users/asperformias/Code/github/ScriptForge/docs/implementation-progress.md)
 3. [`docs/backend-architecture.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-architecture.md)
-4. [`docs/api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md)
-5. [`docs/backend-pipeline.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-pipeline.md)
-6. [`docs/frontend.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend.md)
-7. [`docs/yaml-schema.md`](/Users/asperformias/Code/github/ScriptForge/docs/yaml-schema.md)
-8. [`docs/architecture-self-check.md`](/Users/asperformias/Code/github/ScriptForge/docs/architecture-self-check.md)
-9. [`docs/collaboration-rules.md`](/Users/asperformias/Code/github/ScriptForge/docs/collaboration-rules.md)
+4. [`docs/backend-tech-stack.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-tech-stack.md)
+5. [`docs/api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md)
+6. [`docs/backend-pipeline.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-pipeline.md)
+7. [`docs/frontend.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend.md)
+8. [`docs/yaml-schema.md`](/Users/asperformias/Code/github/ScriptForge/docs/yaml-schema.md)
+9. [`docs/architecture-self-check.md`](/Users/asperformias/Code/github/ScriptForge/docs/architecture-self-check.md)
+10. [`docs/collaboration-rules.md`](/Users/asperformias/Code/github/ScriptForge/docs/collaboration-rules.md)
 
 Current state:
 - Documentation baseline: ready and executable

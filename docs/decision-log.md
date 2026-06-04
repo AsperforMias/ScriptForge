@@ -89,21 +89,27 @@
 - 决策：前端对接任务化接口，不以同步 `generate` 接口为正式协议
 - 原因：更符合“查看进度、获取结果、导出 YAML”的产品路径
 
+### D-011 后端主库与实现约束
+
+- 状态：`locked`
+- 决策：后端库选型、配置项、SQLite schema、artifact 目录、错误映射、测试矩阵以 `backend-tech-stack.md` 为准
+- 原因：避免不同 human/agent session 在实现时各自重选主库或重写落地规则
+
 ## Deferred
 
-### D-011 模型供应商
+### D-012 模型供应商
 
 - 状态：`deferred`
 - 决策：保持接口抽象，待接入阶段再定具体供应商
 - 约束：在确定前，不得让主链路依赖某一云厂商 SDK
 
-### D-012 前端框架
+### D-013 前端框架
 
 - 状态：`deferred`
 - 决策：由前端 teammate 主导选择
 - 约束：只要满足 `frontend.md` 和 `api-contract.md`，框架不是当前 blocker
 
-### D-013 公网部署
+### D-014 公网部署
 
 - 状态：`deferred`
 - 决策：优先保证本地演示，公网部署作为加分项而非首个 blocker

@@ -7,14 +7,15 @@ Recommended read order:
 2. [`implementation-progress.md`](/Users/asperformias/Code/github/ScriptForge/docs/implementation-progress.md): current delivery status, remaining work, next priorities
 3. [`decision-log.md`](/Users/asperformias/Code/github/ScriptForge/docs/decision-log.md): locked decisions, deferred decisions, and rationale
 4. [`backend-architecture.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-architecture.md): Go service structure, middleware stack, storage choices, and competitive backend shape
-5. [`api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md): required request and response shapes
-6. [`backend-pipeline.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-pipeline.md): stage-by-stage execution contract for the generation pipeline
-7. [`frontend.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend.md): frontend feature contract, user paths, interaction boundaries
-8. [`yaml-schema.md`](/Users/asperformias/Code/github/ScriptForge/docs/yaml-schema.md): screenplay YAML schema and design rationale
-9. [`milestones.md`](/Users/asperformias/Code/github/ScriptForge/docs/milestones.md): definition of done per phase and suggested PR breakdown
-10. [`competition-brief.md`](/Users/asperformias/Code/github/ScriptForge/docs/competition-brief.md): filtered contest requirements and judging implications
-11. [`architecture-self-check.md`](/Users/asperformias/Code/github/ScriptForge/docs/architecture-self-check.md): alignment audit against the prompt and judging criteria
-12. [`collaboration-rules.md`](/Users/asperformias/Code/github/ScriptForge/docs/collaboration-rules.md): PR, commit, branch, pairing, and agent operating rules
+5. [`backend-tech-stack.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-tech-stack.md): concrete library choices, config, SQLite schema, artifact layout, and testing rules
+6. [`api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md): required request and response shapes
+7. [`backend-pipeline.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-pipeline.md): stage-by-stage execution contract for the generation pipeline
+8. [`frontend.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend.md): frontend feature contract, user paths, interaction boundaries
+9. [`yaml-schema.md`](/Users/asperformias/Code/github/ScriptForge/docs/yaml-schema.md): screenplay YAML schema and design rationale
+10. [`milestones.md`](/Users/asperformias/Code/github/ScriptForge/docs/milestones.md): definition of done per phase and suggested PR breakdown
+11. [`competition-brief.md`](/Users/asperformias/Code/github/ScriptForge/docs/competition-brief.md): filtered contest requirements and judging implications
+12. [`architecture-self-check.md`](/Users/asperformias/Code/github/ScriptForge/docs/architecture-self-check.md): alignment audit against the prompt and judging criteria
+13. [`collaboration-rules.md`](/Users/asperformias/Code/github/ScriptForge/docs/collaboration-rules.md): PR, commit, branch, pairing, and agent operating rules
 
 Current runnable ability:
 - No application service is intentionally started in this initialization session.
@@ -30,7 +31,7 @@ Self-check entry before coding:
 1. Confirm your planned change is in scope according to `final-solution.md`.
 2. Confirm the status in `implementation-progress.md` is still accurate; update it if you change delivery state.
 3. Confirm the relevant decision is already locked in `decision-log.md`; if not, add it before broad implementation.
-4. Confirm API or pipeline changes match `api-contract.md` and `backend-pipeline.md`.
+4. Confirm API, pipeline, and tech-stack changes match `api-contract.md`, `backend-pipeline.md`, and `backend-tech-stack.md`.
 5. Confirm your change is a single-purpose PR according to `collaboration-rules.md`.
 6. If the change affects screenplay output, validate against `yaml-schema.md`.
 

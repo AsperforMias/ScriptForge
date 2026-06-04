@@ -5,7 +5,7 @@
 当前文档化后的最终架构与赛题要求是对齐的，并且在 72h 项目这个上下文里，后端竞争力足够强，尤其体现在 Go 服务工程化和中间件设计上。
 
 结论前提：
-- 后续实现必须遵守 `backend-architecture.md`、`api-contract.md`、`backend-pipeline.md`
+- 后续实现必须遵守 `backend-architecture.md`、`backend-tech-stack.md`、`api-contract.md`、`backend-pipeline.md`
 - 不退化为单接口同步黑盒生成器
 
 ## 对题目要求的逐项核对
