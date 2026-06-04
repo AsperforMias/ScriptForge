@@ -30,7 +30,8 @@ func AsAppError(err error, target *AppError) bool {
 }
 
 var (
-	ErrInvalidInput = NewAppError("invalid_input", "invalid input", nil)
-	ErrJobNotFound  = NewAppError("job_not_found", "job not found", nil)
-	ErrJobNotReady  = NewAppError("job_not_ready", "job result is not ready", nil)
+	ErrInvalidInput     = NewAppError("invalid_input", "invalid input", nil)
+	ErrJobNotFound      = NewAppError("job_not_found", "job not found", nil)
+	ErrJobNotReady      = NewAppError("job_not_ready", "job result is not ready", nil)
+	ErrGenerationFailed = NewAppError("generation_failed", "job generation failed", nil)
 )
