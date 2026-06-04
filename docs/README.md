@@ -27,6 +27,7 @@ Startup and deployment:
 - Primary demo target is a locally runnable web app with separate `backend/` and `frontend/` modules.
 - Public deployment is optional; reproducible local startup matters more for the first MVP.
 - For any real-provider run, start from repo-root `.env.local.example`, copy it to `.env.local`, fill credentials, then `set -a && source .env.local && set +a`.
+- Preferred smoke-check entry is `scripts/run_backend_smoke.sh`, which can verify both `deterministic` and `llm` job paths without manual curl steps.
 
 Self-check entry before coding:
 1. Confirm your planned change is in scope according to `final-solution.md`.
