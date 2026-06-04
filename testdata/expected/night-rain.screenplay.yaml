@@ -24,7 +24,7 @@ characters:
     - id: char_林琪
       name: 林琪
       role: protagonist
-      description: Primary viewpoint character inferred from the source input.
+      description: 从章节行动线中推断出的主视角人物，负责把发现转化为调查行动。
 locations:
     - id: loc_chapter_01
       name: 公寓
@@ -45,16 +45,18 @@ scenes:
         location_id: loc_chapter_01
         time: NIGHT
       summary: 林琪深夜回到公寓，发现门锁似乎被人动过。她停在走廊里，不确定是否应该立刻进去。
-      objective: Adapt chapter 1 into a filmable dramatic beat.
+      objective: 确认房间是否已经失守，并决定主角该撤离还是进入现场。
       beats:
         - type: action
           content: 林琪深夜回到公寓，发现门锁似乎被人动过。她停在走廊里，不确定是否应该立刻进去。
         - type: dialogue
           character_id: char_林琪
-          content: Something here does not add up.
-          emotion: focused
+          content: 门锁被动过，屋里也许还有人。
+          emotion: tense
       notes:
-        adaptation_reason: Convert chapter-level prose into one traceable scene with clear visual action.
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 是谁在主角回家前动过门锁？
     - id: scene_002
       title: 第二章 陌生字条
       source_chapters:
@@ -64,16 +66,18 @@ scenes:
         location_id: loc_chapter_02
         time: NIGHT
       summary: 她在房间里找到一张陌生字条，上面只写着今晚别睡。林琪意识到有人提前进入过房间。
-      objective: Adapt chapter 2 into a filmable dramatic beat.
+      objective: 弄清匿名警告的可信度，并把威胁来源从猜测推进到具体目标。
       beats:
         - type: action
           content: 她在房间里找到一张陌生字条，上面只写着今晚别睡。林琪意识到有人提前进入过房间。
         - type: dialogue
           character_id: char_林琪
-          content: Something here does not add up.
-          emotion: focused
+          content: 这张字条不是恶作剧，对方知道我今晚会回来。
+          emotion: tense
       notes:
-        adaptation_reason: Convert chapter-level prose into one traceable scene with clear visual action.
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 留下字条的人为什么知道主角的作息？
     - id: scene_003
       title: 第三章 清晨追踪
       source_chapters:
@@ -83,16 +87,18 @@ scenes:
         location_id: loc_chapter_03
         time: MORNING
       summary: 第二天清晨，林琪带着字条前往车站，试图顺着纸上的线索找到寄信人。
-      objective: Adapt chapter 3 into a filmable dramatic beat.
+      objective: 顺着已有线索主动追查寄信人，让故事从受威胁转向反向调查。
       beats:
         - type: action
           content: 第二天清晨，林琪带着字条前往车站，试图顺着纸上的线索找到寄信人。
         - type: dialogue
           character_id: char_林琪
-          content: Something here does not add up.
-          emotion: focused
+          content: 线索既然指向车站，我就不能再等了。
+          emotion: determined
       notes:
-        adaptation_reason: Convert chapter-level prose into one traceable scene with clear visual action.
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 车站线索会把主角引向谁？
 validation:
     status: passed
     warnings: []

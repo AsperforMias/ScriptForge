@@ -23,7 +23,7 @@ import (
 )
 
 func TestRouterJobLifecycleWithFixtures(t *testing.T) {
-	router, repo := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
+	router, repo, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
 
 	requestBody, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "novels", "night-rain-request.json"))
 	if err != nil {
@@ -126,7 +126,7 @@ func TestRouterJobLifecycleWithFixtures(t *testing.T) {
 }
 
 func TestRouterRejectsInvalidChapterCount(t *testing.T) {
-	router, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
+	router, _, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
 
 	body := []byte(`{"source":{"title":"Broken","chapters":[{"index":1,"title":"One","content":"A"},{"index":2,"title":"Two","content":"B"}]},"adaptation":{"style":"Suspense"},"generation":{"mode":"deterministic"}}`)
 	resp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(body))
@@ -150,7 +150,7 @@ func TestRouterRejectsInvalidChapterCount(t *testing.T) {
 
 func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 	runner := &blockingRunner{release: make(chan struct{})}
-	router, _ := newTestHarness(t, runner)
+	router, _, _ := newTestHarness(t, runner)
 	defer close(runner.release)
 
 	requestBody, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "novels", "night-rain-request.json"))
@@ -215,7 +215,7 @@ func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 }
 
 func TestRouterReturnsGenerationFailedForFailedJobResult(t *testing.T) {
-	router, repo := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
+	router, repo, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
 
 	record := job.Job{
 		ID:              "job_failed_http",
@@ -295,47 +295,58 @@ func TestRouterReturnsGenerationFailedForFailedJobResult(t *testing.T) {
 	}
 }
 
-func TestRouterSupportsMockLLMJobLifecycle(t *testing.T) {
-	router, repo := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewMockGenerator()))
+func TestRouterReturnsWarningsForMockLLMResult(t *testing.T) {
+	router, repo, artifactDir := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewMockGenerator()))
 
-	requestBody := []byte(`{"source":{"title":"Night Rain","author":"Demo Author","chapters":[{"index":1,"title":"Chapter 1","content":"林琪深夜回到公寓，发现门锁似乎被动过。"},{"index":2,"title":"Chapter 2","content":"她在房间里找到一张陌生字条，怀疑有人潜入。"},{"index":3,"title":"Chapter 3","content":"第二天清晨，她决定顺着线索前往车站。"}]},"adaptation":{"style":"Suspense Drama","audience":"General","notes":["Keep a strong hook in each scene"]},"generation":{"mode":"llm"}}`)
-
-	createResp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(requestBody))
-	if createResp.Code != http.StatusAccepted {
-		t.Fatalf("expected 202, got %d", createResp.Code)
+	request := validMockLLMCreateJobRequest()
+	mockArtifacts := artifact.New(filepath.Join(t.TempDir(), "mock-provider"))
+	runner := pipeline.NewRunner(mockArtifacts, llm.NewMockGenerator())
+	runResult, err := runner.Run(context.Background(), "job_llm_seed", request)
+	if err != nil {
+		t.Fatalf("run mock llm pipeline: %v", err)
 	}
 
-	var createEnvelope struct {
-		Data struct {
-			Job struct {
-				ID string `json:"id"`
-			} `json:"job"`
-		} `json:"data"`
-	}
-	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
-		t.Fatalf("decode create response: %v", err)
+	jobArtifactStore := artifact.New(artifactDir)
+	yamlPath, err := jobArtifactStore.WriteYAML("job_llm_seed", runResult.YAMLText)
+	if err != nil {
+		t.Fatalf("write seeded yaml artifact: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	for {
-		record, err := repo.GetJob(ctx, createEnvelope.Data.Job.ID)
-		if err == nil && record.Status == "succeeded" {
-			break
-		}
-		if err == nil && record.Status == "failed" {
-			t.Fatalf("llm mock job failed unexpectedly: %s", record.ErrorMessage)
-		}
-
-		select {
-		case <-ctx.Done():
-			t.Fatal("mock llm job did not succeed before timeout")
-		case <-time.After(50 * time.Millisecond):
-		}
+	record := job.Job{
+		ID:                "job_llm_seed",
+		Status:            "succeeded",
+		CurrentStage:      "persistence",
+		ProgressPercent:   100,
+		SourceTitle:       request.Source.Title,
+		GenerationMode:    "llm",
+		Warnings:          runResult.Warnings,
+		InputSnapshotPath: runResult.InputSnapshotPath,
+		ResultYAMLPath:    yamlPath,
+		CreatedAt:         "2026-06-05T00:00:00Z",
+		UpdatedAt:         "2026-06-05T00:00:10Z",
+	}
+	stages := []job.Stage{
+		{Name: "ingest", Status: "succeeded"},
+		{Name: "outline", Status: "succeeded"},
+		{Name: "entities", Status: "succeeded"},
+		{Name: "scene_planning", Status: "succeeded"},
+		{Name: "screenplay_generation", Status: "succeeded"},
+		{Name: "validation", Status: "succeeded"},
+		{Name: "persistence", Status: "succeeded"},
+	}
+	if err := repo.CreateJob(context.Background(), record, stages); err != nil {
+		t.Fatalf("seed llm job: %v", err)
+	}
+	if err := repo.SaveArtifact(context.Background(), job.Artifact{
+		JobID:         record.ID,
+		YAMLPath:      yamlPath,
+		YAMLSizeBytes: len(runResult.YAMLText),
+		CreatedAt:     "2026-06-05T00:00:10Z",
+	}); err != nil {
+		t.Fatalf("seed llm artifact: %v", err)
 	}
 
-	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+createEnvelope.Data.Job.ID+"/result", nil)
+	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+record.ID+"/result", nil)
 	if resultResp.Code != http.StatusOK {
 		t.Fatalf("expected 200 result status, got %d", resultResp.Code)
 	}
@@ -357,7 +368,7 @@ func TestRouterSupportsMockLLMJobLifecycle(t *testing.T) {
 	}
 }
 
-func newTestHarness(t *testing.T, runner job.Runner) (http.Handler, *sqlite.Store) {
+func newTestHarness(t *testing.T, runner job.Runner) (http.Handler, *sqlite.Store, string) {
 	t.Helper()
 
 	tmpDir := t.TempDir()
@@ -380,7 +391,7 @@ func newTestHarness(t *testing.T, runner job.Runner) (http.Handler, *sqlite.Stor
 		_ = repo.Close()
 	})
 
-	return router, repo
+	return router, repo, artifactDir
 }
 
 type blockingRunner struct {
@@ -410,4 +421,20 @@ func performRequestRecorder(router http.Handler, req *http.Request) *httptest.Re
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 	return recorder
+}
+
+func validMockLLMCreateJobRequest() job.CreateJobRequest {
+	var req job.CreateJobRequest
+	req.Source.Title = "Night Rain"
+	req.Source.Author = "Demo Author"
+	req.Adaptation.Style = "Suspense Drama"
+	req.Adaptation.Audience = "General"
+	req.Adaptation.Notes = []string{"Keep a strong hook in each scene"}
+	req.Generation.Mode = "llm"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "Chapter 1", Content: "林琪深夜回到公寓，发现门锁似乎被动过。"},
+		{Index: 2, Title: "Chapter 2", Content: "她在房间里找到一张陌生字条，怀疑有人潜入。"},
+		{Index: 3, Title: "Chapter 3", Content: "第二天清晨，她决定顺着线索前往车站。"},
+	}
+	return req
 }

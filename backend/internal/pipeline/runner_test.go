@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
@@ -37,6 +38,27 @@ func TestRunnerRunProducesArtifactsAndYAML(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(tmpDir, "job_test_runner", "normalized_source.json")); err != nil {
 		t.Fatalf("expected normalized source artifact: %v", err)
+	}
+}
+
+func TestRunnerRunMatchesDeterministicFixture(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := artifact.New(tmpDir)
+	runner := NewRunner(store, llm.NewUnavailableGenerator("deterministic mode does not use llm"))
+
+	req := fixtureCreateJobRequest()
+	result, err := runner.Run(context.Background(), "job_fixture_runner", req)
+	if err != nil {
+		t.Fatalf("unexpected run error: %v", err)
+	}
+
+	expectedYAML, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "expected", "night-rain.screenplay.yaml"))
+	if err != nil {
+		t.Fatalf("read expected fixture: %v", err)
+	}
+
+	if strings.TrimSpace(result.YAMLText) != strings.TrimSpace(string(expectedYAML)) {
+		t.Fatalf("unexpected yaml output\nexpected:\n%s\n\ngot:\n%s", string(expectedYAML), result.YAMLText)
 	}
 }
 
@@ -89,6 +111,22 @@ func validCreateJobRequest() job.CreateJobRequest {
 		{Index: 1, Title: "Chapter 1", Content: "林琪深夜回到公寓，发现门锁似乎被动过。"},
 		{Index: 2, Title: "Chapter 2", Content: "她在房间里找到一张陌生字条，怀疑有人潜入。"},
 		{Index: 3, Title: "Chapter 3", Content: "第二天清晨，她决定顺着线索前往车站。"},
+	}
+	return req
+}
+
+func fixtureCreateJobRequest() job.CreateJobRequest {
+	var req job.CreateJobRequest
+	req.Source.Title = "夜雨疑云"
+	req.Source.Author = "示例作者"
+	req.Adaptation.Style = "悬疑短剧"
+	req.Adaptation.Audience = "大众向"
+	req.Adaptation.Notes = []string{"强化悬疑氛围", "保留主角主动调查的动机"}
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 深夜回家", Content: "林琪深夜回到公寓，发现门锁似乎被人动过。她停在走廊里，不确定是否应该立刻进去。"},
+		{Index: 2, Title: "第二章 陌生字条", Content: "她在房间里找到一张陌生字条，上面只写着今晚别睡。林琪意识到有人提前进入过房间。"},
+		{Index: 3, Title: "第三章 清晨追踪", Content: "第二天清晨，林琪带着字条前往车站，试图顺着纸上的线索找到寄信人。"},
 	}
 	return req
 }
