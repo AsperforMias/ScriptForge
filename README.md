@@ -18,8 +18,31 @@ Read in this order before making changes:
 
 Current state:
 - Documentation baseline: ready and executable
-- Code implementation: intentionally not started in this session
+- Backend implementation: phase 2 MVP is in place
 - Goal: keep future human/agent sessions aligned to the same scope and judging constraints
+
+Current runnable ability:
+- `backend/` exposes `POST /api/v1/jobs`
+- background deterministic pipeline persists job status and YAML artifacts
+- `GET /api/v1/jobs/:id`, `GET /api/v1/jobs/:id/result`, and `GET /api/v1/jobs/:id/export` are available
+- fixture-backed integration tests cover create, status, result, export, invalid input, and not-ready behavior
+
+Backend quick start:
+```bash
+cd backend
+go run ./cmd/api
+```
+
+Backend self-check:
+```bash
+cd backend
+go test ./...
+go build -o /tmp/scriptforge-api ./cmd/api
+```
+
+Example fixture inputs:
+- [`testdata/novels/night-rain-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/night-rain-request.json)
+- [`testdata/expected/night-rain.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/night-rain.screenplay.yaml)
 
 Initial repository layout:
 ```text
