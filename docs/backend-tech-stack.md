@@ -229,6 +229,7 @@ tmp/
     <job_id>/
       input.json
       normalized_source.json
+      provider_debug.json
       screenplay.yaml
 ```
 
@@ -236,6 +237,7 @@ tmp/
 - 每个 job 独立目录
 - `input.json` 保存原始请求快照
 - `normalized_source.json` 便于调试 ingest 结果
+- `provider_debug.json` 在 `generation.mode=llm` 时保存 provider 名称、模型、解析模式与原始返回内容
 - `screenplay.yaml` 是最终权威产物
 
 ## HTTP Status 与 Error Code 映射
