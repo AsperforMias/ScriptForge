@@ -17,6 +17,7 @@ bin/
 coverage.out
 *.test
 vendor/
+backend/api
 
 # Python
 __pycache__/
@@ -40,4 +41,3 @@ tmp/
 artifacts/
 uploads/
 generated/
-
