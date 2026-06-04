@@ -162,6 +162,11 @@ type PipelineRunner interface
 - `Generator` 支持 `deterministic` 和 `llm`
 - `Validator` 负责结构校验和 YAML 序列化
 
+当前实现约束补充：
+- `deterministic` 仍是首个正式基线
+- `llm` mode 先通过 provider abstraction 接入 `screenplay_generation` 阶段
+- 在真实供应商未接入前，允许 `mock` provider 用于本地链路验证
+
 ## 并发与执行模型
 
 首版约束：

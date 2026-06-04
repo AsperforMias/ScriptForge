@@ -16,13 +16,14 @@ import (
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/config"
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
+	"github.com/AsperforMias/ScriptForge/backend/internal/llm"
 	"github.com/AsperforMias/ScriptForge/backend/internal/pipeline"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/artifact"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/sqlite"
 )
 
 func TestRouterJobLifecycleWithFixtures(t *testing.T) {
-	router, repo := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
+	router, repo := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
 
 	requestBody, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "novels", "night-rain-request.json"))
 	if err != nil {
@@ -125,7 +126,7 @@ func TestRouterJobLifecycleWithFixtures(t *testing.T) {
 }
 
 func TestRouterRejectsInvalidChapterCount(t *testing.T) {
-	router, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
+	router, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
 
 	body := []byte(`{"source":{"title":"Broken","chapters":[{"index":1,"title":"One","content":"A"},{"index":2,"title":"Two","content":"B"}]},"adaptation":{"style":"Suspense"},"generation":{"mode":"deterministic"}}`)
 	resp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(body))
@@ -214,7 +215,7 @@ func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 }
 
 func TestRouterReturnsGenerationFailedForFailedJobResult(t *testing.T) {
-	router, repo := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
+	router, repo := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
 
 	record := job.Job{
 		ID:              "job_failed_http",
@@ -291,6 +292,68 @@ func TestRouterReturnsGenerationFailedForFailedJobResult(t *testing.T) {
 	exportResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+record.ID+"/export", nil)
 	if exportResp.Code != http.StatusInternalServerError {
 		t.Fatalf("expected export 500, got %d", exportResp.Code)
+	}
+}
+
+func TestRouterSupportsMockLLMJobLifecycle(t *testing.T) {
+	router, repo := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewMockGenerator()))
+
+	requestBody := []byte(`{"source":{"title":"Night Rain","author":"Demo Author","chapters":[{"index":1,"title":"Chapter 1","content":"林琪深夜回到公寓，发现门锁似乎被动过。"},{"index":2,"title":"Chapter 2","content":"她在房间里找到一张陌生字条，怀疑有人潜入。"},{"index":3,"title":"Chapter 3","content":"第二天清晨，她决定顺着线索前往车站。"}]},"adaptation":{"style":"Suspense Drama","audience":"General","notes":["Keep a strong hook in each scene"]},"generation":{"mode":"llm"}}`)
+
+	createResp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(requestBody))
+	if createResp.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", createResp.Code)
+	}
+
+	var createEnvelope struct {
+		Data struct {
+			Job struct {
+				ID string `json:"id"`
+			} `json:"job"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	for {
+		record, err := repo.GetJob(ctx, createEnvelope.Data.Job.ID)
+		if err == nil && record.Status == "succeeded" {
+			break
+		}
+		if err == nil && record.Status == "failed" {
+			t.Fatalf("llm mock job failed unexpectedly: %s", record.ErrorMessage)
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatal("mock llm job did not succeed before timeout")
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+
+	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+createEnvelope.Data.Job.ID+"/result", nil)
+	if resultResp.Code != http.StatusOK {
+		t.Fatalf("expected 200 result status, got %d", resultResp.Code)
+	}
+
+	var resultEnvelope struct {
+		Data struct {
+			Screenplay struct {
+				Validation struct {
+					Warnings []string `json:"warnings"`
+				} `json:"validation"`
+			} `json:"screenplay"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resultResp.Body).Decode(&resultEnvelope); err != nil {
+		t.Fatalf("decode llm result response: %v", err)
+	}
+	if len(resultEnvelope.Data.Screenplay.Validation.Warnings) == 0 {
+		t.Fatal("expected llm mock warning in validation block")
 	}
 }
 
