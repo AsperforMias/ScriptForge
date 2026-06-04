@@ -67,6 +67,22 @@ PR 描述必须包含：
 仓库中已提供：
 - [`.github/pull_request_template.md`](/Users/asperformias/Code/github/ScriptForge/.github/pull_request_template.md)
 
+PR 工作流：
+1. 从最新 `main` 切新分支，不直接在 `main` 上开发
+2. 在 feature branch 上完成单一目标改动
+3. 本地验证通过后先 `push` 分支
+4. 基于该分支向 `main` 发起 PR
+5. PR 描述按模板补全：变更内容、原因、验证方式、风险
+6. 合并后本地切回 `main`
+7. 拉取最新 `main`
+8. 再从最新 `main` 切下一条 feature branch
+
+执行约束：
+- `main` 只接受通过 PR 合并的改动
+- 不在同一条 feature branch 上串行堆多个无关功能
+- 若一个 PR 已合并，后续开发默认从最新 `main` 新开分支
+- 若使用 AI agent 执行该流程，需在最终说明中明确当前 branch、PR 目标和验证结果
+
 ## Commit 规则
 
 commit 目标：
