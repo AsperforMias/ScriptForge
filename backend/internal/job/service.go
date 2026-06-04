@@ -104,6 +104,17 @@ func (s *Service) GetResult(ctx context.Context, jobID string) (ResultPayload, e
 	if err != nil {
 		return ResultPayload{}, err
 	}
+	if record.Status == "failed" {
+		appErr := ErrGenerationFailed.WithMessage(record.ErrorMessage)
+		if appErr.Message == "" {
+			appErr.Message = ErrGenerationFailed.Message
+		}
+		appErr.Details = map[string]any{
+			"job_id":        record.ID,
+			"current_stage": record.CurrentStage,
+		}
+		return ResultPayload{}, appErr
+	}
 	if record.Status != "succeeded" {
 		return ResultPayload{}, ErrJobNotReady
 	}

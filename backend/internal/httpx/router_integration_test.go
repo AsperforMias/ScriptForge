@@ -22,7 +22,7 @@ import (
 )
 
 func TestRouterJobLifecycleWithFixtures(t *testing.T) {
-	router, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
+	router, repo := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
 
 	requestBody, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "novels", "night-rain-request.json"))
 	if err != nil {
@@ -55,33 +55,12 @@ func TestRouterJobLifecycleWithFixtures(t *testing.T) {
 	defer cancel()
 
 	for {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/jobs/"+jobID, nil)
-		if err != nil {
-			t.Fatalf("build status request: %v", err)
-		}
-		statusResp := performRequestRecorder(router, req)
-
-		var statusEnvelope struct {
-			Data struct {
-				Job struct {
-					Status          string `json:"status"`
-					ProgressPercent int    `json:"progress_percent"`
-					ErrorMessage    string `json:"error_message"`
-				} `json:"job"`
-			} `json:"data"`
-		}
-		if err := json.NewDecoder(statusResp.Body).Decode(&statusEnvelope); err != nil {
-			t.Fatalf("decode status response: %v", err)
-		}
-
-		if statusEnvelope.Data.Job.Status == "succeeded" {
-			if statusEnvelope.Data.Job.ProgressPercent != 100 {
-				t.Fatalf("expected succeeded job progress to be 100, got %d", statusEnvelope.Data.Job.ProgressPercent)
-			}
+		record, err := repo.GetJob(ctx, jobID)
+		if err == nil && record.Status == "succeeded" {
 			break
 		}
-		if statusEnvelope.Data.Job.Status == "failed" {
-			t.Fatalf("job failed unexpectedly: %s", statusEnvelope.Data.Job.ErrorMessage)
+		if err == nil && record.Status == "failed" {
+			t.Fatalf("job failed unexpectedly: %s", record.ErrorMessage)
 		}
 
 		select {
@@ -89,6 +68,29 @@ func TestRouterJobLifecycleWithFixtures(t *testing.T) {
 			t.Fatal("job did not succeed before timeout")
 		case <-time.After(50 * time.Millisecond):
 		}
+	}
+
+	statusResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+jobID, nil)
+	if statusResp.Code != http.StatusOK {
+		t.Fatalf("expected 200 status response, got %d", statusResp.Code)
+	}
+
+	var statusEnvelope struct {
+		Data struct {
+			Job struct {
+				Status          string `json:"status"`
+				ProgressPercent int    `json:"progress_percent"`
+			} `json:"job"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(statusResp.Body).Decode(&statusEnvelope); err != nil {
+		t.Fatalf("decode final status response: %v", err)
+	}
+	if statusEnvelope.Data.Job.Status != "succeeded" {
+		t.Fatalf("expected succeeded final status, got %s", statusEnvelope.Data.Job.Status)
+	}
+	if statusEnvelope.Data.Job.ProgressPercent != 100 {
+		t.Fatalf("expected succeeded job progress to be 100, got %d", statusEnvelope.Data.Job.ProgressPercent)
 	}
 
 	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+jobID+"/result", nil)
@@ -156,6 +158,9 @@ func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 	}
 
 	createResp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(requestBody))
+	if createResp.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", createResp.Code)
+	}
 
 	var createEnvelope struct {
 		Data struct {
@@ -166,6 +171,9 @@ func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 	}
 	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
 		t.Fatalf("decode create response: %v", err)
+	}
+	if createEnvelope.Data.Job.ID == "" {
+		t.Fatal("expected job id")
 	}
 
 	time.Sleep(100 * time.Millisecond)
@@ -202,6 +210,87 @@ func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 	}
 	if statusEnvelope.Data.Job.ProgressPercent != 5 {
 		t.Fatalf("expected ingest progress 5, got %d", statusEnvelope.Data.Job.ProgressPercent)
+	}
+}
+
+func TestRouterReturnsGenerationFailedForFailedJobResult(t *testing.T) {
+	router, repo := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
+
+	record := job.Job{
+		ID:              "job_failed_http",
+		Status:          "failed",
+		CurrentStage:    "validation",
+		ProgressPercent: 90,
+		SourceTitle:     "Night Rain",
+		GenerationMode:  "deterministic",
+		ErrorMessage:    "validation failed",
+		CreatedAt:       "2026-06-05T00:00:00Z",
+		UpdatedAt:       "2026-06-05T00:00:10Z",
+	}
+	stages := []job.Stage{
+		{Name: "ingest", Status: "succeeded"},
+		{Name: "outline", Status: "succeeded"},
+		{Name: "entities", Status: "succeeded"},
+		{Name: "scene_planning", Status: "succeeded"},
+		{Name: "screenplay_generation", Status: "succeeded"},
+		{Name: "validation", Status: "failed", ErrorMessage: "validation failed"},
+		{Name: "persistence", Status: "queued"},
+	}
+	if err := repo.CreateJob(context.Background(), record, stages); err != nil {
+		t.Fatalf("seed failed job: %v", err)
+	}
+
+	statusResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+record.ID, nil)
+	if statusResp.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", statusResp.Code)
+	}
+
+	var statusEnvelope struct {
+		Data struct {
+			Job struct {
+				Status          string `json:"status"`
+				CurrentStage    string `json:"current_stage"`
+				ProgressPercent int    `json:"progress_percent"`
+			} `json:"job"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(statusResp.Body).Decode(&statusEnvelope); err != nil {
+		t.Fatalf("decode failed job status response: %v", err)
+	}
+	if statusEnvelope.Data.Job.Status != "failed" {
+		t.Fatalf("expected failed status, got %s", statusEnvelope.Data.Job.Status)
+	}
+	if statusEnvelope.Data.Job.CurrentStage != "validation" {
+		t.Fatalf("expected current stage validation, got %s", statusEnvelope.Data.Job.CurrentStage)
+	}
+	if statusEnvelope.Data.Job.ProgressPercent != 90 {
+		t.Fatalf("expected failed job progress 90, got %d", statusEnvelope.Data.Job.ProgressPercent)
+	}
+
+	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+record.ID+"/result", nil)
+	if resultResp.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", resultResp.Code)
+	}
+
+	var resultEnvelope struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(resultResp.Body).Decode(&resultEnvelope); err != nil {
+		t.Fatalf("decode failed result response: %v", err)
+	}
+	if resultEnvelope.Error.Code != "generation_failed" {
+		t.Fatalf("expected generation_failed, got %s", resultEnvelope.Error.Code)
+	}
+	if resultEnvelope.Error.Message != "validation failed" {
+		t.Fatalf("expected validation failed message, got %s", resultEnvelope.Error.Message)
+	}
+
+	exportResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+record.ID+"/export", nil)
+	if exportResp.Code != http.StatusInternalServerError {
+		t.Fatalf("expected export 500, got %d", exportResp.Code)
 	}
 }
 

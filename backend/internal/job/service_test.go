@@ -52,6 +52,35 @@ func TestGetResultReturnsNotReadyForQueuedJob(t *testing.T) {
 	}
 }
 
+func TestGetResultReturnsGenerationFailedForFailedJob(t *testing.T) {
+	repo := newFakeRepository()
+	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1)
+
+	repo.jobs["job_failed"] = Job{
+		ID:             "job_failed",
+		Status:         "failed",
+		CurrentStage:   "validation",
+		ErrorMessage:   "validation failed",
+		GenerationMode: "deterministic",
+	}
+
+	_, err := service.GetResult(context.Background(), "job_failed")
+	if err == nil {
+		t.Fatal("expected generation failure error")
+	}
+
+	var appErr AppError
+	if !AsAppError(err, &appErr) {
+		t.Fatal("expected app error")
+	}
+	if appErr.Code != "generation_failed" {
+		t.Fatalf("unexpected error code: %s", appErr.Code)
+	}
+	if appErr.Message != "validation failed" {
+		t.Fatalf("unexpected error message: %s", appErr.Message)
+	}
+}
+
 type fakeRepository struct {
 	mu        sync.RWMutex
 	jobs      map[string]Job
