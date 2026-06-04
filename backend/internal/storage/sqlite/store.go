@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -51,9 +52,9 @@ func (s *Store) CreateJob(ctx context.Context, record job.Job, stages []job.Stag
 	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO jobs (id, source_title, status, current_stage, generation_mode, warning_count, error_message, input_snapshot_path, result_yaml_path, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, record.ID, record.SourceTitle, record.Status, record.CurrentStage, record.GenerationMode, len(record.Warnings), record.ErrorMessage, record.InputSnapshotPath, record.ResultYAMLPath, record.CreatedAt, record.UpdatedAt)
+		INSERT INTO jobs (id, source_title, status, current_stage, progress_percent, generation_mode, warning_count, warnings_json, error_message, input_snapshot_path, result_yaml_path, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, record.ID, record.SourceTitle, record.Status, record.CurrentStage, record.ProgressPercent, record.GenerationMode, len(record.Warnings), warningsJSON(record.Warnings), record.ErrorMessage, record.InputSnapshotPath, record.ResultYAMLPath, record.CreatedAt, record.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert job: %w", err)
 	}
@@ -72,19 +73,20 @@ func (s *Store) CreateJob(ctx context.Context, record job.Job, stages []job.Stag
 
 func (s *Store) GetJob(ctx context.Context, jobID string) (job.Job, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, source_title, status, current_stage, generation_mode, warning_count, error_message, input_snapshot_path, result_yaml_path, created_at, updated_at
+		SELECT id, source_title, status, current_stage, progress_percent, generation_mode, warning_count, warnings_json, error_message, input_snapshot_path, result_yaml_path, created_at, updated_at
 		FROM jobs WHERE id = ?
 	`, jobID)
 
 	var record job.Job
 	var warningCount int
-	if err := row.Scan(&record.ID, &record.SourceTitle, &record.Status, &record.CurrentStage, &record.GenerationMode, &warningCount, &record.ErrorMessage, &record.InputSnapshotPath, &record.ResultYAMLPath, &record.CreatedAt, &record.UpdatedAt); err != nil {
+	var warningsRaw string
+	if err := row.Scan(&record.ID, &record.SourceTitle, &record.Status, &record.CurrentStage, &record.ProgressPercent, &record.GenerationMode, &warningCount, &warningsRaw, &record.ErrorMessage, &record.InputSnapshotPath, &record.ResultYAMLPath, &record.CreatedAt, &record.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return job.Job{}, job.ErrJobNotFound
 		}
 		return job.Job{}, fmt.Errorf("select job: %w", err)
 	}
-	record.Warnings = make([]string, warningCount)
+	record.Warnings = decodeWarnings(warningsRaw, warningCount)
 
 	return record, nil
 }
@@ -115,9 +117,9 @@ func (s *Store) GetStages(ctx context.Context, jobID string) ([]job.Stage, error
 func (s *Store) UpdateJob(ctx context.Context, record job.Job) error {
 	_, err := s.db.ExecContext(ctx, `
 		UPDATE jobs
-		SET status = ?, current_stage = ?, generation_mode = ?, warning_count = ?, error_message = ?, input_snapshot_path = ?, result_yaml_path = ?, updated_at = ?
+		SET status = ?, current_stage = ?, progress_percent = ?, generation_mode = ?, warning_count = ?, warnings_json = ?, error_message = ?, input_snapshot_path = ?, result_yaml_path = ?, updated_at = ?
 		WHERE id = ?
-	`, record.Status, record.CurrentStage, record.GenerationMode, len(record.Warnings), record.ErrorMessage, record.InputSnapshotPath, record.ResultYAMLPath, record.UpdatedAt, record.ID)
+	`, record.Status, record.CurrentStage, record.ProgressPercent, record.GenerationMode, len(record.Warnings), warningsJSON(record.Warnings), record.ErrorMessage, record.InputSnapshotPath, record.ResultYAMLPath, record.UpdatedAt, record.ID)
 	if err != nil {
 		return fmt.Errorf("update job: %w", err)
 	}
@@ -197,4 +199,31 @@ func upsertStage(ctx context.Context, tx *sql.Tx, jobID string, stage job.Stage)
 		return fmt.Errorf("upsert stage %s: %w", stage.Name, err)
 	}
 	return nil
+}
+
+func warningsJSON(warnings []string) string {
+	if warnings == nil {
+		warnings = []string{}
+	}
+
+	payload, err := json.Marshal(warnings)
+	if err != nil {
+		return "[]"
+	}
+	return string(payload)
+}
+
+func decodeWarnings(raw string, fallbackCount int) []string {
+	if raw == "" {
+		return make([]string, fallbackCount)
+	}
+
+	var warnings []string
+	if err := json.Unmarshal([]byte(raw), &warnings); err != nil {
+		return make([]string, fallbackCount)
+	}
+	if warnings == nil {
+		return []string{}
+	}
+	return warnings
 }
