@@ -22,24 +22,7 @@ import (
 )
 
 func TestRouterJobLifecycleWithFixtures(t *testing.T) {
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "scriptforge.db")
-	artifactDir := filepath.Join(tmpDir, "artifacts")
-
-	repo, err := sqlite.Open(dbPath)
-	if err != nil {
-		t.Fatalf("open sqlite store: %v", err)
-	}
-	defer repo.Close()
-
-	artifactStore := artifact.New(artifactDir)
-	runner := pipeline.NewRunner(artifactStore)
-	service := job.NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, runner, artifactStore, 1)
-	cfg := config.Load()
-	cfg.SQLitePath = dbPath
-	cfg.ArtifactDir = artifactDir
-
-	server := httptest.NewServer(NewRouter(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), service))
+	server, _ := newTestServer(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
 	defer server.Close()
 
 	requestBody, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "novels", "night-rain-request.json"))
@@ -144,4 +127,109 @@ func TestRouterJobLifecycleWithFixtures(t *testing.T) {
 	if exportResp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 export status, got %d", exportResp.StatusCode)
 	}
+}
+
+func TestRouterRejectsInvalidChapterCount(t *testing.T) {
+	server, _ := newTestServer(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts"))))
+	defer server.Close()
+
+	body := []byte(`{"source":{"title":"Broken","chapters":[{"index":1,"title":"One","content":"A"},{"index":2,"title":"Two","content":"B"}]},"adaptation":{"style":"Suspense"},"generation":{"mode":"deterministic"}}`)
+	resp, err := http.Post(server.URL+"/api/v1/jobs", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("post invalid jobs request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+
+	var envelope struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode invalid input response: %v", err)
+	}
+	if envelope.Error.Code != "invalid_input" {
+		t.Fatalf("expected invalid_input code, got %s", envelope.Error.Code)
+	}
+}
+
+func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
+	runner := &blockingRunner{release: make(chan struct{})}
+	server, _ := newTestServer(t, runner)
+	defer server.Close()
+	defer close(runner.release)
+
+	requestBody, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "novels", "night-rain-request.json"))
+	if err != nil {
+		t.Fatalf("read request fixture: %v", err)
+	}
+
+	createResp, err := http.Post(server.URL+"/api/v1/jobs", "application/json", bytes.NewReader(requestBody))
+	if err != nil {
+		t.Fatalf("post jobs: %v", err)
+	}
+	defer createResp.Body.Close()
+
+	var createEnvelope struct {
+		Data struct {
+			Job struct {
+				ID string `json:"id"`
+			} `json:"job"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	resultResp, err := http.Get(server.URL + "/api/v1/jobs/" + createEnvelope.Data.Job.ID + "/result")
+	if err != nil {
+		t.Fatalf("get pending job result: %v", err)
+	}
+	defer resultResp.Body.Close()
+
+	if resultResp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", resultResp.StatusCode)
+	}
+}
+
+func newTestServer(t *testing.T, runner job.Runner) (*httptest.Server, *sqlite.Store) {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "scriptforge.db")
+	artifactDir := filepath.Join(tmpDir, "artifacts")
+
+	repo, err := sqlite.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite store: %v", err)
+	}
+
+	artifactStore := artifact.New(artifactDir)
+	service := job.NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, runner, artifactStore, 1)
+	cfg := config.Load()
+	cfg.SQLitePath = dbPath
+	cfg.ArtifactDir = artifactDir
+
+	server := httptest.NewServer(NewRouter(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), service))
+	t.Cleanup(func() {
+		server.Close()
+		_ = repo.Close()
+	})
+
+	return server, repo
+}
+
+type blockingRunner struct {
+	release chan struct{}
+}
+
+func (r *blockingRunner) Run(_ context.Context, _ string, _ job.CreateJobRequest) (job.ExecutionResult, error) {
+	<-r.release
+	return job.ExecutionResult{}, nil
 }
