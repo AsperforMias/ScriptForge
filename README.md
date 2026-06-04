@@ -87,6 +87,15 @@ GOCACHE=/tmp/scriptforge-gocache go test ./...
 GOCACHE=/tmp/scriptforge-gocache go build -o /tmp/scriptforge-api ./cmd/api
 ```
 
+Backend smoke-check:
+```bash
+# deterministic local path
+scripts/run_backend_smoke.sh deterministic
+
+# real provider path (requires .env.local)
+scripts/run_backend_smoke.sh llm
+```
+
 Example fixture inputs:
 - [`testdata/novels/night-rain-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/night-rain-request.json)
 - [`testdata/expected/night-rain.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/night-rain.screenplay.yaml)
