@@ -1,0 +1,42 @@
+metadata:
+  title: "夜雨疑云"
+  author: "示例作者"
+  language: zh-CN
+  chapter_count: 3
+  style: 悬疑短剧
+  audience: 大众向
+characters:
+  - id: lin_qi
+    name: 林琪
+    description: 女主角，单身女性
+scenes:
+  - index: 1
+    chapter: 1
+    location: 公寓走廊
+    time: 深夜
+    beats:
+      - type: action
+        text: 林琪深夜回到公寓，站在走廊里，发现门锁似乎被人动过。
+      - type: dialogue
+        character_id: lin_qi
+        text: 门锁好像被撬过……
+  - index: 2
+    chapter: 2
+    location: 公寓房间内
+    time: 深夜
+    beats:
+      - type: action
+        text: 林琪在房间里找到一张陌生字条，上面写着今晚别睡。
+      - type: dialogue
+        character_id: lin_qi
+        text: 今晚别睡？有人进来过……
+  - index: 3
+    chapter: 3
+    location: 车站
+    time: 清晨
+    beats:
+      - type: action
+        text: 第二天清晨，林琪带着字条前往车站。
+      - type: dialogue
+        character_id: lin_qi
+        text: 我一定要查出是谁写的这封信。

@@ -1,0 +1,18 @@
+metadata:
+  title: "夜雨疑云"
+scenes:
+  - index: 1
+    chapter: 1
+    beats:
+      - type: action
+        text: 林琪深夜回到公寓，发现门锁似乎被人动过。
+  - index: 2
+    chapter: 2
+    beats:
+      - type: action
+        text: 她在房间里找到一张陌生字条，怀疑有人潜入。
+  - index: 3
+    chapter: 3
+    beats:
+      - type: action
+        text: 第二天清晨，她决定顺着线索前往车站。
