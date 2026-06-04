@@ -26,13 +26,15 @@
 - SQLite job store 与 artifact store
 - deterministic pipeline runner
 - 基础后端测试与 pipeline 端到端测试
+- 正式样例输入 fixture
+- HTTP 集成测试与结果导出验证
 
 未开始：
 - LLM 调用适配层
 - 前端应用脚手架
 - 本地启动命令
-- 更完整的 fixture 目录与回归样例
-- 更细粒度的存储与 HTTP 集成测试
+- 更丰富的 fixture 覆盖面
+- 更细粒度的存储层测试
 
 ## 里程碑拆分
 
@@ -59,14 +61,14 @@
 ## 下一步优先级
 
 优先级 1：
-- 打通 `POST /jobs -> background execution -> GET /jobs/:id/result`
 - 补充基于 SQLite 的状态查询与错误场景测试
-- 增加样例 fixture 与 README 自检入口
+- 增加 README 自检入口
+- 补充失败场景与边界条件的 HTTP 集成测试
 
 优先级 2：
 - 完善 deterministic 规则质量
 - 让输出的 `characters / locations / scenes / beats` 更贴近剧本改编语义
-- 准备一组不少于 3 章的正式样例小说输入
+- 扩展更多题材的正式样例小说输入
 
 优先级 3：
 - 接入真实模型调用
