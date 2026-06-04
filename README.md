@@ -25,7 +25,8 @@ Current runnable ability:
 - `backend/` exposes `POST /api/v1/jobs`
 - background deterministic pipeline persists job status and YAML artifacts
 - `GET /api/v1/jobs/:id`, `GET /api/v1/jobs/:id/result`, and `GET /api/v1/jobs/:id/export` are available
-- fixture-backed integration tests cover create, status, result, export, invalid input, and not-ready behavior
+- `generation.mode=llm` now supports `mock` and `openai_compatible` providers behind the same job API
+- fixture-backed integration tests cover create, status, result, export, invalid input, not-ready, and llm mock behavior
 
 Backend quick start:
 ```bash
@@ -33,11 +34,26 @@ cd backend
 go run ./cmd/api
 ```
 
+LLM mode options:
+```bash
+# local verification without external network
+export LLM_PROVIDER=mock
+
+# vendor-neutral external provider wiring
+export LLM_PROVIDER=openai_compatible
+export LLM_BASE_URL=https://your-provider.example/v1
+export LLM_MODEL=your-model-name
+export LLM_API_KEY=your-api-key
+```
+
+Current external blocker:
+- real external `llm` mode now only depends on valid `LLM_BASE_URL`, `LLM_MODEL`, and `LLM_API_KEY`
+
 Backend self-check:
 ```bash
 cd backend
-go test ./...
-go build -o /tmp/scriptforge-api ./cmd/api
+GOCACHE=/tmp/scriptforge-gocache go test ./...
+GOCACHE=/tmp/scriptforge-gocache go build -o /tmp/scriptforge-api ./cmd/api
 ```
 
 Example fixture inputs:

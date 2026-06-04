@@ -8,6 +8,8 @@ func NewGenerator(cfg ProviderConfig) Generator {
 		return NewUnavailableGenerator("LLM_PROVIDER is disabled")
 	case "mock":
 		return NewMockGenerator()
+	case "openai_compatible":
+		return NewOpenAICompatibleGenerator(cfg)
 	default:
 		return NewUnavailableGenerator("provider adapter is not implemented yet")
 	}
