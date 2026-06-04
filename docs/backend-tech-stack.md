@@ -146,6 +146,23 @@ backend/
 - 所有配置必须在启动时打印结构化摘要日志，但不得输出敏感信息
 - 若缺省值生效，应在日志中可见
 
+### 本地凭证约定
+
+本地真实 provider 调试时：
+- 在仓库根目录维护 `.env.local`
+- 通过 `set -a && source .env.local && set +a` 导出环境变量
+- `.env.local` 必须保持 gitignored
+- 真实 `LLM_API_KEY` 不得进入 commit、PR 描述、README 示例或日志
+
+当前已验证的兼容接入方式：
+- `LLM_PROVIDER=openai_compatible`
+- `LLM_BASE_URL=https://api.deepseek.com`
+- `LLM_MODEL=deepseek-v4-flash`
+
+说明：
+- 以上模型选择仅用于低成本功能链路验证
+- 最终 demo 模型可在不改后端接口的前提下切换
+
 ## SQLite Schema
 
 首版最小表结构：

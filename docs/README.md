@@ -20,7 +20,7 @@ Recommended read order:
 Current runnable ability:
 - The backend job API and deterministic pipeline are runnable locally.
 - `generation.mode=llm` supports both `mock` and `openai_compatible` provider paths.
-- Real external LLM execution is blocked only by provider configuration and credentials.
+- The `openai_compatible` path has been validated against a DeepSeek-compatible endpoint and now normalizes loose provider YAML into the canonical screenplay schema.
 
 Startup and deployment:
 - Local-first delivery is the default target.
@@ -40,6 +40,7 @@ Agent session rules:
 - If a decision is not covered here, add or update the relevant doc before making a broad architectural change.
 - When handing off work, update `implementation-progress.md` first.
 - If `decision-log.md` marks an item as requiring human input, stop and ask instead of guessing.
+- Keep local provider credentials in repo-root `.env.local`; it is gitignored and must not appear in commits, PR text, or docs.
 
 Initial repository structure:
 ```text

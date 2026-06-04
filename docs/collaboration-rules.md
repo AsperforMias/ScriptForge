@@ -146,6 +146,7 @@ AI agent 可以用于：
 - 若 `decision-log.md` 将某项标为 `human-needed`，必须停下询问
 - 在沙箱或 CI 场景下做 Go 校验时，优先使用 `GOCACHE=/tmp/scriptforge-gocache`
 - 本地构建校验产物优先输出到 `/tmp/scriptforge-api`，不要在仓库内生成 `backend/api` 这类临时二进制
+- 本地 provider 凭证统一放在 repo-root `.env.local`，不得提交、不得写进 PR 描述、不得出现在评审可见文档中
 
 ## 当前优先级约束
 
