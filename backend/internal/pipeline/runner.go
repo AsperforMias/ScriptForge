@@ -6,6 +6,7 @@ import (
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/ingest"
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
+	"github.com/AsperforMias/ScriptForge/backend/internal/llm"
 	"github.com/AsperforMias/ScriptForge/backend/internal/screenplay"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/artifact"
 	"github.com/AsperforMias/ScriptForge/backend/internal/workflow"
@@ -22,11 +23,19 @@ var stageOrder = []string{
 }
 
 type Runner struct {
-	artifacts *artifact.Store
+	artifacts    *artifact.Store
+	llmGenerator llm.Generator
 }
 
-func NewRunner(artifacts *artifact.Store) *Runner {
-	return &Runner{artifacts: artifacts}
+func NewRunner(artifacts *artifact.Store, llmGenerator llm.Generator) *Runner {
+	if llmGenerator == nil {
+		llmGenerator = llm.NewUnavailableGenerator("no llm generator configured")
+	}
+
+	return &Runner{
+		artifacts:    artifacts,
+		llmGenerator: llmGenerator,
+	}
 }
 
 func (r *Runner) Run(ctx context.Context, jobID string, req job.CreateJobRequest) (job.ExecutionResult, error) {
@@ -64,7 +73,10 @@ func (r *Runner) Run(ctx context.Context, jobID string, req job.CreateJobRequest
 	markStageSucceeded(stages, "scene_planning")
 
 	markStageRunning(stages, "screenplay_generation")
-	document := workflow.BuildDocument(req, source, outline, entities, plan)
+	document, err := r.generateDocument(ctx, jobID, req, source, outline, entities, plan)
+	if err != nil {
+		return failResult(stages, "screenplay_generation", err), err
+	}
 	markStageSucceeded(stages, "screenplay_generation")
 
 	markStageRunning(stages, "validation")
@@ -109,6 +121,28 @@ func markStageRunning(stages []job.Stage, stageName string) {
 			return
 		}
 	}
+}
+
+func (r *Runner) generateDocument(ctx context.Context, jobID string, req job.CreateJobRequest, source ingest.NormalizedSource, outline workflow.OutlineBundle, entities workflow.EntityBundle, plan workflow.ScenePlan) (screenplay.Document, error) {
+	if req.Generation.Mode != "llm" {
+		return workflow.BuildDocument(req, source, outline, entities, plan), nil
+	}
+
+	result, err := r.llmGenerator.Generate(ctx, llm.GenerateRequest{
+		JobID:    jobID,
+		Input:    req,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		return screenplay.Document{}, err
+	}
+	if len(result.Warnings) > 0 && len(result.Document.Validation.Warnings) == 0 {
+		result.Document.Validation.Warnings = append(result.Document.Validation.Warnings, result.Warnings...)
+	}
+	return result.Document, nil
 }
 
 func markStageSucceeded(stages []job.Stage, stageName string) {

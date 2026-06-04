@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
+	"github.com/AsperforMias/ScriptForge/backend/internal/llm"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/artifact"
 )
 
 func TestRunnerRunProducesArtifactsAndYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := artifact.New(tmpDir)
-	runner := NewRunner(store)
+	runner := NewRunner(store, llm.NewUnavailableGenerator("deterministic mode does not use llm"))
 
 	req := validCreateJobRequest()
 	result, err := runner.Run(context.Background(), "job_test_runner", req)
@@ -36,6 +37,43 @@ func TestRunnerRunProducesArtifactsAndYAML(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(tmpDir, "job_test_runner", "normalized_source.json")); err != nil {
 		t.Fatalf("expected normalized source artifact: %v", err)
+	}
+}
+
+func TestRunnerRunSupportsMockLLMMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := artifact.New(tmpDir)
+	runner := NewRunner(store, llm.NewMockGenerator())
+
+	req := validCreateJobRequest()
+	req.Generation.Mode = "llm"
+
+	result, err := runner.Run(context.Background(), "job_test_runner_llm", req)
+	if err != nil {
+		t.Fatalf("unexpected llm run error: %v", err)
+	}
+	if len(result.Document.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(result.Document.Scenes))
+	}
+	if len(result.Warnings) == 0 {
+		t.Fatal("expected llm warnings")
+	}
+}
+
+func TestRunnerRunFailsWhenLLMProviderIsUnavailable(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := artifact.New(tmpDir)
+	runner := NewRunner(store, llm.NewUnavailableGenerator("provider not configured"))
+
+	req := validCreateJobRequest()
+	req.Generation.Mode = "llm"
+
+	result, err := runner.Run(context.Background(), "job_test_runner_llm_disabled", req)
+	if err == nil {
+		t.Fatal("expected llm provider error")
+	}
+	if result.CurrentStage != "screenplay_generation" {
+		t.Fatalf("expected screenplay_generation failure, got %s", result.CurrentStage)
 	}
 }
 

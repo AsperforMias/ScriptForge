@@ -11,6 +11,7 @@ import (
 	"github.com/AsperforMias/ScriptForge/backend/internal/config"
 	"github.com/AsperforMias/ScriptForge/backend/internal/httpx"
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
+	"github.com/AsperforMias/ScriptForge/backend/internal/llm"
 	"github.com/AsperforMias/ScriptForge/backend/internal/pipeline"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/artifact"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/sqlite"
@@ -31,6 +32,8 @@ func main() {
 		slog.Int64("request_body_limit_bytes", cfg.RequestBodyLimitBytes),
 		slog.Int("job_max_concurrency", cfg.JobMaxConcurrency),
 		slog.String("generation_mode_default", cfg.GenerationModeDefault),
+		slog.String("llm_provider", cfg.LLMProvider),
+		slog.String("llm_model", cfg.LLMModel),
 	)
 
 	repo, err := sqlite.Open(cfg.SQLitePath)
@@ -41,7 +44,14 @@ func main() {
 	defer repo.Close()
 
 	artifactStore := artifact.New(cfg.ArtifactDir)
-	runner := pipeline.NewRunner(artifactStore)
+	llmGenerator := llm.NewGenerator(llm.ProviderConfig{
+		Provider:       cfg.LLMProvider,
+		Model:          cfg.LLMModel,
+		BaseURL:        cfg.LLMBaseURL,
+		APIKey:         cfg.LLMAPIKey,
+		RequestTimeout: cfg.LLMRequestTimeout.String(),
+	})
+	runner := pipeline.NewRunner(artifactStore, llmGenerator)
 	jobService := job.NewService(logger, repo, runner, artifactStore, cfg.JobMaxConcurrency)
 	router := httpx.NewRouter(cfg, logger, jobService)
 
