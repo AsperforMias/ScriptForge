@@ -25,7 +25,7 @@ Current runnable ability:
 - `backend/` exposes `POST /api/v1/jobs`
 - background deterministic pipeline persists job status and YAML artifacts
 - `GET /api/v1/jobs/:id`, `GET /api/v1/jobs/:id/result`, and `GET /api/v1/jobs/:id/export` are available
-- `frontend/` now runs a Vite + React + TypeScript editorial workspace with real multi-chapter input, job polling, YAML result loading, structured summary, and export actions
+- `frontend/` now runs a Vite + React + TypeScript editorial workspace with real manual multi-chapter input, job polling, YAML result loading, structured summary, and export actions
 - failed jobs can be regenerated from the current frontend form without adding a separate retry API
 - `generation.mode=llm` now supports `mock` and `openai_compatible` providers behind the same job API
 - the `openai_compatible` path has been validated against DeepSeek-compatible `/chat/completions` and normalizes loose provider YAML into the canonical project schema
