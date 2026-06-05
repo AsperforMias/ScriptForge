@@ -161,6 +161,10 @@ func summarize(content string) string {
 
 func buildConflict(summary string) string {
 	switch {
+	case containsAny(summary, "病房", "团圆饭", "父亲", "母亲", "姐姐", "客厅", "厨房", "家里"):
+		return "家庭照料和旧误会同时浮上台面，主角必须在情感压力下推动家人把话说开。"
+	case containsAny(summary, "夜市", "餐馆", "广场", "直播", "摄影师", "试播", "设备"):
+		return "一场误会把合作关系推向失控边缘，主角必须把尴尬局面转成新的默契。"
 	case containsAny(summary, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
 		return "项目推进进入关键节点，主角必须在时间压力下查清内部失误或背叛。"
 	case containsAny(summary, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
@@ -178,6 +182,10 @@ func buildConflict(summary string) string {
 
 func buildObjective(chapter OutlineChapter, content string) string {
 	switch {
+	case containsAny(content, "病房", "团圆饭", "父亲", "母亲", "姐姐", "客厅", "厨房", "家里"):
+		return "在家庭冲突升级前确认真正的照料责任，并推动家人把旧误会说开。"
+	case containsAny(content, "夜市", "餐馆", "广场", "直播", "摄影师", "试播", "设备"):
+		return "在误会继续扩大前确认彼此立场，并把尴尬转成可用的合作机会。"
 	case containsAny(content, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
 		return "在正式汇报前确认项目风险，并决定是内部止损还是当场摊牌。"
 	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
@@ -195,6 +203,10 @@ func buildObjective(chapter OutlineChapter, content string) string {
 
 func buildDialogue(chapter OutlineChapter, content string) string {
 	switch {
+	case containsAny(content, "病房", "团圆饭", "父亲", "母亲", "姐姐", "客厅", "厨房", "家里"):
+		return "今晚这顿饭不是为了热闹，是为了把这些年的话说清楚。"
+	case containsAny(content, "夜市", "餐馆", "广场", "直播", "摄影师", "试播", "设备"):
+		return "先别急着生气，我们至少得把这场误会解释清楚。"
 	case containsAny(content, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
 		return "如果现在不把问题找出来，明天整个项目都会失控。"
 	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
@@ -212,6 +224,10 @@ func buildDialogue(chapter OutlineChapter, content string) string {
 
 func inferEmotion(content string) string {
 	switch {
+	case containsAny(content, "病房", "团圆饭", "父亲", "母亲", "姐姐", "客厅", "厨房", "家里"):
+		return "restrained"
+	case containsAny(content, "夜市", "餐馆", "广场", "直播", "摄影师", "试播", "设备"):
+		return "awkward"
 	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
 		return "determined"
 	case containsAny(content, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
@@ -228,6 +244,10 @@ func inferEmotion(content string) string {
 func inferOpenQuestions(content string) []string {
 	questions := make([]string, 0, 2)
 	switch {
+	case containsAny(content, "病房", "团圆饭", "父亲", "母亲", "姐姐", "客厅", "厨房", "家里"):
+		questions = append(questions, "这顿团圆饭能不能让家人真正把旧误会说开？")
+	case containsAny(content, "夜市", "餐馆", "广场", "直播", "摄影师", "试播", "设备"):
+		questions = append(questions, "这次临时合作会不会把误会变成新的关系起点？")
 	case containsAny(content, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
 		questions = append(questions, "是谁在关键节点动了项目数据？")
 	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
@@ -260,7 +280,7 @@ func inferCharacterName(source ingest.NormalizedSource) string {
 }
 
 func inferLocationName(chapter ingest.NormalizedChapter) string {
-	keywords := []string{"公寓", "房间", "走廊", "办公室", "会议室", "街道", "学校", "教室", "操场", "跑道", "看台", "咖啡馆", "医院", "仓库", "车站"}
+	keywords := []string{"病房", "公寓", "房间", "走廊", "办公室", "会议室", "街道", "学校", "教室", "操场", "跑道", "看台", "咖啡馆", "厨房", "客厅", "夜市", "餐馆", "广场", "医院", "仓库", "车站"}
 	for _, keyword := range keywords {
 		if strings.Contains(chapter.Content, keyword) {
 			return keyword
@@ -270,7 +290,7 @@ func inferLocationName(chapter ingest.NormalizedChapter) string {
 }
 
 func inferInteriorExterior(content string) string {
-	if strings.Contains(content, "街") || strings.Contains(content, "路") || strings.Contains(content, "广场") || strings.Contains(content, "车站") || strings.Contains(content, "码头") || strings.Contains(content, "操场") || strings.Contains(content, "跑道") || strings.Contains(content, "看台") || strings.Contains(content, "天台") {
+	if strings.Contains(content, "街") || strings.Contains(content, "路") || strings.Contains(content, "广场") || strings.Contains(content, "车站") || strings.Contains(content, "码头") || strings.Contains(content, "操场") || strings.Contains(content, "跑道") || strings.Contains(content, "看台") || strings.Contains(content, "天台") || strings.Contains(content, "夜市") {
 		return "EXT"
 	}
 	return "INT"

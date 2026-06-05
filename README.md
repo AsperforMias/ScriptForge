@@ -141,11 +141,15 @@ Example fixture inputs:
 - [`testdata/novels/night-rain-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/night-rain-request.json)
 - [`testdata/novels/workplace-crisis-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/workplace-crisis-request.json)
 - [`testdata/novels/campus-relay-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/campus-relay-request.json)
+- [`testdata/novels/family-dinner-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/family-dinner-request.json)
+- [`testdata/novels/comedy-live-mixup-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/comedy-live-mixup-request.json)
 
 Example expected outputs:
 - [`testdata/expected/night-rain.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/night-rain.screenplay.yaml)
 - [`testdata/expected/workplace-crisis.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/workplace-crisis.screenplay.yaml)
 - [`testdata/expected/campus-relay.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/campus-relay.screenplay.yaml)
+- [`testdata/expected/family-dinner.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/family-dinner.screenplay.yaml)
+- [`testdata/expected/comedy-live-mixup.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/comedy-live-mixup.screenplay.yaml)
 
 Initial repository layout:
 ```text
