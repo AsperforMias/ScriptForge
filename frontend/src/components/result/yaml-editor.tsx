@@ -2,9 +2,11 @@ import type { JobStatus } from "../../types/api";
 
 interface YamlEditorProps {
   errorMessage?: string;
+  hasEditedChanges?: boolean;
   isLoading?: boolean;
   jobId?: string | null;
   jobStatus?: JobStatus | null;
+  originalYamlText?: string;
   onChange: (nextValue: string) => void;
   yamlText: string;
 }
@@ -13,11 +15,16 @@ export function YamlEditor({
   yamlText,
   onChange,
   isLoading,
+  hasEditedChanges,
   jobId,
   jobStatus,
+  originalYamlText,
   errorMessage,
 }: YamlEditorProps) {
   const hasYaml = yamlText.trim().length > 0;
+  const lineCount = hasYaml ? yamlText.split(/\r?\n/).length : 0;
+  const characterCount = yamlText.length;
+  const originalCharacterCount = (originalYamlText ?? "").length;
   const stateCopy = (() => {
     if (errorMessage) {
       return {
@@ -69,6 +76,16 @@ export function YamlEditor({
         </div>
         <span className="section-tag">Monospace</span>
       </div>
+      {hasYaml ? (
+        <div className="editor-metadata" aria-label="YAML draft metadata">
+          <span className={`editor-metadata__badge ${hasEditedChanges ? "editor-metadata__badge--edited" : "editor-metadata__badge--clean"}`}>
+            {hasEditedChanges ? "当前含本地修改" : "当前与后端原稿一致"}
+          </span>
+          <span>行数 {lineCount}</span>
+          <span>字符 {characterCount}</span>
+          {originalYamlText ? <span>原稿字符 {originalCharacterCount}</span> : null}
+        </div>
+      ) : null}
       {!hasYaml ? (
         <div className={`editor-state editor-state--${stateCopy.tone}`}>
           <strong>{stateCopy.title}</strong>
