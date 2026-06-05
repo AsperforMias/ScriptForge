@@ -108,6 +108,42 @@
 - 前端结果编辑体验、响应式细化与错误状态优化
 - 视时间决定是否提供公网演示环境
 
+## 建议 PR 计划
+
+前端建议按以下小 PR 顺序推进：
+1. `feat/frontend-phase6-responsive-and-empty-states`
+- 目标：补移动端可读性、空态、加载态、失败态与状态文案细化
+- 验收：桌面三栏保持稳定，移动端退化为纵向堆叠，create/polling/result/failed 各状态都有清晰展示
+
+2. `feat/frontend-phase7-result-editing-polish`
+- 目标：优化 YAML 编辑区、结果摘要信息层次、导出反馈与编辑恢复体验
+- 验收：YAML 编辑、恢复、导出路径更顺滑，不改变后端契约
+
+3. `feat/frontend-phase8-smoke-check`
+- 目标：补最小前端自检入口，可为 README 脚本化检查或轻量 e2e
+- 验收：队友、评委或 agent 能按固定步骤快速验证真实前端链路
+
+4. `feat/frontend-phase9-demo-copy-and-flow`
+- 目标：固化演示时默认 sample、页面文案、引导信息与 demo 操作顺序
+- 验收：首屏信息、按钮文案、提示文本有统一口径，便于录视频和现场讲解
+
+后端建议按以下小 PR 顺序推进：
+1. `feat/backend-phase18-provider-fixture-expansion`
+- 目标：继续扩展 `openai_compatible` provider 的 loose-output fixture 与解析回归
+- 验收：新增 fixture 后 `go test ./...` 仍通过，provider 容错覆盖面扩大
+
+2. `feat/backend-phase19-add-more-genre-fixtures`
+- 目标：增加 1 到 2 类新题材 deterministic/llm 样例输入输出
+- 验收：新增题材至少覆盖样例请求、期望 YAML 或可验证结果，README 或 docs 可引用
+
+3. `feat/backend-phase20-http-and-storage-failure-regressions`
+- 目标：补 HTTP 错误、存储异常、provider 异常等失败场景回归
+- 验收：失败路径错误码、返回体和状态持久化行为稳定
+
+4. `feat/backend-phase21-demo-hardening`
+- 目标：收敛 demo 使用模型、provider 调试信息、最终演示参数与自检路径
+- 验收：本地 demo 路径、真实 provider 路径和排障入口稳定，录制视频前无需再改主链路
+
 ## 已锁定决策
 
 已确定：
