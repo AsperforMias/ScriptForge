@@ -61,6 +61,7 @@
 - README 与 `docs/frontend.md` 已补齐真实前端自检路径，可直接按 sample -> create job -> polling -> YAML/result/export -> failed regenerate 的顺序验收
 - 前端状态文案已补齐到 idle / loading / succeeded / failed 四类真实链路，不再把空态、失败态和结果载入态混成同一套提示
 - 响应式布局已细化为桌面三栏、平板双列过渡、移动端 `Input -> Status -> Result` 纵向堆叠，便于现场演示和手机查看
+- `frontend/scripts/smoke-workspace.mjs` 与 `npm run smoke:workspace` 已补齐，可用本机 Chrome/Edge 自动验证 sample -> create job -> polling -> YAML load -> local edit -> reset
 - 结果区现已区分“后端原稿”与“本地编辑稿”，并为复制、恢复、导出动作补齐可见反馈，不再只有静态按钮
 - 结构化摘要现已补充 overview 层与 validation warning 展示，继续保持只读取后端 `screenplay` JSON 而不在前端解析 YAML
 - 结果区已以 YAML 文本为核心，支持恢复后端原始结果、下载后端原始 YAML、导出当前编辑文本
@@ -105,8 +106,7 @@
 ## 下一步优先级
 
 优先级 1：
-- 若演示时间允许，补前端 smoke/check 脚本，把 README 自检路径进一步固化为可执行入口
-- 固化最小前端 smoke-check，减少评委和队友手动点完全链路的成本
+- 收敛默认 sample、首屏文案与 demo 操作顺序，准备 phase 9 演示口径统一
 
 优先级 2：
 - 扩展 deterministic 与 llm 的 fixture 覆盖面
@@ -114,7 +114,7 @@
 - 增补存储层与 HTTP 失败场景回归
 
 优先级 3：
-- 前端 demo copy、引导文案与默认演示顺序收敛
+- 若演示时间允许，可继续增强 smoke-check 对结果区 polish 的覆盖面
 - 视时间决定是否提供公网演示环境
 
 ## 建议 PR 计划

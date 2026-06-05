@@ -163,10 +163,11 @@ frontend/
 - README 已补齐真实前端自检路径，覆盖 sample preset、job 轮询、YAML/result/export 与 failed-job regenerate 验证步骤
 - 工作台已补齐 idle / loading / succeeded / failed 四类真实状态文案，并把结果区空态与失败态对齐到真实 job/result 查询状态
 - 响应式断点已细化为桌面三栏、平板双列过渡、移动端纵向堆叠，保持 `Input -> Status -> Result` 的阅读顺序
+- `frontend/scripts/smoke-workspace.mjs` 与 `npm run smoke:workspace` 已就位，可自动验证 sample -> create job -> polling -> YAML load -> local edit -> reset 主链路
 - 结果区现已区分“后端原稿”与“本地编辑稿”，并为复制、恢复、导出动作提供真实反馈文案
 - 结构化摘要现已补充 overview 层，优先展示章节 / 场景 / 角色 / 校验状态，再展开角色、地点与 scene 卡片
 - 页面会在本地保存 `lastJobId`，刷新后继续查询最近一次任务
-- 后续 PR 继续在现有结构上补最小 smoke-check 与 demo copy
+- 后续 PR 继续在现有结构上收敛默认 demo 文案与讲解顺序
 
 推荐自检路径（2026-06-05）：
 1. 启动后端 `:8080` 与前端 `:5173`
@@ -176,6 +177,7 @@ frontend/
 5. 如需验证失败态，保持后端 `LLM_PROVIDER=disabled`，将表单切到 `generationMode=llm` 提交一次，并确认失败信息与“重新生成当前表单”入口可用
 6. 将视口收窄到平板或手机宽度，确认三工作区按 `Input -> Status -> Result` 纵向阅读，不出现结果区先于状态区的错序
 7. 在成功结果上做一次本地 YAML 修改，确认结果工具条和编辑器 metadata 会切换到“本地编辑稿”，再测试 `复制当前 YAML` 与 `恢复后端原始结果`
+8. 若本地已启动 Chrome / Edge，可直接运行 `npm run smoke:workspace` 验证 sample、真实 job、YAML 载入、本地编辑与恢复动作
 
 本地启动契约（2026-06-05）：
 - 后端默认监听 `:8080`
