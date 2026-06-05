@@ -21,7 +21,7 @@ import { useJobResult } from "../features/job-result/use-job-result";
 import { downloadTextFile } from "../lib/download";
 import { formatDateTime, getErrorMessage } from "../lib/format";
 import { buildApiUrl, requestText } from "../lib/http";
-import type { JobStage, PipelineStageName } from "../types/api";
+import type { JobStage, JobStatus, PipelineStageName } from "../types/api";
 
 const LAST_JOB_STORAGE_KEY = "scriptforge:lastJobId";
 
@@ -92,14 +92,39 @@ export function WorkspacePage() {
 
   const stages = jobDetails?.stages?.length ? jobDetails.stages : createIdleStages();
   const resultSummary = resultPayload?.screenplay ?? null;
+  const activeJobStatus: JobStatus | null = activeJob?.status ?? null;
+  const resultErrorMessage = getErrorMessage(jobResultQuery.error || jobDetailsQuery.error);
+  const resultBadgeLabel = useMemo(() => {
+    if (jobResultQuery.isLoading) {
+      return "结果载入中";
+    }
+
+    if (activeJobStatus === "succeeded" && resultPayload) {
+      return "结果已就绪";
+    }
+
+    if (activeJobStatus === "failed") {
+      return "等待重新生成";
+    }
+
+    if (activeJobStatus === "queued" || activeJobStatus === "running") {
+      return "等待 YAML";
+    }
+
+    return "YAML 核心结果";
+  }, [activeJobStatus, jobResultQuery.isLoading, resultPayload]);
 
   const statusNote = useMemo(() => {
     if (!activeJob) {
+      if (currentJobId && jobDetailsQuery.isLoading) {
+        return `正在恢复最近任务：${currentJobId}`;
+      }
+
       return "尚未创建任务";
     }
 
     return `${activeJob.id} / ${formatDateTime(activeJob.updated_at)}`;
-  }, [activeJob]);
+  }, [activeJob, currentJobId, jobDetailsQuery.isLoading]);
 
   function startJob(values: WorkspaceFormValues) {
     setFormError("");
@@ -225,9 +250,11 @@ export function WorkspacePage() {
             canRegenerate={activeJob?.status === "failed" && !createJobMutation.isPending}
             createError={getErrorMessage(createJobMutation.error)}
             isCreating={createJobMutation.isPending}
+            isPolling={jobDetailsQuery.isFetching}
+            hasJobId={Boolean(currentJobId)}
             job={activeJob}
             onRegenerate={handleRegenerate}
-            resultError={getErrorMessage(jobResultQuery.error || jobDetailsQuery.error)}
+            resultError={resultErrorMessage}
             stages={stages}
           />
           <div className="panel-section">
@@ -250,7 +277,7 @@ export function WorkspacePage() {
               <p className="panel__eyebrow">Result Workspace</p>
               <h2>剧本初稿与结构摘要</h2>
             </div>
-            <span className="panel__badge panel__badge--accent">YAML 核心结果</span>
+            <span className="panel__badge panel__badge--accent">{resultBadgeLabel}</span>
           </div>
           <ExportActions
             canExport={Boolean(editedYamlText.trim())}
@@ -262,11 +289,20 @@ export function WorkspacePage() {
             onReset={handleResetYaml}
           />
           <YamlEditor
+            errorMessage={getErrorMessage(jobResultQuery.error)}
             isLoading={jobResultQuery.isLoading}
+            jobId={currentJobId}
+            jobStatus={activeJobStatus}
             onChange={setEditedYamlText}
             yamlText={editedYamlText}
           />
-          <ScreenplaySummary screenplay={resultSummary} />
+          <ScreenplaySummary
+            errorMessage={getErrorMessage(jobResultQuery.error)}
+            isLoading={jobResultQuery.isLoading}
+            jobId={currentJobId}
+            jobStatus={activeJobStatus}
+            screenplay={resultSummary}
+          />
         </div>
       </section>
     </main>
