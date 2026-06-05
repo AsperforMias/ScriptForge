@@ -161,6 +161,10 @@ func summarize(content string) string {
 
 func buildConflict(summary string) string {
 	switch {
+	case containsAny(summary, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
+		return "项目推进进入关键节点，主角必须在时间压力下查清内部失误或背叛。"
+	case containsAny(summary, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
+		return "比赛临近，主角必须在团队压力和胜负期待之间做出选择。"
 	case containsAny(summary, "线索", "车站", "寄信人", "追踪"):
 		return "主角决定主动追查线索，把被动戒备转化为现实行动。"
 	case containsAny(summary, "门锁", "被人动过", "停在走廊"):
@@ -174,6 +178,10 @@ func buildConflict(summary string) string {
 
 func buildObjective(chapter OutlineChapter, content string) string {
 	switch {
+	case containsAny(content, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
+		return "在正式汇报前确认项目风险，并决定是内部止损还是当场摊牌。"
+	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
+		return "在比赛开始前稳住队伍配合，并把临场压力转成可执行的战术。"
 	case containsAny(content, "线索", "车站", "寄信人", "追踪"):
 		return "顺着已有线索主动追查寄信人，让故事从受威胁转向反向调查。"
 	case containsAny(content, "门锁", "被人动过", "走廊"):
@@ -187,6 +195,10 @@ func buildObjective(chapter OutlineChapter, content string) string {
 
 func buildDialogue(chapter OutlineChapter, content string) string {
 	switch {
+	case containsAny(content, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
+		return "如果现在不把问题找出来，明天整个项目都会失控。"
+	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
+		return "就算少一个人，我们也得把这场接力跑完。"
 	case containsAny(content, "线索", "车站", "寄信人", "追踪"):
 		return "线索既然指向车站，我就不能再等了。"
 	case containsAny(content, "门锁", "被人动过", "走廊"):
@@ -200,6 +212,10 @@ func buildDialogue(chapter OutlineChapter, content string) string {
 
 func inferEmotion(content string) string {
 	switch {
+	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
+		return "determined"
+	case containsAny(content, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
+		return "focused"
 	case containsAny(content, "门锁", "别睡", "被人动过", "危险"):
 		return "tense"
 	case containsAny(content, "线索", "前往", "追踪", "决定"):
@@ -212,6 +228,10 @@ func inferEmotion(content string) string {
 func inferOpenQuestions(content string) []string {
 	questions := make([]string, 0, 2)
 	switch {
+	case containsAny(content, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
+		questions = append(questions, "是谁在关键节点动了项目数据？")
+	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
+		questions = append(questions, "队伍能否在比赛开始前重新建立信任？")
 	case containsAny(content, "线索", "寄信人", "车站"):
 		questions = append(questions, "车站线索会把主角引向谁？")
 	case containsAny(content, "门锁", "被人动过"):
@@ -240,7 +260,7 @@ func inferCharacterName(source ingest.NormalizedSource) string {
 }
 
 func inferLocationName(chapter ingest.NormalizedChapter) string {
-	keywords := []string{"公寓", "房间", "走廊", "办公室", "街道", "学校", "咖啡馆", "医院", "仓库", "车站"}
+	keywords := []string{"公寓", "房间", "走廊", "办公室", "会议室", "街道", "学校", "教室", "操场", "跑道", "看台", "咖啡馆", "医院", "仓库", "车站"}
 	for _, keyword := range keywords {
 		if strings.Contains(chapter.Content, keyword) {
 			return keyword
@@ -250,7 +270,7 @@ func inferLocationName(chapter ingest.NormalizedChapter) string {
 }
 
 func inferInteriorExterior(content string) string {
-	if strings.Contains(content, "街") || strings.Contains(content, "路") || strings.Contains(content, "广场") || strings.Contains(content, "车站") || strings.Contains(content, "码头") {
+	if strings.Contains(content, "街") || strings.Contains(content, "路") || strings.Contains(content, "广场") || strings.Contains(content, "车站") || strings.Contains(content, "码头") || strings.Contains(content, "操场") || strings.Contains(content, "跑道") || strings.Contains(content, "看台") || strings.Contains(content, "天台") {
 		return "EXT"
 	}
 	return "INT"
@@ -258,9 +278,9 @@ func inferInteriorExterior(content string) string {
 
 func inferTime(content string) string {
 	switch {
-	case strings.Contains(content, "夜"), strings.Contains(content, "凌晨"), strings.Contains(content, "今晚"), strings.Contains(content, "晚上"):
+	case strings.Contains(content, "夜"), strings.Contains(content, "凌晨"), strings.Contains(content, "今晚"), strings.Contains(content, "晚上"), strings.Contains(content, "傍晚"):
 		return "NIGHT"
-	case strings.Contains(content, "早"), strings.Contains(content, "清晨"):
+	case strings.Contains(content, "早"), strings.Contains(content, "清晨"), strings.Contains(content, "一早"):
 		return "MORNING"
 	default:
 		return "DAY"

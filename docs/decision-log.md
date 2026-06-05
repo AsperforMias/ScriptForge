@@ -109,6 +109,15 @@
 - 决策：由前端 teammate 主导选择
 - 约束：只要满足 `frontend.md` 和 `api-contract.md`，框架不是当前 blocker
 
+### D-015 前端默认落地路径
+
+- 状态：`locked`
+- 决策：在前端 teammate 未明确要求其他框架前，默认采用 `Vite + React + TypeScript + TanStack Query + React Hook Form` 的单页工作台方案
+- 原因：
+- 对任务化 API 轮询足够直接
+- 对 Codex session 足够明确，可直接执行
+- 不会因为过重 UI 技术选型拖慢 MVP
+
 ### D-014 公网部署
 
 - 状态：`deferred`

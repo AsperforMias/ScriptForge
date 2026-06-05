@@ -44,24 +44,69 @@ func TestRunnerRunProducesArtifactsAndYAML(t *testing.T) {
 }
 
 func TestRunnerRunMatchesDeterministicFixture(t *testing.T) {
-	tmpDir := t.TempDir()
-	store := artifact.New(tmpDir)
-	runner := NewRunner(store, llm.NewUnavailableGenerator("deterministic mode does not use llm"))
+	testCases := []struct {
+		name         string
+		request      job.CreateJobRequest
+		expectedPath string
+		jobID        string
+	}{
+		{
+			name:         "night rain suspense",
+			request:      fixtureCreateJobRequest(),
+			expectedPath: filepath.Join("..", "..", "..", "testdata", "expected", "night-rain.screenplay.yaml"),
+			jobID:        "job_fixture_runner_night_rain",
+		},
+		{
+			name:         "workplace crisis",
+			request:      mustLoadFixtureRequest(t, "workplace-crisis-request.json"),
+			expectedPath: filepath.Join("..", "..", "..", "testdata", "expected", "workplace-crisis.screenplay.yaml"),
+			jobID:        "job_fixture_runner_workplace",
+		},
+		{
+			name:         "campus relay",
+			request:      mustLoadFixtureRequest(t, "campus-relay-request.json"),
+			expectedPath: filepath.Join("..", "..", "..", "testdata", "expected", "campus-relay.screenplay.yaml"),
+			jobID:        "job_fixture_runner_campus",
+		},
+	}
 
-	req := fixtureCreateJobRequest()
-	result, err := runner.Run(context.Background(), "job_fixture_runner", req)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			store := artifact.New(tmpDir)
+			runner := NewRunner(store, llm.NewUnavailableGenerator("deterministic mode does not use llm"))
+
+			result, err := runner.Run(context.Background(), tc.jobID, tc.request)
+			if err != nil {
+				t.Fatalf("unexpected run error: %v", err)
+			}
+
+			expectedYAML, err := os.ReadFile(tc.expectedPath)
+			if err != nil {
+				t.Fatalf("read expected fixture: %v", err)
+			}
+
+			if strings.TrimSpace(result.YAMLText) != strings.TrimSpace(string(expectedYAML)) {
+				t.Fatalf("unexpected yaml output\nexpected:\n%s\n\ngot:\n%s", string(expectedYAML), result.YAMLText)
+			}
+		})
+	}
+}
+
+func mustLoadFixtureRequest(t *testing.T, name string) job.CreateJobRequest {
+	t.Helper()
+
+	path := filepath.Join("..", "..", "..", "testdata", "novels", name)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("unexpected run error: %v", err)
+		t.Fatalf("read request fixture %s: %v", name, err)
 	}
 
-	expectedYAML, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "expected", "night-rain.screenplay.yaml"))
-	if err != nil {
-		t.Fatalf("read expected fixture: %v", err)
+	var req job.CreateJobRequest
+	if err := json.Unmarshal(data, &req); err != nil {
+		t.Fatalf("unmarshal request fixture %s: %v", name, err)
 	}
-
-	if strings.TrimSpace(result.YAMLText) != strings.TrimSpace(string(expectedYAML)) {
-		t.Fatalf("unexpected yaml output\nexpected:\n%s\n\ngot:\n%s", string(expectedYAML), result.YAMLText)
-	}
+	return req
 }
 
 func TestRunnerRunSupportsMockLLMMode(t *testing.T) {

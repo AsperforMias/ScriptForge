@@ -246,6 +246,126 @@ func TestOpenAICompatibleGeneratorRejectsLooseSchemaWithoutScenes(t *testing.T) 
 	}
 }
 
+func TestOpenAICompatibleGeneratorSurfacesProviderHTTPFailure(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       io.NopCloser(strings.NewReader(`{"error":{"message":"rate limit exceeded"}}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	_, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_http_failure",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err == nil {
+		t.Fatal("expected provider http failure")
+	}
+	if !strings.Contains(err.Error(), "status=429") {
+		t.Fatalf("expected status code in error, got %v", err)
+	}
+}
+
+func TestOpenAICompatibleGeneratorSurfacesProviderErrorField(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"error":{"message":"provider internal failure"}}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	_, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_error_field",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err == nil {
+		t.Fatal("expected provider error field failure")
+	}
+	if !strings.Contains(err.Error(), "provider internal failure") {
+		t.Fatalf("expected provider message in error, got %v", err)
+	}
+}
+
+func TestOpenAICompatibleGeneratorRejectsEmptyChoices(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"choices":[]}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	_, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_empty_choices",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err == nil {
+		t.Fatal("expected empty choices failure")
+	}
+	if !strings.Contains(err.Error(), "empty choices") {
+		t.Fatalf("expected empty choices error, got %v", err)
+	}
+}
+
 func fixtureResponse(t *testing.T, name string) *http.Response {
 	t.Helper()
 

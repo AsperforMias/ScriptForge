@@ -98,7 +98,13 @@ scripts/run_backend_smoke.sh llm
 
 Example fixture inputs:
 - [`testdata/novels/night-rain-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/night-rain-request.json)
+- [`testdata/novels/workplace-crisis-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/workplace-crisis-request.json)
+- [`testdata/novels/campus-relay-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/campus-relay-request.json)
+
+Example expected outputs:
 - [`testdata/expected/night-rain.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/night-rain.screenplay.yaml)
+- [`testdata/expected/workplace-crisis.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/workplace-crisis.screenplay.yaml)
+- [`testdata/expected/campus-relay.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/campus-relay.screenplay.yaml)
 
 Initial repository layout:
 ```text
