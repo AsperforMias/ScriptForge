@@ -1,0 +1,104 @@
+version: "1.0"
+source:
+    title: 误会直播间
+    author: 示例作者
+    language: zh-CN
+    chapter_count: 3
+    chapters:
+        - index: 1
+          title: 第一章 夜市撞见
+          summary: 许言在夜市帮朋友看摊时，误把来取设备的摄影师当成竞争对手，当场闹出笑话。
+        - index: 2
+          title: 第二章 餐馆圆场
+          summary: 第二天中午，两人在餐馆碰面试图解释误会，却因为朋友临时起哄把场面越描越乱。
+        - index: 3
+          title: 第三章 广场开播
+          summary: 傍晚，他们决定在广场一起试播，把之前的误会变成一次意外成功的直播。
+adaptation:
+    style: 都市轻喜剧
+    audience: 年轻都市向
+    notes:
+        - 保留误会节奏
+        - 突出轻松口吻
+characters:
+    - id: char_许言
+      name: 许言
+      role: protagonist
+      description: 从章节行动线中推断出的主视角人物，负责把发现转化为调查行动。
+locations:
+    - id: loc_chapter_01
+      name: 夜市
+      description: Primary dramatic location inferred from chapter 1.
+    - id: loc_chapter_02
+      name: 餐馆
+      description: Primary dramatic location inferred from chapter 2.
+    - id: loc_chapter_03
+      name: 广场
+      description: Primary dramatic location inferred from chapter 3.
+scenes:
+    - id: scene_001
+      title: 第一章 夜市撞见
+      source_chapters:
+        - 1
+      slugline:
+        interior_exterior: EXT
+        location_id: loc_chapter_01
+        time: NIGHT
+      summary: 许言在夜市帮朋友看摊时，误把来取设备的摄影师当成竞争对手，当场闹出笑话。
+      objective: 在误会继续扩大前确认彼此立场，并把尴尬转成可用的合作机会。
+      beats:
+        - type: action
+          content: 许言在夜市帮朋友看摊时，误把来取设备的摄影师当成竞争对手，当场闹出笑话。
+        - type: dialogue
+          character_id: char_许言
+          content: 先别急着生气，我们至少得把这场误会解释清楚。
+          emotion: awkward
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 这次临时合作会不会把误会变成新的关系起点？
+    - id: scene_002
+      title: 第二章 餐馆圆场
+      source_chapters:
+        - 2
+      slugline:
+        interior_exterior: INT
+        location_id: loc_chapter_02
+        time: DAY
+      summary: 第二天中午，两人在餐馆碰面试图解释误会，却因为朋友临时起哄把场面越描越乱。
+      objective: 在误会继续扩大前确认彼此立场，并把尴尬转成可用的合作机会。
+      beats:
+        - type: action
+          content: 第二天中午，两人在餐馆碰面试图解释误会，却因为朋友临时起哄把场面越描越乱。
+        - type: dialogue
+          character_id: char_许言
+          content: 先别急着生气，我们至少得把这场误会解释清楚。
+          emotion: awkward
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 这次临时合作会不会把误会变成新的关系起点？
+    - id: scene_003
+      title: 第三章 广场开播
+      source_chapters:
+        - 3
+      slugline:
+        interior_exterior: EXT
+        location_id: loc_chapter_03
+        time: NIGHT
+      summary: 傍晚，他们决定在广场一起试播，把之前的误会变成一次意外成功的直播。
+      objective: 在误会继续扩大前确认彼此立场，并把尴尬转成可用的合作机会。
+      beats:
+        - type: action
+          content: 傍晚，他们决定在广场一起试播，把之前的误会变成一次意外成功的直播。
+        - type: dialogue
+          character_id: char_许言
+          content: 先别急着生气，我们至少得把这场误会解释清楚。
+          emotion: awkward
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 这次临时合作会不会把误会变成新的关系起点？
+validation:
+    status: passed
+    warnings: []

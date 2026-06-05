@@ -1,0 +1,104 @@
+version: "1.0"
+source:
+    title: 回家吃饭
+    author: 示例作者
+    language: zh-CN
+    chapter_count: 3
+    chapters:
+        - index: 1
+          title: 第一章 病房电话
+          summary: 程安在医院病房外接到母亲电话，得知父亲坚持出院回家吃团圆饭。她必须在家人与医生建议之间做决定。
+        - index: 2
+          title: 第二章 厨房争执
+          summary: 傍晚，程安回到家里厨房准备晚饭，姐姐却指责她总拿工作当借口，家里的旧账被重新翻出来。
+        - index: 3
+          title: 第三章 客厅和解
+          summary: 夜里，父亲坐在客厅里主动提起多年前的误会，程安终于决定把压在心里的话说出口。
+adaptation:
+    style: 家庭情感短剧
+    audience: 家庭向
+    notes:
+        - 突出家庭旧账
+        - 保留克制情绪
+characters:
+    - id: char_程安
+      name: 程安
+      role: protagonist
+      description: 从章节行动线中推断出的主视角人物，负责把发现转化为调查行动。
+locations:
+    - id: loc_chapter_01
+      name: 病房
+      description: Primary dramatic location inferred from chapter 1.
+    - id: loc_chapter_02
+      name: 厨房
+      description: Primary dramatic location inferred from chapter 2.
+    - id: loc_chapter_03
+      name: 客厅
+      description: Primary dramatic location inferred from chapter 3.
+scenes:
+    - id: scene_001
+      title: 第一章 病房电话
+      source_chapters:
+        - 1
+      slugline:
+        interior_exterior: INT
+        location_id: loc_chapter_01
+        time: DAY
+      summary: 程安在医院病房外接到母亲电话，得知父亲坚持出院回家吃团圆饭。她必须在家人与医生建议之间做决定。
+      objective: 在家庭冲突升级前确认真正的照料责任，并推动家人把旧误会说开。
+      beats:
+        - type: action
+          content: 程安在医院病房外接到母亲电话，得知父亲坚持出院回家吃团圆饭。她必须在家人与医生建议之间做决定。
+        - type: dialogue
+          character_id: char_程安
+          content: 今晚这顿饭不是为了热闹，是为了把这些年的话说清楚。
+          emotion: restrained
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 这顿团圆饭能不能让家人真正把旧误会说开？
+    - id: scene_002
+      title: 第二章 厨房争执
+      source_chapters:
+        - 2
+      slugline:
+        interior_exterior: INT
+        location_id: loc_chapter_02
+        time: NIGHT
+      summary: 傍晚，程安回到家里厨房准备晚饭，姐姐却指责她总拿工作当借口，家里的旧账被重新翻出来。
+      objective: 在家庭冲突升级前确认真正的照料责任，并推动家人把旧误会说开。
+      beats:
+        - type: action
+          content: 傍晚，程安回到家里厨房准备晚饭，姐姐却指责她总拿工作当借口，家里的旧账被重新翻出来。
+        - type: dialogue
+          character_id: char_程安
+          content: 今晚这顿饭不是为了热闹，是为了把这些年的话说清楚。
+          emotion: restrained
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 这顿团圆饭能不能让家人真正把旧误会说开？
+    - id: scene_003
+      title: 第三章 客厅和解
+      source_chapters:
+        - 3
+      slugline:
+        interior_exterior: INT
+        location_id: loc_chapter_03
+        time: NIGHT
+      summary: 夜里，父亲坐在客厅里主动提起多年前的误会，程安终于决定把压在心里的话说出口。
+      objective: 在家庭冲突升级前确认真正的照料责任，并推动家人把旧误会说开。
+      beats:
+        - type: action
+          content: 夜里，父亲坐在客厅里主动提起多年前的误会，程安终于决定把压在心里的话说出口。
+        - type: dialogue
+          character_id: char_程安
+          content: 今晚这顿饭不是为了热闹，是为了把这些年的话说清楚。
+          emotion: restrained
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 这顿团圆饭能不能让家人真正把旧误会说开？
+validation:
+    status: passed
+    warnings: []

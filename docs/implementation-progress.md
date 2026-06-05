@@ -28,6 +28,7 @@
 - 基础后端测试与 pipeline 端到端测试
 - 正式样例输入 fixture
 - 悬疑 / 职场 / 校园运动三类 deterministic 样例输入输出 fixture
+- 家庭情感 / 都市轻喜剧两类 deterministic 样例输入输出 fixture
 - HTTP 集成测试与结果导出验证
 - README 后端自检入口
 - job 状态持久化一致性（`progress_percent` / `warnings`）
@@ -61,6 +62,7 @@
 - 本地 `backend@8080 + frontend@5173` 已完成 deterministic 与 `llm(openai_compatible)` 两条真实 UI 链路联调
 - SQLite store 已补充串行连接、`busy_timeout` 与 `WAL` 配置，解决轮询联调下 job 完成态偶发 `database is locked` 导致的假卡住问题
 - deterministic workflow 规则已补强为中文目标、对话、开放问题生成
+- deterministic workflow 已补充家庭情感与都市轻喜剧两类题材规则
 - deterministic workflow 单测与 fixture 回归测试
 
 未开始：

@@ -68,6 +68,18 @@ func TestRunnerRunMatchesDeterministicFixture(t *testing.T) {
 			expectedPath: filepath.Join("..", "..", "..", "testdata", "expected", "campus-relay.screenplay.yaml"),
 			jobID:        "job_fixture_runner_campus",
 		},
+		{
+			name:         "family dinner",
+			request:      mustLoadFixtureRequest(t, "family-dinner-request.json"),
+			expectedPath: filepath.Join("..", "..", "..", "testdata", "expected", "family-dinner.screenplay.yaml"),
+			jobID:        "job_fixture_runner_family",
+		},
+		{
+			name:         "comedy live mixup",
+			request:      mustLoadFixtureRequest(t, "comedy-live-mixup-request.json"),
+			expectedPath: filepath.Join("..", "..", "..", "testdata", "expected", "comedy-live-mixup.screenplay.yaml"),
+			jobID:        "job_fixture_runner_comedy",
+		},
 	}
 
 	for _, tc := range testCases {

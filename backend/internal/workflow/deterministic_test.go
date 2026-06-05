@@ -112,6 +112,46 @@ func TestBuildScenePlanSupportsSportsScenario(t *testing.T) {
 	}
 }
 
+func TestBuildScenePlanSupportsFamilyScenario(t *testing.T) {
+	source := normalizeFamilySource()
+	outline := BuildOutline(source)
+	entities := ExtractEntities(source)
+
+	plan := BuildScenePlan(source, outline, entities)
+	if got := plan.Scenes[0].Slugline.LocationID; got != "loc_chapter_01" {
+		t.Fatalf("unexpected family scene 1 location id: %s", got)
+	}
+	if got := plan.Scenes[0].Objective; got != "在家庭冲突升级前确认真正的照料责任，并推动家人把旧误会说开。" {
+		t.Fatalf("unexpected family objective: %s", got)
+	}
+	if got := plan.Scenes[1].Beats[1].Content; got != "今晚这顿饭不是为了热闹，是为了把这些年的话说清楚。" {
+		t.Fatalf("unexpected family dialogue: %s", got)
+	}
+	if got := plan.Scenes[2].Notes.OpenQuestions[0]; got != "这顿团圆饭能不能让家人真正把旧误会说开？" {
+		t.Fatalf("unexpected family open question: %s", got)
+	}
+}
+
+func TestBuildScenePlanSupportsComedyScenario(t *testing.T) {
+	source := normalizeComedySource()
+	outline := BuildOutline(source)
+	entities := ExtractEntities(source)
+
+	plan := BuildScenePlan(source, outline, entities)
+	if got := plan.Scenes[0].Slugline.InteriorExterior; got != "EXT" {
+		t.Fatalf("unexpected comedy scene 1 int/ext: %s", got)
+	}
+	if got := plan.Scenes[1].Beats[1].Emotion; got != "awkward" {
+		t.Fatalf("unexpected comedy emotion: %s", got)
+	}
+	if got := plan.Scenes[2].Objective; got != "在误会继续扩大前确认彼此立场，并把尴尬转成可用的合作机会。" {
+		t.Fatalf("unexpected comedy objective: %s", got)
+	}
+	if got := plan.Scenes[2].Notes.OpenQuestions[0]; got != "这次临时合作会不会把误会变成新的关系起点？" {
+		t.Fatalf("unexpected comedy open question: %s", got)
+	}
+}
+
 func normalizeFixtureSource() ingest.NormalizedSource {
 	var req job.CreateJobRequest
 	req.Source.Title = "夜雨疑云"
@@ -150,6 +190,34 @@ func normalizeSportsSource() ingest.NormalizedSource {
 		{Index: 1, Title: "第一章 操场加练", Content: "周宁晚上独自在操场加练接力，教练突然通知主力队友可能缺席决赛。她第一次意识到最后一棒会落到自己手里。"},
 		{Index: 2, Title: "第二章 教室争执", Content: "第二天一早，她在教室里听见替补队友质疑战术安排，队伍差点在比赛前先吵散。周宁只能临时站出来稳住大家。"},
 		{Index: 3, Title: "第三章 跑道起跑", Content: "比赛当天清晨，周宁站上跑道，决定不再等待主力归队，而是带着现有阵容把接力跑完。"},
+	}
+	return ingest.Normalize(req)
+}
+
+func normalizeFamilySource() ingest.NormalizedSource {
+	var req job.CreateJobRequest
+	req.Source.Title = "回家吃饭"
+	req.Source.Author = "示例作者"
+	req.Adaptation.Style = "家庭情感短剧"
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 病房电话", Content: "程安在医院病房外接到母亲电话，得知父亲坚持出院回家吃团圆饭。她必须在家人与医生建议之间做决定。"},
+		{Index: 2, Title: "第二章 厨房争执", Content: "傍晚，程安回到家里厨房准备晚饭，姐姐却指责她总拿工作当借口，家里的旧账被重新翻出来。"},
+		{Index: 3, Title: "第三章 客厅和解", Content: "夜里，父亲坐在客厅里主动提起多年前的误会，程安终于决定把压在心里的话说出口。"},
+	}
+	return ingest.Normalize(req)
+}
+
+func normalizeComedySource() ingest.NormalizedSource {
+	var req job.CreateJobRequest
+	req.Source.Title = "误会直播间"
+	req.Source.Author = "示例作者"
+	req.Adaptation.Style = "都市轻喜剧"
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 夜市撞见", Content: "许言在夜市帮朋友看摊时，误把来取设备的摄影师当成竞争对手，当场闹出笑话。"},
+		{Index: 2, Title: "第二章 餐馆圆场", Content: "第二天中午，两人在餐馆碰面试图解释误会，却因为朋友临时起哄把场面越描越乱。"},
+		{Index: 3, Title: "第三章 广场开播", Content: "傍晚，他们决定在广场一起试播，把之前的误会变成一次意外成功的直播。"},
 	}
 	return ingest.Normalize(req)
 }
