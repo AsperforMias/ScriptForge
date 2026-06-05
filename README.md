@@ -28,6 +28,7 @@ Current runnable ability:
 - `frontend/` now runs a Vite + React + TypeScript editorial workspace with real manual multi-chapter input, job polling, YAML result loading, structured summary, and export actions
 - failed jobs can be regenerated from the current frontend form without adding a separate retry API
 - frontend sample presets now cover suspense, workplace, and campus relay demo paths
+- the workspace now opens with the recommended `workplace` demo sample already loaded and a built-in `Demo Flow` walkthrough for judges and teammates
 - the workspace now exposes explicit idle/loading/succeeded/failed copy and remains readable across desktop, tablet, and mobile layouts
 - the result workspace now distinguishes backend-original vs local-edited YAML, supports copy/reset/export feedback, and adds screenplay overview cards from backend JSON
 - `generation.mode=llm` now supports `mock` and `openai_compatible` providers behind the same job API
@@ -63,9 +64,15 @@ Recommended local startup:
 2. Start the frontend with `npm run dev`; Vite serves the workspace on `:5173`.
 3. Open `http://127.0.0.1:5173`; frontend requests to `/api/v1/*` are proxied to the backend automatically.
 
+Recommended frontend demo flow:
+1. Keep the default `workplace` sample that is already loaded on first render.
+2. Use `generationMode=deterministic` for the first walkthrough and click `Generate Screenplay Draft`.
+3. Call out the middle `Job Status` column while 2-second polling moves through the real pipeline stages.
+4. Finish in `Result Workspace` with YAML, structured summary, a local edit, reset, and export.
+
 Frontend real-chain self-check:
 1. Start the backend on `http://127.0.0.1:8080` and the frontend on `http://127.0.0.1:5173`.
-2. Open the workspace and click one of the built-in sample presets: `悬疑`, `职场`, or `校园运动`.
+2. Open the workspace; the recommended `职场` sample is already loaded, or switch to `悬疑` / `校园运动` if you want a different genre.
 3. Keep `generationMode=deterministic`, then click the primary submit action to create a real job through `POST /api/v1/jobs`.
 4. Watch the center `Job Status` column until polling moves the job from `queued/running` to `succeeded`.
 5. Confirm the right-side result area loads real backend data: YAML text, structured screenplay summary, and export actions.

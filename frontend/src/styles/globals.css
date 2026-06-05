@@ -130,6 +130,28 @@ button {
   font-size: 0.93rem;
 }
 
+.demo-flow-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px dashed rgba(139, 63, 47, 0.25);
+}
+
+.demo-flow-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+}
+
+.demo-flow-list li {
+  line-height: 1.7;
+}
+
 .workspace-grid {
   display: grid;
   grid-template-areas: "input status result";
@@ -371,6 +393,85 @@ button {
 .sample-preset-list {
   flex-direction: row;
   flex-wrap: wrap;
+}
+
+.sample-preset-card {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 132px;
+  padding: 14px;
+  border: 1px solid rgba(214, 201, 179, 0.92);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 22%),
+    rgba(255, 252, 246, 0.96);
+  color: var(--text-primary);
+  text-align: left;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.sample-preset-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(139, 63, 47, 0.32);
+  box-shadow: 0 12px 20px rgba(95, 72, 44, 0.08);
+}
+
+.sample-preset-card[aria-pressed="true"],
+.sample-preset-card--active {
+  border-color: rgba(139, 63, 47, 0.44);
+  background:
+    linear-gradient(180deg, rgba(139, 63, 47, 0.08), transparent 26%),
+    rgba(255, 252, 246, 0.98);
+}
+
+.sample-preset-card__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sample-preset-card__header strong {
+  font-family: "Noto Serif SC", "Source Han Serif SC", serif;
+  font-size: 1rem;
+}
+
+.sample-preset-card__description,
+.sample-preset-card__focus,
+.demo-inline-guide p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.sample-preset-card__focus {
+  font-size: 0.88rem;
+}
+
+.sample-preset-card__flag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(139, 63, 47, 0.1);
+  color: var(--accent-primary);
+  font-size: 0.75rem;
+}
+
+.demo-inline-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px dashed rgba(47, 93, 98, 0.24);
+  border-radius: 12px;
+  background: rgba(47, 93, 98, 0.05);
 }
 
 .chapter-list {
@@ -858,6 +959,10 @@ button {
     padding-top: 14px;
   }
 
+  .demo-flow-list {
+    grid-template-columns: 1fr;
+  }
+
   .panel--status {
     position: relative;
     top: auto;
@@ -925,6 +1030,11 @@ button {
   .scene-card p,
   .summary-list span {
     line-height: 1.72;
+  }
+
+  .sample-preset-card {
+    flex-basis: 100%;
+    min-height: auto;
   }
 
   .yaml-editor {

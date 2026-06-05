@@ -21,6 +21,8 @@ export interface WorkspaceSamplePreset {
   id: WorkspaceSamplePresetId;
   label: string;
   description: string;
+  demoFocus: string;
+  recommended?: boolean;
   values: WorkspaceFormValues;
 }
 
@@ -31,7 +33,7 @@ export function createEmptyChapterDraft(index: number): WorkspaceChapterDraft {
   };
 }
 
-export const defaultWorkspaceFormValues: WorkspaceFormValues = {
+const emptyWorkspaceFormValues: WorkspaceFormValues = {
   title: "",
   author: "",
   style: "",
@@ -44,6 +46,7 @@ export const defaultWorkspaceFormValues: WorkspaceFormValues = {
 export const workspaceSamplePresets: WorkspaceSamplePreset[] = [
   {
     id: "suspense",
+    demoFocus: "Suspense clues, night return, and immediate tension.",
     label: "悬疑",
     description: "夜归、字条与追踪线索的悬疑短剧样例。",
     values: {
@@ -74,6 +77,8 @@ export const workspaceSamplePresets: WorkspaceSamplePreset[] = [
   },
   {
     id: "workplace",
+    demoFocus: "Recommended opening demo with broad workplace pressure and team conflict.",
+    recommended: true,
     label: "职场",
     description: "汇报前夜的数据异常与团队猜疑样例。",
     values: {
@@ -104,6 +109,7 @@ export const workspaceSamplePresets: WorkspaceSamplePreset[] = [
   },
   {
     id: "campus_relay",
+    demoFocus: "Youth ensemble energy and last-minute relay growth arc.",
     label: "校园运动",
     description: "接力决赛前的队伍压力与成长样例。",
     values: {
@@ -134,7 +140,23 @@ export const workspaceSamplePresets: WorkspaceSamplePreset[] = [
   },
 ];
 
-export const sampleWorkspaceFormValues: WorkspaceFormValues = workspaceSamplePresets[0].values;
+export const recommendedWorkspaceSamplePreset: WorkspaceSamplePreset =
+  workspaceSamplePresets.find((preset) => preset.recommended) ?? workspaceSamplePresets[0];
+
+export function cloneWorkspaceFormValues(values: WorkspaceFormValues): WorkspaceFormValues {
+  return {
+    ...values,
+    chapters: values.chapters.map((chapter) => ({ ...chapter })),
+  };
+}
+
+export const defaultWorkspaceFormValues: WorkspaceFormValues = cloneWorkspaceFormValues(
+  recommendedWorkspaceSamplePreset?.values ?? emptyWorkspaceFormValues,
+);
+
+export const sampleWorkspaceFormValues: WorkspaceFormValues = cloneWorkspaceFormValues(
+  workspaceSamplePresets[0]?.values ?? emptyWorkspaceFormValues,
+);
 
 export function parseNotes(notesText: string) {
   return notesText

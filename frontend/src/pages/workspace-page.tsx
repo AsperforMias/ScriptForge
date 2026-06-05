@@ -9,7 +9,9 @@ import { ScreenplaySummary } from "../components/result/screenplay-summary";
 import { YamlEditor } from "../components/result/yaml-editor";
 import { mapDraftToCreateJobRequest } from "../features/create-job/mapper";
 import {
+  cloneWorkspaceFormValues,
   defaultWorkspaceFormValues,
+  recommendedWorkspaceSamplePreset,
   sampleWorkspaceFormValues,
   type WorkspaceFormValues,
   type WorkspaceSamplePresetId,
@@ -36,6 +38,12 @@ const stageOrder: PipelineStageName[] = [
   "persistence",
 ];
 
+const recommendedDemoFlow = [
+  `1. Start from the default ${recommendedWorkspaceSamplePreset.label} sample and introduce the left-side source input first.`,
+  "2. Keep generationMode=deterministic, create a real job, and let the center column show 2s polling plus stage transitions.",
+  "3. Move to the result workspace to explain YAML, structured summary, and the local edit / reset / export actions.",
+];
+
 function createIdleStages(): JobStage[] {
   return stageOrder.map((name) => ({
     name,
@@ -54,8 +62,11 @@ function hasAtLeastThreeCompleteChapters(values: WorkspaceFormValues) {
 export function WorkspacePage() {
   const queryClient = useQueryClient();
   const form = useForm<WorkspaceFormValues>({
-    defaultValues: defaultWorkspaceFormValues,
+    defaultValues: cloneWorkspaceFormValues(defaultWorkspaceFormValues),
   });
+  const [activeSamplePresetId, setActiveSamplePresetId] = useState<WorkspaceSamplePresetId | null>(
+    recommendedWorkspaceSamplePreset.id,
+  );
   const [currentJobId, setCurrentJobId] = useState<string | null>(() => {
     return window.localStorage.getItem(LAST_JOB_STORAGE_KEY);
   });
@@ -137,6 +148,9 @@ export function WorkspacePage() {
 
     return `${activeJob.id} / ${formatDateTime(activeJob.updated_at)}`;
   }, [activeJob, currentJobId, jobDetailsQuery.isLoading]);
+  const activeSamplePreset =
+    workspaceSamplePresets.find((preset) => preset.id === activeSamplePresetId) ??
+    recommendedWorkspaceSamplePreset;
 
   function startJob(values: WorkspaceFormValues) {
     setFormError("");
@@ -204,7 +218,8 @@ export function WorkspacePage() {
   function handleLoadSample(presetId: WorkspaceSamplePresetId) {
     const preset = workspaceSamplePresets.find((item) => item.id === presetId);
 
-    form.reset(preset?.values ?? sampleWorkspaceFormValues);
+    form.reset(cloneWorkspaceFormValues(preset?.values ?? sampleWorkspaceFormValues));
+    setActiveSamplePresetId(preset?.id ?? recommendedWorkspaceSamplePreset.id);
     setFormError("");
   }
 
@@ -267,10 +282,28 @@ export function WorkspacePage() {
             </p>
           </div>
           <div className="page-intro__aside">
-            <span>Vite + React + TypeScript</span>
-            <span>TanStack Query + React Hook Form</span>
+            <span>默认演示样例：{recommendedWorkspaceSamplePreset.label}</span>
+            <span>建议模式：deterministic 首轮演示</span>
             <span>当前 API Base: {buildApiUrl("").replace(/\/$/, "")}</span>
           </div>
+        </div>
+        <div className="demo-flow-card">
+          <div className="section-heading section-heading--tight">
+            <div>
+              <h3>Demo Flow</h3>
+              <p>按这个顺序讲解，评委能最快看出这不是静态演示壳子。</p>
+            </div>
+            <span className="section-tag">90s walkthrough</span>
+          </div>
+          <ol className="demo-flow-list">
+            {recommendedDemoFlow.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          <p className="inline-note">当前样例焦点：{activeSamplePreset.demoFocus}</p>
+          <p className="inline-note">
+            如果需要切换题材，可在输入区改用悬疑或校园运动 preset，但默认演示路径保持统一。
+          </p>
         </div>
       </section>
 
@@ -284,12 +317,12 @@ export function WorkspacePage() {
               </div>
               <span className="panel__badge">至少 3 章</span>
             </div>
-            <SourceForm onLoadSample={handleLoadSample} />
+            <SourceForm activePresetId={activeSamplePresetId} onLoadSample={handleLoadSample} />
             <ChapterList />
             {formError ? <p className="inline-error">{formError}</p> : null}
             <div className="submit-panel">
               <p className="inline-note">
-                当前会调用 `POST /api/v1/jobs`，成功后自动轮询 `GET /api/v1/jobs/{'{id}'}`。
+                推荐演示顺序：先讲左侧输入，再点击生成，通过 `POST /api/v1/jobs` 创建任务并观察中栏 2s 轮询。
               </p>
               <button className="primary-button primary-button--full" disabled={createJobMutation.isPending} type="submit">
                 {createJobMutation.isPending ? "正在创建任务..." : "生成剧本草稿"}
@@ -320,13 +353,13 @@ export function WorkspacePage() {
           <div className="panel-section">
             <div className="section-heading section-heading--tight">
               <div>
-                <h3>联调状态</h3>
-                <p>这里用于确认当前 UI 是否已经脱离静态 mock。</p>
+                <h3>演示检查点</h3>
+                <p>这里用来确认当前页面正在走真实 API 链路，而不是静态结果或 fake polling。</p>
               </div>
-              <span className="section-tag">Debug</span>
+              <span className="section-tag">Live chain</span>
             </div>
             <p className="inline-note">
-              {currentJobId ? `当前任务：${statusNote}` : "当前还没有活动任务。"}
+              {currentJobId ? `当前任务：${statusNote}` : "当前还没有活动任务。默认样例已就位，可直接点击“生成剧本草稿”开始演示。"}
             </p>
           </div>
         </div>

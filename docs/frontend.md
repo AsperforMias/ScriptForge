@@ -160,6 +160,7 @@ frontend/
 - failed job 现在提供“重新生成当前表单”入口，会基于当前表单重新调用 `POST /api/v1/jobs`
 - 首版输入范围已明确收敛为粘贴 / 手工录入，不再承诺尚未实现的上传入口
 - 前端示例已扩展为可切换的多题材 preset，至少覆盖悬疑、职场与校园运动
+- 工作台首屏现已默认载入推荐的 `职场` 演示样例，并在 page intro / input 区明确给出演示顺序与讲解口径
 - README 已补齐真实前端自检路径，覆盖 sample preset、job 轮询、YAML/result/export 与 failed-job regenerate 验证步骤
 - 工作台已补齐 idle / loading / succeeded / failed 四类真实状态文案，并把结果区空态与失败态对齐到真实 job/result 查询状态
 - 响应式断点已细化为桌面三栏、平板双列过渡、移动端纵向堆叠，保持 `Input -> Status -> Result` 的阅读顺序
@@ -167,11 +168,11 @@ frontend/
 - 结果区现已区分“后端原稿”与“本地编辑稿”，并为复制、恢复、导出动作提供真实反馈文案
 - 结构化摘要现已补充 overview 层，优先展示章节 / 场景 / 角色 / 校验状态，再展开角色、地点与 scene 卡片
 - 页面会在本地保存 `lastJobId`，刷新后继续查询最近一次任务
-- 后续 PR 继续在现有结构上收敛默认 demo 文案与讲解顺序
+- phase 9 已收敛默认 sample、首屏 demo copy 与讲解顺序，当前前端默认打开即处于可演示状态
 
 推荐自检路径（2026-06-05）：
 1. 启动后端 `:8080` 与前端 `:5173`
-2. 在 `Input Workspace` 选择 `悬疑` / `职场` / `校园运动` 任一 preset
+2. 打开页面后可直接沿用默认载入的 `职场` 样例；如需切换题材，再改选 `悬疑` / `校园运动`
 3. 以 `generationMode=deterministic` 提交真实 job，观察 `Job Status` 区的 2s 轮询与阶段变化
 4. 任务成功后确认 `Result Workspace` 同时展示后端返回的 YAML 文本、结构化摘要与导出动作
 5. 如需验证失败态，保持后端 `LLM_PROVIDER=disabled`，将表单切到 `generationMode=llm` 提交一次，并确认失败信息与“重新生成当前表单”入口可用
