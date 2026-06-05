@@ -3,14 +3,24 @@ import type { JobStage, JobSummary } from "../../types/api";
 import { StageTimeline } from "./stage-timeline";
 
 interface JobStatusPanelProps {
+  canRegenerate?: boolean;
   job: JobSummary | null;
   stages: JobStage[];
   createError?: string;
   resultError?: string;
   isCreating?: boolean;
+  onRegenerate?: () => void;
 }
 
-export function JobStatusPanel({ job, stages, createError, resultError, isCreating }: JobStatusPanelProps) {
+export function JobStatusPanel({
+  canRegenerate,
+  job,
+  stages,
+  createError,
+  resultError,
+  isCreating,
+  onRegenerate,
+}: JobStatusPanelProps) {
   const activeError = job?.error_message || createError || resultError || "";
 
   return (
@@ -67,6 +77,14 @@ export function JobStatusPanel({ job, stages, createError, resultError, isCreati
         )}
 
         {activeError ? <p className="inline-error">{activeError}</p> : null}
+        {job?.status === "failed" ? (
+          <div className="action-row action-row--stacked">
+            <p className="inline-note">可直接基于左侧当前表单再次创建 job，不依赖额外 retry API。</p>
+            <button className="secondary-button" disabled={!canRegenerate} onClick={onRegenerate} type="button">
+              {isCreating ? "正在重新生成..." : "重新生成当前表单"}
+            </button>
+          </div>
+        ) : null}
         {job?.warnings?.length ? (
           <div className="status-notice status-notice--warning">
             <strong>Warnings</strong>

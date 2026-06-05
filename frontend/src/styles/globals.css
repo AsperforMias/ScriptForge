@@ -184,6 +184,11 @@ button {
   gap: 12px;
 }
 
+.action-row--stacked {
+  flex-direction: column;
+  align-items: start;
+}
+
 .panel__header {
   align-items: start;
   padding-bottom: 12px;
