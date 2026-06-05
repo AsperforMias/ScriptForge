@@ -1,10 +1,5 @@
 import { useFormContext } from "react-hook-form";
-import {
-  recommendedWorkspaceSamplePreset,
-  workspaceSamplePresets,
-  type WorkspaceFormValues,
-  type WorkspaceSamplePresetId,
-} from "../../features/create-job/form";
+import { workspaceSamplePresets, type WorkspaceFormValues, type WorkspaceSamplePresetId } from "../../features/create-job/form";
 
 interface SourceFormProps {
   activePresetId: WorkspaceSamplePresetId | null;
@@ -22,9 +17,9 @@ export function SourceForm({ activePresetId, onLoadSample }: SourceFormProps) {
       <div className="section-heading">
         <div>
           <h3 id="source-form-heading">作品与改编设定</h3>
-          <p>这里直接接入真实表单状态，创建 job 时会按文档契约映射为后端请求。</p>
+          <p>填写小说信息、改编方向和创作限制，系统会据此整理出可继续打磨的剧本初稿。</p>
         </div>
-        <span className="section-tag">Sample Presets</span>
+        <span className="section-tag">题材示例</span>
       </div>
 
       <div className="sample-preset-list" aria-label="sample presets">
@@ -39,20 +34,10 @@ export function SourceForm({ activePresetId, onLoadSample }: SourceFormProps) {
           >
             <span className="sample-preset-card__header">
               <strong>{preset.label}</strong>
-              {preset.recommended ? <span className="sample-preset-card__flag">Recommended Demo</span> : null}
             </span>
             <span className="sample-preset-card__description">{preset.description}</span>
-            <span className="sample-preset-card__focus">{preset.demoFocus}</span>
           </button>
         ))}
-      </div>
-
-      <div className="demo-inline-guide" aria-label="recommended demo sample">
-        <strong>Default opening sample: {recommendedWorkspaceSamplePreset.label}</strong>
-        <p>
-          Start with `deterministic`, create a real job, watch the `Job Status` polling column,
-          then move right to YAML, summary, and export actions.
-        </p>
       </div>
 
       <div className="field-grid">
@@ -68,12 +53,7 @@ export function SourceForm({ activePresetId, onLoadSample }: SourceFormProps) {
         </label>
         <label className="field">
           <span>作者或来源备注</span>
-          <input
-            className="text-input"
-            type="text"
-            placeholder="例如：示例作者 / 连载草稿"
-            {...register("author")}
-          />
+          <input className="text-input" type="text" placeholder="例如：示例作者 / 连载草稿" {...register("author")} />
         </label>
       </div>
 
@@ -89,27 +69,22 @@ export function SourceForm({ activePresetId, onLoadSample }: SourceFormProps) {
           {errors.style ? <small className="field-error">{errors.style.message}</small> : null}
         </label>
         <label className="field">
-          <span>受众定位</span>
-          <input
-            className="text-input"
-            type="text"
-            placeholder="例如：大众向 / 女性向"
-            {...register("audience")}
-          />
+          <span>目标受众</span>
+          <input className="text-input" type="text" placeholder="例如：大众向 / 女性向" {...register("audience")} />
         </label>
       </div>
 
       <div className="field-grid">
         <label className="field">
-          <span>生成模式</span>
+          <span>生成方式</span>
           <select className="text-input" disabled={isSubmitting} {...register("generationMode")}>
-            <option value="deterministic">deterministic</option>
-            <option value="llm">llm</option>
+            <option value="deterministic">标准草稿</option>
+            <option value="llm">AI 增强</option>
           </select>
         </label>
         <div className="field field--hint">
-          <span>模式说明</span>
-          <p className="inline-note">建议先用 deterministic 跑通链路，再切换 llm 验证真实 provider。</p>
+          <span>方式说明</span>
+          <p className="inline-note">标准草稿更稳，适合先梳理结构；AI 增强适合继续丰富表达与戏剧张力。</p>
         </div>
       </div>
 

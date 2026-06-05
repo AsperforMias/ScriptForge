@@ -4,6 +4,10 @@ AI-powered Novel-to-Screenplay Workspace.
 
 This repository is being initialized for a 72-hour training-camp project. The implementation baseline is document-first: product scope, architecture decisions, progress tracking, PR rules, and handoff context live under [`docs/`](/Users/asperformias/Code/github/ScriptForge/docs/README.md).
 
+Key links:
+- [YAML Schema and design rationale](docs/yaml-schema.md)
+- [Frontend demo recording guide](docs/demo-recording-guide.md)
+
 Read in this order before making changes:
 1. [`docs/final-solution.md`](/Users/asperformias/Code/github/ScriptForge/docs/final-solution.md)
 2. [`docs/implementation-progress.md`](/Users/asperformias/Code/github/ScriptForge/docs/implementation-progress.md)
@@ -27,8 +31,8 @@ Current runnable ability:
 - `GET /api/v1/jobs/:id`, `GET /api/v1/jobs/:id/result`, and `GET /api/v1/jobs/:id/export` are available
 - `frontend/` now runs a Vite + React + TypeScript editorial workspace with real manual multi-chapter input, job polling, YAML result loading, structured summary, and export actions
 - failed jobs can be regenerated from the current frontend form without adding a separate retry API
-- frontend sample presets now cover suspense, workplace, and campus relay demo paths
-- the workspace now opens with the recommended `workplace` demo sample already loaded and a built-in `Demo Flow` walkthrough for judges and teammates
+- frontend sample presets now cover suspense, workplace, and campus relay source scenarios
+- the workspace copy is now author-facing; demo narration and walkthrough notes live in `docs/demo-recording-guide.md` instead of the product page
 - the workspace now exposes explicit idle/loading/succeeded/failed copy and remains readable across desktop, tablet, and mobile layouts
 - the result workspace now distinguishes backend-original vs local-edited YAML, supports copy/reset/export feedback, and adds screenplay overview cards from backend JSON
 - `generation.mode=llm` now supports `mock` and `openai_compatible` providers behind the same job API
@@ -64,11 +68,8 @@ Recommended local startup:
 2. Start the frontend with `npm run dev`; Vite serves the workspace on `:5173`.
 3. Open `http://127.0.0.1:5173`; frontend requests to `/api/v1/*` are proxied to the backend automatically.
 
-Recommended frontend demo flow:
-1. Keep the default `workplace` sample that is already loaded on first render.
-2. Use `generationMode=deterministic` for the first walkthrough and click `Generate Screenplay Draft`.
-3. Call out the middle `Job Status` column while 2-second polling moves through the real pipeline stages.
-4. Finish in `Result Workspace` with YAML, structured summary, a local edit, reset, and export.
+Demo walkthrough note:
+- Use [docs/demo-recording-guide.md](docs/demo-recording-guide.md) for presenter-facing narration, sample order, and recording flow. The product page itself stays focused on author use rather than judge instructions.
 
 Frontend real-chain self-check:
 1. Start the backend on `http://127.0.0.1:8080` and the frontend on `http://127.0.0.1:5173`.
@@ -77,7 +78,7 @@ Frontend real-chain self-check:
 4. Watch the center `Job Status` column until polling moves the job from `queued/running` to `succeeded`.
 5. Confirm the right-side result area loads real backend data: YAML text, structured screenplay summary, and export actions.
 6. Use the export actions to verify both backend raw export and current edited YAML download paths.
-7. Optional failed-path check: switch the form to `generationMode=llm` while the backend runs with `LLM_PROVIDER=disabled`, submit once, confirm the failed stage message appears, then click `重新生成当前表单` to verify the frontend creates a fresh job from the same form state.
+7. Optional failed-path check: switch the form to `generationMode=llm` while the backend runs with `LLM_PROVIDER=disabled`, submit once, confirm the failed stage message appears, then click `重新生成当前内容` to verify the frontend creates a fresh job from the same form state.
 8. Narrow the viewport to a tablet or mobile width and confirm the workspace collapses into a readable `Input -> Status -> Result` vertical flow.
 9. After a successful result load, modify the YAML once, confirm the toolbar flips from `当前为后端原稿` to `当前为本地编辑稿`, then test `复制当前 YAML` and `恢复后端原始结果`.
 

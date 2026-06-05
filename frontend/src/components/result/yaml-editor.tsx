@@ -39,31 +39,31 @@ export function YamlEditor({
         tone: "info",
         title: "正在载入 YAML",
         description: jobId
-          ? `任务 ${jobId} 已完成，正在拉取后端返回的 YAML 与结构化摘要。`
-          : "任务成功后，结果区会自动载入后端返回的 YAML。",
+          ? `任务 ${jobId} 已完成，系统正在获取这次生成的 YAML 初稿与结构摘要。`
+          : "生成完成后，结果区会自动载入 YAML 初稿。",
       };
     }
 
     if (jobStatus === "failed") {
       return {
         tone: "error",
-        title: "本次任务未生成 YAML",
-        description: "请在中栏查看失败阶段和错误信息，再直接重新生成当前表单。",
+        title: "本次没有生成可编辑初稿",
+        description: "请先查看中间的失败原因，再决定是否调整素材或重新生成。",
       };
     }
 
     if (jobStatus === "queued" || jobStatus === "running") {
       return {
         tone: "info",
-        title: "等待任务完成",
-        description: "YAML 结果会在任务成功后自动载入，当前不需要手动刷新。",
+        title: "等待生成完成",
+        description: "YAML 初稿会在本次生成完成后自动载入，不需要手动刷新页面。",
       };
     }
 
     return {
       tone: "neutral",
-      title: "等待剧本草稿",
-      description: "右侧始终以 YAML 为核心结果区；当你在左侧创建任务后，这里会显示可编辑的剧本初稿。",
+      title: "等待剧本初稿",
+      description: "这里会保留结构化 YAML 结果，方便你继续微调、复制和导出。",
     };
   })();
 
@@ -71,19 +71,19 @@ export function YamlEditor({
     <section className="panel-section" aria-labelledby="yaml-editor-heading">
       <div className="section-heading">
         <div>
-          <h3 id="yaml-editor-heading">YAML 初稿</h3>
-          <p>编辑区以 YAML 为核心，支持直接修改、恢复后端原始结果和导出当前文本。</p>
+          <h3 id="yaml-editor-heading">YAML 剧本初稿</h3>
+          <p>结果区始终以 YAML 为核心，保留结构化正文，方便继续打磨与版本留存。</p>
         </div>
         <span className="section-tag">Monospace</span>
       </div>
       {hasYaml ? (
         <div className="editor-metadata" aria-label="YAML draft metadata">
           <span className={`editor-metadata__badge ${hasEditedChanges ? "editor-metadata__badge--edited" : "editor-metadata__badge--clean"}`}>
-            {hasEditedChanges ? "当前含本地修改" : "当前与后端原稿一致"}
+            {hasEditedChanges ? "含本地修改" : "与生成初稿一致"}
           </span>
           <span>行数 {lineCount}</span>
           <span>字符 {characterCount}</span>
-          {originalYamlText ? <span>原稿字符 {originalCharacterCount}</span> : null}
+          {originalYamlText ? <span>初稿字符 {originalCharacterCount}</span> : null}
         </div>
       ) : null}
       {!hasYaml ? (
@@ -95,7 +95,7 @@ export function YamlEditor({
       <textarea
         className="yaml-editor"
         onChange={(event) => onChange(event.target.value)}
-        placeholder={hasYaml ? "在这里继续微调 YAML 剧本草稿。" : stateCopy.title}
+        placeholder={hasYaml ? "在这里继续微调 YAML 剧本初稿。" : stateCopy.title}
         readOnly={!hasYaml}
         value={yamlText}
       />

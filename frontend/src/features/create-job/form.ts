@@ -21,7 +21,6 @@ export interface WorkspaceSamplePreset {
   id: WorkspaceSamplePresetId;
   label: string;
   description: string;
-  demoFocus: string;
   recommended?: boolean;
   values: WorkspaceFormValues;
 }
@@ -46,9 +45,8 @@ const emptyWorkspaceFormValues: WorkspaceFormValues = {
 export const workspaceSamplePresets: WorkspaceSamplePreset[] = [
   {
     id: "suspense",
-    demoFocus: "Suspense clues, night return, and immediate tension.",
     label: "悬疑",
-    description: "夜归、字条与追踪线索的悬疑短剧样例。",
+    description: "夜归、字条与追查线索的悬疑短剧灵感。",
     values: {
       title: "夜雨疑云",
       author: "示例作者",
@@ -60,27 +58,26 @@ export const workspaceSamplePresets: WorkspaceSamplePreset[] = [
         {
           title: "第一章 深夜回家",
           content:
-            "林琪深夜回到公寓，发现门锁似乎被人动过。她停在走廊里，不确定是否应该立刻进去。",
+            "林琬深夜回到公寓，发现门锁似乎被人动过。她停在走廊里，不确定是否应该立刻进去。",
         },
         {
           title: "第二章 陌生字条",
           content:
-            "她在房间里找到一张陌生字条，上面只写着今晚别睡。林琪意识到有人提前进入过房间。",
+            "她在房间里找到一张陌生字条，上面只写着今晚别睡。林琬意识到有人提前进入过房间。",
         },
         {
-          title: "第三章 清晨追踪",
+          title: "第三章 清晨追查",
           content:
-            "第二天清晨，林琪带着字条前往车站，试图顺着纸上的线索找到寄信人。",
+            "第二天清晨，林琬带着字条前往车站，试图顺着纸上的线索找到寄信人。",
         },
       ],
     },
   },
   {
     id: "workplace",
-    demoFocus: "Recommended opening demo with broad workplace pressure and team conflict.",
-    recommended: true,
     label: "职场",
     description: "汇报前夜的数据异常与团队猜疑样例。",
+    recommended: true,
     values: {
       title: "交稿前夜",
       author: "示例作者",
@@ -92,26 +89,25 @@ export const workspaceSamplePresets: WorkspaceSamplePreset[] = [
         {
           title: "第一章 数据被换",
           content:
-            "苏禾深夜留在办公室复核提案，发现明早汇报用的数据被人替换。她意识到项目组里有人提前动了最终版本。",
+            "苏栀深夜留在办公室复核提案，发现明早汇报用的数据被人替换。她意识到项目组里有人提前动了最终版本。",
         },
         {
           title: "第二章 咖啡馆对质",
           content:
-            "她约同组同事在咖啡馆见面，对方却反问她是不是想独占客户。苏禾意识到怀疑已经在团队里扩散。",
+            "她约同组同事在咖啡馆见面，对方却反问她是不是想独占客户。苏栀意识到怀疑已经在团队里扩散。",
         },
         {
           title: "第三章 会议室摊牌",
           content:
-            "第二天清晨，苏禾带着备份文件走进会议室，决定在正式汇报前把问题摆到台面上。",
+            "第二天清晨，苏栀带着备份文件走进会议室，决定在正式汇报前把问题摆到台面上。",
         },
       ],
     },
   },
   {
     id: "campus_relay",
-    demoFocus: "Youth ensemble energy and last-minute relay growth arc.",
     label: "校园运动",
-    description: "接力决赛前的队伍压力与成长样例。",
+    description: "接力决赛前的团队压力与成长样例。",
     values: {
       title: "最后一棒",
       author: "示例作者",

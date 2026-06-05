@@ -1,4 +1,4 @@
-import { formatDateTime, formatJobStatus } from "../../lib/format";
+import { formatDateTime, formatGenerationMode, formatJobStatus, formatStageName } from "../../lib/format";
 import type { JobStage, JobSummary } from "../../types/api";
 import { StageTimeline } from "./stage-timeline";
 
@@ -31,47 +31,47 @@ export function JobStatusPanel({
     if (isCreating && !job) {
       return {
         tone: "info",
-        title: "正在创建任务",
-        description: "前端已提交真实 create job 请求，成功后这里会自动切换到 2s 轮询。",
+        title: "正在建立本次生成",
+        description: "素材已经提交，系统正在准备本次剧本生成任务。",
       };
     }
 
     if (!job && hasJobId && isPolling) {
       return {
         tone: "info",
-        title: "正在恢复最近任务",
-        description: "页面刷新后会继续查询最近一次任务，不会退回静态演示状态。",
+        title: "正在恢复最近一次记录",
+        description: "页面刷新后，工作台会继续找回最近一次生成进度，不需要重新填写内容。",
       };
     }
 
     if (!job) {
       return {
         tone: "neutral",
-        title: "等待创建任务",
-        description: "填写左侧输入区或载入示例后点击“生成剧本草稿”，这里会开始展示真实 pipeline 状态。",
+        title: "等待开始生成",
+        description: "完成左侧素材填写后点击生成，这里会开始显示本次改编进度。",
       };
     }
 
     if (job.status === "failed") {
       return {
         tone: "error",
-        title: "任务生成失败",
-        description: "失败阶段、错误信息和最近更新时间会保留在这里，便于直接重新生成当前表单。",
+        title: "本次生成未完成",
+        description: "你可以先查看停留阶段与错误原因，再基于当前表单重新生成。",
       };
     }
 
     if (job.status === "succeeded") {
       return {
         tone: "success",
-        title: "结果已完成",
-        description: "右侧结果区会继续加载 YAML 与结构化摘要，导出动作也会同步可用。",
+        title: "剧本初稿已生成",
+        description: "右侧结果区会继续载入 YAML 初稿与结构化摘要，方便你马上进入修改。",
       };
     }
 
     return {
       tone: "info",
-      title: "任务处理中",
-      description: "中栏会继续轮询 queued/running 状态，并把停留阶段明确显示在时间线上。",
+      title: "系统正在处理中",
+      description: "工作台会自动刷新每个阶段的状态，直到本次生成完成或中断。",
     };
   })();
 
@@ -80,15 +80,19 @@ export function JobStatusPanel({
       <article className="status-card">
         <div className="section-heading section-heading--tight">
           <div>
-            <h3 id="job-status-heading">当前任务</h3>
-            <p>这里展示 create job、轮询状态、失败阶段与结果载入情况。</p>
+            <h3 id="job-status-heading">当前生成</h3>
+            <p>查看本次生成状态、更新时间与异常信息。</p>
           </div>
           <span className={`status-badge status-badge--${badgeStatus}`}>
             {job ? formatJobStatus(job.status) : "未开始"}
           </span>
         </div>
 
-        <div className={`status-notice ${summaryCopy.tone === "neutral" ? "status-notice--neutral" : `status-notice--${summaryCopy.tone}`}`}>
+        <div
+          className={`status-notice ${
+            summaryCopy.tone === "neutral" ? "status-notice--neutral" : `status-notice--${summaryCopy.tone}`
+          }`}
+        >
           <strong>{summaryCopy.title}</strong>
           <p>{summaryCopy.description}</p>
         </div>
@@ -97,20 +101,20 @@ export function JobStatusPanel({
           <>
             <dl className="status-metadata">
               <div>
-                <dt>Job ID</dt>
+                <dt>生成编号</dt>
                 <dd>{job.id}</dd>
               </div>
               <div>
-                <dt>作品</dt>
+                <dt>作品标题</dt>
                 <dd>{job.source_title || "-"}</dd>
               </div>
               <div>
-                <dt>模式</dt>
-                <dd>{job.generation_mode || "-"}</dd>
+                <dt>生成方式</dt>
+                <dd>{job.generation_mode ? formatGenerationMode(job.generation_mode) : "-"}</dd>
               </div>
               <div>
                 <dt>当前阶段</dt>
-                <dd>{job.current_stage}</dd>
+                <dd>{formatStageName(job.current_stage)}</dd>
               </div>
             </dl>
 
@@ -124,7 +128,7 @@ export function JobStatusPanel({
               </div>
             </div>
 
-            <p className="inline-note">最近更新时间：{formatDateTime(job.updated_at)}</p>
+            <p className="inline-note">最近更新：{formatDateTime(job.updated_at)}</p>
           </>
         ) : null}
 
@@ -134,17 +138,19 @@ export function JobStatusPanel({
             <p>{activeError}</p>
           </div>
         ) : null}
+
         {job?.status === "failed" ? (
           <div className="action-row action-row--stacked">
-            <p className="inline-note">可直接基于左侧当前表单再次创建 job，不依赖额外 retry API。</p>
+            <p className="inline-note">重新生成会沿用左侧当前填写的内容，不会清空你已经整理好的素材。</p>
             <button className="secondary-button" disabled={!canRegenerate} onClick={onRegenerate} type="button">
-              {isCreating ? "正在重新生成..." : "重新生成当前表单"}
+              {isCreating ? "正在重新生成..." : "重新生成当前内容"}
             </button>
           </div>
         ) : null}
+
         {job?.warnings?.length ? (
           <div className="status-notice status-notice--warning">
-            <strong>Warnings</strong>
+            <strong>结果提醒</strong>
             <ul className="notice-list">
               {job.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
@@ -157,10 +163,10 @@ export function JobStatusPanel({
       <article className="status-card">
         <div className="section-heading section-heading--tight">
           <div>
-            <h3>阶段时间线</h3>
-            <p>严格按文档锁定的 pipeline 阶段顺序展示。</p>
+            <h3>处理阶段</h3>
+            <p>系统会依次整理素材、梳理角色与场景，并产出结构化剧本初稿。</p>
           </div>
-          <span className="section-tag">Timeline</span>
+          <span className="section-tag">自动更新</span>
         </div>
         <StageTimeline stages={stages} />
       </article>
@@ -168,17 +174,17 @@ export function JobStatusPanel({
       <article className="status-card">
         <div className="section-heading section-heading--tight">
           <div>
-            <h3>状态说明</h3>
-            <p>左侧提交后这里会自动轮询；`queued/running` 持续刷新，`succeeded/failed` 自动停止。</p>
+            <h3>使用提示</h3>
+            <p>生成过程会自动刷新状态，完成后右侧会同步载入可编辑结果。</p>
           </div>
-          <span className="section-tag">Notes</span>
+          <span className="section-tag">进度说明</span>
         </div>
         <p className="inline-note">
           {isCreating
-            ? "正在创建 job，成功后会自动进入轮询。"
+            ? "系统正在接收这次生成请求，稍后会自动切换到进度更新。"
             : hasJobId && isPolling && !job
-              ? "页面正在恢复最近一次任务状态，查询成功后会自动刷新中栏和右侧结果区。"
-              : "如果任务失败，这里会直接保留失败阶段、错误信息与最后一次更新时间。"}
+              ? "正在找回最近一次生成记录，成功后会同步更新中间和右侧工作区。"
+              : "如果生成中断，这里会保留停留阶段和错误信息，方便你直接重新生成。"}
         </p>
       </article>
     </section>

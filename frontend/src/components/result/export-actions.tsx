@@ -30,18 +30,22 @@ export function ExportActions({
   return (
     <section className="result-toolbar" aria-label="Result actions">
       <div className="result-toolbar__job">
-        <span className="section-tag">Current Job</span>
+        <span className="section-tag">本次结果</span>
         <strong>{jobId || "尚未生成"}</strong>
-        <span className={`result-toolbar__draft-tag ${hasEditedChanges ? "result-toolbar__draft-tag--edited" : "result-toolbar__draft-tag--clean"}`}>
-          {hasEditedChanges ? "当前为本地编辑稿" : "当前为后端原稿"}
+        <span
+          className={`result-toolbar__draft-tag ${
+            hasEditedChanges ? "result-toolbar__draft-tag--edited" : "result-toolbar__draft-tag--clean"
+          }`}
+        >
+          {hasEditedChanges ? "当前为本地修改稿" : "当前为生成初稿"}
         </span>
       </div>
       <div className="result-toolbar__actions">
         <button className="secondary-button" disabled={!canReset} onClick={onReset} type="button">
-          恢复后端原始结果
+          恢复生成初稿
         </button>
         <button className="secondary-button" disabled={!hasJob} onClick={onDownloadBackendRaw} type="button">
-          下载后端原始 YAML
+          下载初始 YAML
         </button>
         <button className="secondary-button" disabled={!canExport} onClick={onCopyCurrent} type="button">
           复制当前 YAML

@@ -5,7 +5,7 @@
 更新时间：2026-06-05
 
 当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器，以及前端工作台首版真实联调落地。
-当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / demo polish”，当前重点转为 smoke-check、响应式可读性、结果区 polish 与演示口径收束。
+当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / product-facing polish”，当前重点转为 smoke-check、响应式可读性、结果区 polish 与产品文案收束。
 
 已完成：
 - 题目与赛事要求的精简总结
@@ -58,7 +58,7 @@
 - failed job 现在支持基于当前表单重新创建 job，补齐文档要求的失败后“重新生成”入口
 - MVP 文档中的小说输入范围已收敛为粘贴 / 手工录入，移除未实现的上传承诺
 - 前端 sample preset 已扩展到悬疑、职场、校园运动三类题材，便于演示多场景链路
-- 前端首屏现已默认载入推荐的 `职场` 演示样例，并把 `Demo Flow`、输入区提示与中栏检查点收敛为统一讲解口径
+- 前端首屏仍默认载入推荐的 `职场` 示例，便于首次体验；但页面文案已经收敛为面向作者的产品语言，演示顺序与录屏提示已迁移到 `docs/demo-recording-guide.md`
 - README 与 `docs/frontend.md` 已补齐真实前端自检路径，可直接按 sample -> create job -> polling -> YAML/result/export -> failed regenerate 的顺序验收
 - 前端状态文案已补齐到 idle / loading / succeeded / failed 四类真实链路，不再把空态、失败态和结果载入态混成同一套提示
 - 响应式布局已细化为桌面三栏、平板双列过渡、移动端 `Input -> Status -> Result` 纵向堆叠，便于现场演示和手机查看
@@ -126,6 +126,7 @@
 2. `feat/frontend-phase7-result-editing-polish`
 3. `feat/frontend-phase8-smoke-check`
 4. `feat/frontend-phase9-demo-copy-and-flow`
+5. `feat/frontend-phase10-product-facing-copy`
 
 后端近期已完成并落回 `main`：
 1. `feat/backend-phase18-provider-fixture-expansion`
@@ -136,11 +137,11 @@
 ## 后续可继续拆分的 PR 方向
 
 前端建议继续按以下小 PR 推进：
-1. `feat/frontend-phase10-smoke-coverage-expansion`
+1. `feat/frontend-phase11-smoke-coverage-expansion`
 - 目标：扩展 smoke-check 对失败态、移动端和复制/恢复反馈的覆盖
 - 验收：README 与脚本都能稳定验证更多关键交互，而不是只覆盖 happy path
 
-2. `feat/frontend-phase11-demo-asset-polish`
+2. `feat/frontend-phase12-demo-asset-polish`
 - 目标：继续收敛录屏时的默认视口、默认文案和状态提示细节
 - 验收：录制 demo 时不需要再临时解释 UI 文案或页面行为
 
