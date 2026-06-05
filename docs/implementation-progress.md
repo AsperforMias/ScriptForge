@@ -58,6 +58,7 @@
 - failed job 现在支持基于当前表单重新创建 job，补齐文档要求的失败后“重新生成”入口
 - MVP 文档中的小说输入范围已收敛为粘贴 / 手工录入，移除未实现的上传承诺
 - 前端 sample preset 已扩展到悬疑、职场、校园运动三类题材，便于演示多场景链路
+- 前端首屏现已默认载入推荐的 `职场` 演示样例，并把 `Demo Flow`、输入区提示与中栏检查点收敛为统一讲解口径
 - README 与 `docs/frontend.md` 已补齐真实前端自检路径，可直接按 sample -> create job -> polling -> YAML/result/export -> failed regenerate 的顺序验收
 - 前端状态文案已补齐到 idle / loading / succeeded / failed 四类真实链路，不再把空态、失败态和结果载入态混成同一套提示
 - 响应式布局已细化为桌面三栏、平板双列过渡、移动端 `Input -> Status -> Result` 纵向堆叠，便于现场演示和手机查看
@@ -106,7 +107,7 @@
 ## 下一步优先级
 
 优先级 1：
-- 收敛默认 sample、首屏文案与 demo 操作顺序，准备 phase 9 演示口径统一
+- 录制 demo 视频与演示稿素材，沿用当前默认 `职场` 样例和已固化的讲解顺序
 
 优先级 2：
 - 扩展 deterministic 与 llm 的 fixture 覆盖面

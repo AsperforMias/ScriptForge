@@ -1,15 +1,17 @@
 import { useFormContext } from "react-hook-form";
 import {
+  recommendedWorkspaceSamplePreset,
   workspaceSamplePresets,
   type WorkspaceFormValues,
   type WorkspaceSamplePresetId,
 } from "../../features/create-job/form";
 
 interface SourceFormProps {
+  activePresetId: WorkspaceSamplePresetId | null;
   onLoadSample: (presetId: WorkspaceSamplePresetId) => void;
 }
 
-export function SourceForm({ onLoadSample }: SourceFormProps) {
+export function SourceForm({ activePresetId, onLoadSample }: SourceFormProps) {
   const {
     register,
     formState: { errors, isSubmitting },
@@ -28,15 +30,29 @@ export function SourceForm({ onLoadSample }: SourceFormProps) {
       <div className="sample-preset-list" aria-label="sample presets">
         {workspaceSamplePresets.map((preset) => (
           <button
-            className="ghost-button ghost-button--compact"
+            aria-pressed={activePresetId === preset.id}
+            className={`sample-preset-card${activePresetId === preset.id ? " sample-preset-card--active" : ""}`}
             key={preset.id}
             onClick={() => onLoadSample(preset.id)}
-            title={preset.description}
+            title={`${preset.label} - ${preset.description}`}
             type="button"
           >
-            {preset.label}
+            <span className="sample-preset-card__header">
+              <strong>{preset.label}</strong>
+              {preset.recommended ? <span className="sample-preset-card__flag">Recommended Demo</span> : null}
+            </span>
+            <span className="sample-preset-card__description">{preset.description}</span>
+            <span className="sample-preset-card__focus">{preset.demoFocus}</span>
           </button>
         ))}
+      </div>
+
+      <div className="demo-inline-guide" aria-label="recommended demo sample">
+        <strong>Default opening sample: {recommendedWorkspaceSamplePreset.label}</strong>
+        <p>
+          Start with `deterministic`, create a real job, watch the `Job Status` polling column,
+          then move right to YAML, summary, and export actions.
+        </p>
       </div>
 
       <div className="field-grid">
