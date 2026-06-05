@@ -106,7 +106,7 @@ frontend (teammate-owned UI)
 - 章节到场景的业务规则
 - 人物、地点、冲突、转场等结构化编排策略
 
-`backend/internal/httpx`（建议后续新增）
+`backend/internal/httpx`
 - 请求解码与响应编码
 - 错误映射
 - 中间件装配
