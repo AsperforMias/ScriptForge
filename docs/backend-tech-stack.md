@@ -61,11 +61,13 @@
 
 - 选型：标准库 `database/sql`
 - 不引入 ORM
+- SQLite 连接在首版按单连接串行化，并启用 `busy_timeout` / `WAL`
 
 原因：
 - 表结构简单
 - 更利于展示对 schema 和 SQL 的掌控
 - 避免 72h 项目为 ORM 适配消耗时间
+- 在本地轮询联调场景下，降低 job 状态写入与读取并发造成的 `SQLITE_BUSY`
 
 ### Config Loading
 

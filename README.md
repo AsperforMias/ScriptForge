@@ -25,6 +25,7 @@ Current runnable ability:
 - `backend/` exposes `POST /api/v1/jobs`
 - background deterministic pipeline persists job status and YAML artifacts
 - `GET /api/v1/jobs/:id`, `GET /api/v1/jobs/:id/result`, and `GET /api/v1/jobs/:id/export` are available
+- `frontend/` now runs a Vite + React + TypeScript editorial workspace with real multi-chapter input, job polling, YAML result loading, structured summary, and export actions
 - `generation.mode=llm` now supports `mock` and `openai_compatible` providers behind the same job API
 - the `openai_compatible` path has been validated against DeepSeek-compatible `/chat/completions` and normalizes loose provider YAML into the canonical project schema
 - fixture-backed integration tests cover create, status, result, export, invalid input, not-ready, and llm mock behavior
@@ -33,6 +34,24 @@ Backend quick start:
 ```bash
 cd backend
 go run ./cmd/api
+```
+
+Frontend quick start:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Default local demo ports:
+- frontend dev server: `http://127.0.0.1:8080`
+- backend API: `http://127.0.0.1:8081`
+- Vite dev proxy forwards `/api/*` to `http://127.0.0.1:8081` by default
+
+Frontend API note:
+```bash
+# optional when frontend and backend are on different origins
+set VITE_API_BASE_URL=http://localhost:8080/api/v1
 ```
 
 Local/deployment prerequisite for real provider runs:

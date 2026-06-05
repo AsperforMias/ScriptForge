@@ -4,8 +4,8 @@
 
 更新时间：2026-06-05
 
-当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器。
-当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段，外部 provider 已完成首轮真实链路验证，当前重点转为“真实 provider 输出质量补强与评审演示稳定性”。
+当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器，以及前端工作台首版真实联调落地。
+当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端处于“Phase 3: frontend workflow”主链路打通阶段，已完成单页工作台骨架、editorial 三栏布局、多章节表单、真实 job 创建/轮询、YAML 结果区、结构化摘要与导出动作接入。
 
 已完成：
 - 题目与赛事要求的精简总结
@@ -45,11 +45,20 @@
 - `openai_compatible` 的 provider 失败语义已补回归，覆盖 HTTP 429、error payload 与 empty choices
 - 前端默认落地架构已补入 `docs/frontend.md`，达到后续 Codex session 可直接脚手架实现的程度
 - 前端视觉方向已补入 `docs/frontend-visual-direction.md`，足以支撑后续 session 直接落地 UI 并继续细调
+- `frontend/` 已按锁定方案落地 `Vite + React + TypeScript + TanStack Query + React Hook Form` 骨架
+- 单页 `WorkspacePage` 已落地三栏工作台信息架构：`Input Workspace` / `Job Status` / `Result Workspace`
+- 前端目录骨架、API 类型、React Query hooks scaffold 与 editorial 基础样式已就位
+- README 已补齐前端本地启动说明与跨源 API 环境变量约定
+- 前端工作台已接入真实 `POST /api/v1/jobs`、`GET /api/v1/jobs/{id}`、`GET /api/v1/jobs/{id}/result` 与 `GET /api/v1/jobs/{id}/export`
+- 多章节输入、`react-hook-form` 校验、`lastJobId` 持久化恢复、2s 轮询与失败/警告展示已接入真实后端数据
+- 结果区已以 YAML 文本为核心，支持恢复后端原始结果、下载后端原始 YAML、导出当前编辑文本
+- 结构化摘要区已切换为直接读取后端返回的 `screenplay` JSON，不再依赖静态 demo 数据
+- 本地 `frontend@8080 + backend@8081` 已完成 deterministic 与 `llm(openai_compatible)` 两条真实 UI 链路联调
+- SQLite store 已补充串行连接、`busy_timeout` 与 `WAL` 配置，解决轮询联调下 job 完成态偶发 `database is locked` 导致的假卡住问题
 - deterministic workflow 规则已补强为中文目标、对话、开放问题生成
 - deterministic workflow 单测与 fixture 回归测试
 
 未开始：
-- 前端应用脚手架
 - 更丰富的 fixture 覆盖面
 - demo 视频与演示稿素材
 - 公网部署选项
@@ -69,7 +78,7 @@
 - 目标：实现最小可运行的章节输入 -> 结构化剧本 YAML 输出
 
 阶段 3：前端工作流
-- 状态：未开始
+- 状态：进行中
 - 目标：打通输入、生成、查看、编辑、导出
 
 阶段 4：评审强化
@@ -84,7 +93,7 @@
 
 优先级 1：
 - 固化 demo 演示路径、README 运行说明和评审入口
-- 前端按既定默认架构启动工作台骨架并接入现有 job API
+- 前端细化错误态、空态与移动端可读性，准备演示口径
 
 优先级 2：
 - 扩展 deterministic 与 llm 的 fixture 覆盖面
@@ -92,9 +101,7 @@
 - 增补存储层与 HTTP 失败场景回归
 
 优先级 3：
-- 前端应用脚手架与现有 job API 接入
-- 前端接入结果编辑与下载
-- 加入阶段状态与错误展示优化
+- 前端结果编辑体验、响应式细化与错误状态优化
 - 视时间决定是否提供公网演示环境
 
 ## 已锁定决策
@@ -113,12 +120,10 @@
 - DeepSeek `deepseek-v4-flash` 作为当前低成本功能链路验证模型
 
 尚未锁定：
-- 前端框架选型
 - 最终 demo 是否沿用当前验证模型，还是切换到更强但更贵的兼容模型
 - 是否提供公网演示环境
 
 已补充但尚未落地实现的文档约束：
-- 前端应用形态
 - 外部 provider 的实际账号与部署参数
 
 ## 协作提醒

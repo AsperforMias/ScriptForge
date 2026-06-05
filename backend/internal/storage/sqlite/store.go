@@ -30,8 +30,14 @@ func Open(path string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite db: %w", err)
 	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	store := &Store{db: db}
+	if err := store.configureConnection(); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	if err := store.initSchema(); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -180,6 +186,16 @@ func (s *Store) GetArtifact(ctx context.Context, jobID string) (job.Artifact, er
 func (s *Store) initSchema() error {
 	if _, err := s.db.Exec(schemaSQL); err != nil {
 		return fmt.Errorf("init sqlite schema: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) configureConnection() error {
+	if _, err := s.db.Exec(`PRAGMA busy_timeout = 5000;`); err != nil {
+		return fmt.Errorf("set sqlite busy_timeout: %w", err)
+	}
+	if _, err := s.db.Exec(`PRAGMA journal_mode = WAL;`); err != nil {
+		return fmt.Errorf("set sqlite journal_mode: %w", err)
 	}
 	return nil
 }
