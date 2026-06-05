@@ -99,8 +99,9 @@ export function WorkspacePage() {
     return `${activeJob.id} / ${formatDateTime(activeJob.updated_at)}`;
   }, [activeJob]);
 
-  function handleSubmit(values: WorkspaceFormValues) {
+  function startJob(values: WorkspaceFormValues) {
     setFormError("");
+    createJobMutation.reset();
 
     if (!hasAtLeastThreeCompleteChapters(values)) {
       setFormError("至少需要 3 个填写完整的章节后才能提交。");
@@ -123,6 +124,14 @@ export function WorkspacePage() {
         setFormError(getErrorMessage(error));
       },
     });
+  }
+
+  function handleSubmit(values: WorkspaceFormValues) {
+    startJob(values);
+  }
+
+  function handleRegenerate() {
+    startJob(form.getValues());
   }
 
   async function handleDownloadBackendRaw() {
@@ -209,9 +218,11 @@ export function WorkspacePage() {
             <span className="panel__badge panel__badge--muted">2s polling</span>
           </div>
           <JobStatusPanel
+            canRegenerate={activeJob?.status === "failed" && !createJobMutation.isPending}
             createError={getErrorMessage(createJobMutation.error)}
             isCreating={createJobMutation.isPending}
             job={activeJob}
+            onRegenerate={handleRegenerate}
             resultError={getErrorMessage(jobResultQuery.error || jobDetailsQuery.error)}
             stages={stages}
           />

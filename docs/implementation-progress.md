@@ -51,6 +51,7 @@
 - README 已补齐前端本地启动说明与跨源 API 环境变量约定，并统一为 `backend@8080 + frontend@5173` 本地启动契约
 - 前端工作台已接入真实 `POST /api/v1/jobs`、`GET /api/v1/jobs/{id}`、`GET /api/v1/jobs/{id}/result` 与 `GET /api/v1/jobs/{id}/export`
 - 多章节输入、`react-hook-form` 校验、`lastJobId` 持久化恢复、2s 轮询与失败/警告展示已接入真实后端数据
+- failed job 现在支持基于当前表单重新创建 job，补齐文档要求的失败后“重新生成”入口
 - 结果区已以 YAML 文本为核心，支持恢复后端原始结果、下载后端原始 YAML、导出当前编辑文本
 - 结构化摘要区已切换为直接读取后端返回的 `screenplay` JSON，不再依赖静态 demo 数据
 - 本地 `backend@8080 + frontend@5173` 已完成 deterministic 与 `llm(openai_compatible)` 两条真实 UI 链路联调
