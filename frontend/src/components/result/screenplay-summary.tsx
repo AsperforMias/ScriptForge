@@ -21,7 +21,7 @@ export function ScreenplaySummary({
       if (errorMessage) {
         return {
           tone: "error",
-          title: "结构化摘要载入失败",
+          title: "结构摘要载入失败",
           description: errorMessage,
         };
       }
@@ -29,33 +29,32 @@ export function ScreenplaySummary({
       if (isLoading) {
         return {
           tone: "info",
-          title: "正在整理结构化摘要",
-          description: jobId
-            ? `任务 ${jobId} 的 screenplay JSON 正在载入，摘要区不会自行解析 YAML。`
-            : "任务成功后，这里会直接读取后端返回的 screenplay JSON。",
+          title: "正在整理结构摘要",
+          description: jobId ? `任务 ${jobId} 已完成，系统正在载入这次生成的角色、场景与结构信息。`
+          : "生成完成后，这里会自动载入结构摘要。",
         };
       }
 
       if (jobStatus === "failed") {
         return {
           tone: "error",
-          title: "本次任务没有结构化摘要",
-          description: "生成失败时不会伪造场景卡片，请先处理失败原因再重新生成。",
+          title: "本次没有可用的结构摘要",
+          description: "请先查看中间的失败原因，再决定是否调整素材或重新生成。",
         };
       }
 
       if (jobStatus === "queued" || jobStatus === "running") {
         return {
           tone: "info",
-          title: "等待任务完成",
-          description: "角色、地点和 scene 摘要会在任务成功后一起出现，保持与后端结果一致。",
+          title: "等待生成完成",
+          description: "角色、地点与场景摘要会在生成成功后一起出现。",
         };
       }
 
       return {
         tone: "neutral",
-        title: "暂无结构化结果",
-        description: "任务成功后，这里会展示角色、地点和 scene 摘要。",
+        title: "暂未生成结构摘要",
+        description: "生成成功后，这里会展示角色、地点与场景整理结果，方便快速浏览整份剧本。",
       };
     })();
 
@@ -63,10 +62,10 @@ export function ScreenplaySummary({
       <section className="panel-section" aria-labelledby="screenplay-summary-heading">
         <div className="section-heading">
           <div>
-            <h3 id="screenplay-summary-heading">结构化摘要</h3>
-            <p>摘要区直接使用后端返回的 `screenplay` JSON，不在前端自行解析 YAML。</p>
+            <h3 id="screenplay-summary-heading">结构摘要</h3>
+            <p>先看整体规模，再顺着角色、地点和场景卡片快速浏览这次改编结果。</p>
           </div>
-          <span className="section-tag">JSON-backed</span>
+          <span className="section-tag">Summary</span>
         </div>
         <div className={`empty-card empty-card--${stateCopy.tone}`}>
           <strong>{stateCopy.title}</strong>
@@ -86,17 +85,17 @@ export function ScreenplaySummary({
     {
       label: "场景",
       value: String(screenplay.scenes.length),
-      hint: "来自后端 screenplay JSON",
+      hint: "已整理可拍摄场景",
     },
     {
       label: "角色",
       value: String(screenplay.characters.length),
-      hint: "用于辅助 scene 阅读",
+      hint: "用于快速回看人物关系",
     },
     {
       label: "校验",
-      value: screenplay.validation.status === "passed" ? "通过" : "未通过",
-      hint: validationWarnings.length ? `${validationWarnings.length} 条 warning` : "当前无 warning",
+      value: screenplay.validation.status === "passed" ? "通过" : "需检查",
+      hint: validationWarnings.length ? `${validationWarnings.length} 条提醒` : "当前无提醒",
     },
   ];
 
@@ -104,10 +103,10 @@ export function ScreenplaySummary({
     <section className="panel-section" aria-labelledby="screenplay-summary-heading">
       <div className="section-heading">
         <div>
-          <h3 id="screenplay-summary-heading">结构化摘要</h3>
-          <p>摘要区直接使用后端返回的 `screenplay` JSON，不把 YAML 解析职责挪到前端。</p>
+          <h3 id="screenplay-summary-heading">结构摘要</h3>
+          <p>这部分帮助你先把握角色、地点和场景结构，再回到 YAML 继续精修正文。</p>
         </div>
-        <span className="section-tag">JSON-backed</span>
+        <span className="section-tag">Summary</span>
       </div>
 
       <div className="summary-overview">
@@ -122,7 +121,7 @@ export function ScreenplaySummary({
 
       {validationWarnings.length ? (
         <div className="status-notice status-notice--warning">
-          <strong>Validation Warnings</strong>
+          <strong>结构提醒</strong>
           <ul className="notice-list">
             {validationWarnings.map((warning) => (
               <li key={warning}>{warning}</li>
@@ -135,7 +134,7 @@ export function ScreenplaySummary({
         <article className="summary-card">
           <div className="summary-card__heading">
             <h4>角色</h4>
-            <span className="section-tag">{screenplay.characters.length} 个</span>
+            <span className="section-tag">{screenplay.characters.length} 位</span>
           </div>
           {screenplay.characters.length ? (
             <ul className="summary-list">
@@ -148,26 +147,26 @@ export function ScreenplaySummary({
               ))}
             </ul>
           ) : (
-            <p className="summary-empty">当前结果没有单独列出角色。</p>
+            <p className="summary-empty">当前结果还没有单独整理角色信息。</p>
           )}
         </article>
 
         <article className="summary-card">
           <div className="summary-card__heading">
             <h4>地点</h4>
-            <span className="section-tag">{screenplay.locations.length} 个</span>
+            <span className="section-tag">{screenplay.locations.length} 处</span>
           </div>
           {screenplay.locations.length ? (
             <ul className="summary-list">
               {screenplay.locations.map((location) => (
                 <li key={location.id}>
                   <strong>{location.name}</strong>
-                  <span>{location.description || "待补充地点说明"}</span>
+                  <span>{location.description || "等待补充地点说明"}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="summary-empty">当前结果没有单独列出地点。</p>
+            <p className="summary-empty">当前结果还没有单独整理地点信息。</p>
           )}
         </article>
       </div>
@@ -183,7 +182,7 @@ export function ScreenplaySummary({
                 </div>
                 <div className="scene-card__chips">
                   <span className="chip">来源章节 {scene.source_chapters.join(", ")}</span>
-                  <span className="chip">beats {scene.beats.length}</span>
+                  <span className="chip">节拍 {scene.beats.length}</span>
                 </div>
               </div>
               <p className="scene-card__slugline">
@@ -192,11 +191,11 @@ export function ScreenplaySummary({
               <p>{scene.summary}</p>
               <dl className="scene-card__meta">
                 <div>
-                  <dt>Objective</dt>
+                  <dt>场景目标</dt>
                   <dd>{scene.objective || "待补充"}</dd>
                 </div>
                 <div>
-                  <dt>Open Question</dt>
+                  <dt>开放问题</dt>
                   <dd>{scene.notes?.open_questions?.[0] || "暂无"}</dd>
                 </div>
               </dl>
@@ -205,8 +204,8 @@ export function ScreenplaySummary({
         </div>
       ) : (
         <div className="empty-card empty-card--neutral">
-          <strong>当前结果没有场景卡片</strong>
-          <p>摘要区保持忠于后端 `screenplay` JSON，不会在前端补造 scene 数据。</p>
+          <strong>当前结果还没有场景卡片</strong>
+          <p>生成成功后，这里会展示按场景整理的摘要内容，帮助你快速回看整份剧本。</p>
         </div>
       )}
     </section>

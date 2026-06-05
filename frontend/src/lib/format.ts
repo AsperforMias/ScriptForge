@@ -1,13 +1,13 @@
-import type { JobStatus, PipelineStageName } from "../types/api";
+import type { GenerationMode, JobStatus, PipelineStageName } from "../types/api";
 
 const stageLabels: Record<PipelineStageName, string> = {
   ingest: "素材接收",
   outline: "章节梳理",
-  entities: "人物 / 地点",
+  entities: "角色与地点",
   scene_planning: "场景规划",
   screenplay_generation: "剧本生成",
-  validation: "Schema 校验",
-  persistence: "结果落盘",
+  validation: "结构校验",
+  persistence: "结果保存",
 };
 
 const statusLabels: Record<JobStatus, string> = {
@@ -17,12 +17,21 @@ const statusLabels: Record<JobStatus, string> = {
   failed: "失败",
 };
 
+const generationModeLabels: Record<GenerationMode, string> = {
+  deterministic: "标准草稿",
+  llm: "AI 增强",
+};
+
 export function formatStageName(stageName: PipelineStageName) {
   return stageLabels[stageName];
 }
 
 export function formatJobStatus(status: JobStatus) {
   return statusLabels[status];
+}
+
+export function formatGenerationMode(mode: GenerationMode) {
+  return generationModeLabels[mode];
 }
 
 export function formatDateTime(timestamp: string) {

@@ -130,28 +130,6 @@ button {
   font-size: 0.93rem;
 }
 
-.demo-flow-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 18px;
-  padding-top: 18px;
-  border-top: 1px dashed rgba(139, 63, 47, 0.25);
-}
-
-.demo-flow-list {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0;
-  padding-left: 18px;
-  color: var(--text-secondary);
-}
-
-.demo-flow-list li {
-  line-height: 1.7;
-}
-
 .workspace-grid {
   display: grid;
   grid-template-areas: "input status result";
@@ -442,36 +420,10 @@ button {
   font-size: 1rem;
 }
 
-.sample-preset-card__description,
-.sample-preset-card__focus,
-.demo-inline-guide p {
+.sample-preset-card__description {
   margin: 0;
   color: var(--text-secondary);
   line-height: 1.6;
-}
-
-.sample-preset-card__focus {
-  font-size: 0.88rem;
-}
-
-.sample-preset-card__flag {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.18rem 0.5rem;
-  border-radius: 999px;
-  background: rgba(139, 63, 47, 0.1);
-  color: var(--accent-primary);
-  font-size: 0.75rem;
-}
-
-.demo-inline-guide {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px;
-  border: 1px dashed rgba(47, 93, 98, 0.24);
-  border-radius: 12px;
-  background: rgba(47, 93, 98, 0.05);
 }
 
 .chapter-list {
@@ -957,10 +909,6 @@ button {
     border-left: 0;
     border-top: 1px dashed rgba(139, 63, 47, 0.25);
     padding-top: 14px;
-  }
-
-  .demo-flow-list {
-    grid-template-columns: 1fr;
   }
 
   .panel--status {

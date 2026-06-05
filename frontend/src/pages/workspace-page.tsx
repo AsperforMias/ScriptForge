@@ -22,7 +22,7 @@ import { useJobPolling } from "../features/job-detail/use-job-polling";
 import { useJobResult } from "../features/job-result/use-job-result";
 import { downloadTextFile } from "../lib/download";
 import { formatDateTime, getErrorMessage } from "../lib/format";
-import { buildApiUrl, requestText } from "../lib/http";
+import { requestText } from "../lib/http";
 import type { JobStage, JobStatus, PipelineStageName } from "../types/api";
 
 const LAST_JOB_STORAGE_KEY = "scriptforge:lastJobId";
@@ -36,12 +36,6 @@ const stageOrder: PipelineStageName[] = [
   "screenplay_generation",
   "validation",
   "persistence",
-];
-
-const recommendedDemoFlow = [
-  `1. Start from the default ${recommendedWorkspaceSamplePreset.label} sample and introduce the left-side source input first.`,
-  "2. Keep generationMode=deterministic, create a real job, and let the center column show 2s polling plus stage transitions.",
-  "3. Move to the result workspace to explain YAML, structured summary, and the local edit / reset / export actions.",
 ];
 
 function createIdleStages(): JobStage[] {
@@ -107,19 +101,18 @@ export function WorkspacePage() {
     setLoadedResultJobId(resultPayload.job_id);
     setResultNotice({
       tone: "success",
-      title: "已载入后端原始结果",
-      description: "当前 YAML 编辑区已同步为这次任务返回的剧本草稿，可直接修改、复制或导出。",
+      title: "已载入最新生成结果",
+      description: "右侧 YAML 编辑区已经同步到这次生成的剧本初稿，你可以继续修改、复制或导出。",
     });
   }, [loadedResultJobId, resultPayload]);
 
   const stages = jobDetails?.stages?.length ? jobDetails.stages : createIdleStages();
   const resultSummary = resultPayload?.screenplay ?? null;
   const activeJobStatus: JobStatus | null = activeJob?.status ?? null;
-  const resultErrorMessage = getErrorMessage(jobResultQuery.error || jobDetailsQuery.error);
   const hasEditedChanges = Boolean(originalYamlText) && editedYamlText !== originalYamlText;
   const resultBadgeLabel = useMemo(() => {
     if (jobResultQuery.isLoading) {
-      return "结果载入中";
+      return "载入中";
     }
 
     if (activeJobStatus === "succeeded" && resultPayload) {
@@ -131,33 +124,30 @@ export function WorkspacePage() {
     }
 
     if (activeJobStatus === "queued" || activeJobStatus === "running") {
-      return "等待 YAML";
+      return "处理中";
     }
 
-    return "YAML 核心结果";
+    return "可编辑初稿";
   }, [activeJobStatus, jobResultQuery.isLoading, resultPayload]);
 
-  const statusNote = useMemo(() => {
-    if (!activeJob) {
-      if (currentJobId && jobDetailsQuery.isLoading) {
-        return `正在恢复最近任务：${currentJobId}`;
-      }
-
-      return "尚未创建任务";
+  const progressNote = useMemo(() => {
+    if (activeJob) {
+      return `最近更新：${formatDateTime(activeJob.updated_at)}`;
     }
 
-    return `${activeJob.id} / ${formatDateTime(activeJob.updated_at)}`;
+    if (currentJobId && jobDetailsQuery.isLoading) {
+      return "正在恢复最近一次生成记录。";
+    }
+
+    return "生成完成后，你可以在右侧继续微调 YAML，并导出为本地文件。";
   }, [activeJob, currentJobId, jobDetailsQuery.isLoading]);
-  const activeSamplePreset =
-    workspaceSamplePresets.find((preset) => preset.id === activeSamplePresetId) ??
-    recommendedWorkspaceSamplePreset;
 
   function startJob(values: WorkspaceFormValues) {
     setFormError("");
     createJobMutation.reset();
 
     if (!hasAtLeastThreeCompleteChapters(values)) {
-      setFormError("至少需要 3 个填写完整的章节后才能提交。");
+      setFormError("至少需要填写完整的 3 个章节后才能开始生成。");
       return;
     }
 
@@ -173,8 +163,8 @@ export function WorkspacePage() {
         setLoadedResultJobId(null);
         setResultNotice({
           tone: "info",
-          title: "任务已创建",
-          description: "正在等待真实 job pipeline 完成；成功后结果区会自动载入新的 YAML 草稿。",
+          title: "已开始生成",
+          description: "中间会持续更新处理进度；完成后，右侧会自动载入新的剧本初稿。",
         });
         queryClient.removeQueries({ queryKey: ["job-result"] });
       },
@@ -202,14 +192,14 @@ export function WorkspacePage() {
       downloadTextFile(`${currentJobId}.screenplay.yaml`, yamlText);
       setResultNotice({
         tone: "success",
-        title: "已下载后端原始 YAML",
-        description: "导出内容保持与后端返回完全一致，未包含当前编辑区中的本地修改。",
+        title: "已下载生成初稿",
+        description: "下载内容与本次生成结果保持一致，适合留存原始版本。",
       });
     } catch (error) {
       setFormError(getErrorMessage(error));
       setResultNotice({
         tone: "error",
-        title: "下载后端原始 YAML 失败",
+        title: "下载失败",
         description: getErrorMessage(error),
       });
     }
@@ -227,8 +217,8 @@ export function WorkspacePage() {
     setEditedYamlText(originalYamlText);
     setResultNotice({
       tone: "info",
-      title: "已恢复后端原始结果",
-      description: "当前编辑区已放弃本地修改，重新对齐到本次任务的后端 YAML。",
+      title: "已恢复生成初稿",
+      description: "当前编辑区已经放弃本地修改，并重新对齐到本次生成的初始 YAML。",
     });
   }
 
@@ -241,10 +231,8 @@ export function WorkspacePage() {
     downloadTextFile(filename, editedYamlText);
     setResultNotice({
       tone: "success",
-      title: "已导出当前编辑稿",
-      description: hasEditedChanges
-        ? "本次导出包含你在前端编辑区中的本地修改。"
-        : "当前导出内容与后端原始 YAML 一致。",
+      title: "已导出当前版本",
+      description: hasEditedChanges ? "本次导出包含你在页面中的本地修改。" : "本次导出与生成初稿一致。",
     });
   }
 
@@ -257,13 +245,13 @@ export function WorkspacePage() {
       await navigator.clipboard.writeText(editedYamlText);
       setResultNotice({
         tone: "success",
-        title: "已复制当前 YAML",
-        description: hasEditedChanges ? "复制内容包含当前本地修改。" : "复制内容与后端原始 YAML 一致。",
+        title: "已复制 YAML",
+        description: hasEditedChanges ? "复制内容包含你当前的本地修改。" : "复制内容与生成初稿一致。",
       });
     } catch (error) {
       setResultNotice({
         tone: "error",
-        title: "复制 YAML 失败",
+        title: "复制失败",
         description: getErrorMessage(error),
       });
     }
@@ -272,38 +260,19 @@ export function WorkspacePage() {
   return (
     <main className="workspace-shell">
       <section className="page-intro">
-        <p className="eyebrow">ScriptForge Editorial Studio</p>
+        <p className="eyebrow">ScriptForge</p>
         <div className="page-intro__heading">
           <div>
-            <h1>小说转剧本工作台</h1>
+            <h1>ScriptForge 剧本改编工作台</h1>
             <p>
-              真实联调版本：左侧输入多章节与改编要求，中间观察真实 job pipeline，右侧查看并编辑后端返回的
-              YAML 结果。
+              把 3 章以上的小说文本整理成可继续打磨的 YAML 剧本初稿。左侧输入原文与改编要求，中间查看生成进度，右侧继续编辑、摘要浏览与导出。
             </p>
           </div>
           <div className="page-intro__aside">
-            <span>默认演示样例：{recommendedWorkspaceSamplePreset.label}</span>
-            <span>建议模式：deterministic 首轮演示</span>
-            <span>当前 API Base: {buildApiUrl("").replace(/\/$/, "")}</span>
+            <span>支持多章节小说输入与改编要求整理</span>
+            <span>内置悬疑、职场、校园运动三组示例</span>
+            <span>结果区同时保留 YAML 初稿与结构化摘要</span>
           </div>
-        </div>
-        <div className="demo-flow-card">
-          <div className="section-heading section-heading--tight">
-            <div>
-              <h3>Demo Flow</h3>
-              <p>按这个顺序讲解，评委能最快看出这不是静态演示壳子。</p>
-            </div>
-            <span className="section-tag">90s walkthrough</span>
-          </div>
-          <ol className="demo-flow-list">
-            {recommendedDemoFlow.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-          <p className="inline-note">当前样例焦点：{activeSamplePreset.demoFocus}</p>
-          <p className="inline-note">
-            如果需要切换题材，可在输入区改用悬疑或校园运动 preset，但默认演示路径保持统一。
-          </p>
         </div>
       </section>
 
@@ -313,7 +282,7 @@ export function WorkspacePage() {
             <div className="panel__header">
               <div>
                 <p className="panel__eyebrow">Input Workspace</p>
-                <h2>创作素材板</h2>
+                <h2>创作素材台</h2>
               </div>
               <span className="panel__badge">至少 3 章</span>
             </div>
@@ -321,11 +290,9 @@ export function WorkspacePage() {
             <ChapterList />
             {formError ? <p className="inline-error">{formError}</p> : null}
             <div className="submit-panel">
-              <p className="inline-note">
-                推荐演示顺序：先讲左侧输入，再点击生成，通过 `POST /api/v1/jobs` 创建任务并观察中栏 2s 轮询。
-              </p>
+              <p className="inline-note">确认章节内容与改编方向后即可开始生成，完成后右侧会自动载入可编辑初稿。</p>
               <button className="primary-button primary-button--full" disabled={createJobMutation.isPending} type="submit">
-                {createJobMutation.isPending ? "正在创建任务..." : "生成剧本草稿"}
+                {createJobMutation.isPending ? "正在开始生成..." : "生成剧本初稿"}
               </button>
             </div>
           </form>
@@ -335,32 +302,30 @@ export function WorkspacePage() {
           <div className="panel__header">
             <div>
               <p className="panel__eyebrow">Job Status</p>
-              <h2>任务进度带</h2>
+              <h2>生成进度</h2>
             </div>
-            <span className="panel__badge panel__badge--muted">2s polling</span>
+            <span className="panel__badge panel__badge--muted">自动更新</span>
           </div>
           <JobStatusPanel
             canRegenerate={activeJob?.status === "failed" && !createJobMutation.isPending}
             createError={getErrorMessage(createJobMutation.error)}
+            hasJobId={Boolean(currentJobId)}
             isCreating={createJobMutation.isPending}
             isPolling={jobDetailsQuery.isFetching}
-            hasJobId={Boolean(currentJobId)}
             job={activeJob}
             onRegenerate={handleRegenerate}
-            resultError={resultErrorMessage}
+            resultError={getErrorMessage(jobResultQuery.error || jobDetailsQuery.error)}
             stages={stages}
           />
           <div className="panel-section">
             <div className="section-heading section-heading--tight">
               <div>
-                <h3>演示检查点</h3>
-                <p>这里用来确认当前页面正在走真实 API 链路，而不是静态结果或 fake polling。</p>
+                <h3>继续创作</h3>
+                <p>页面会记住最近一次生成记录，刷新后仍可继续查看结果与修改内容。</p>
               </div>
-              <span className="section-tag">Live chain</span>
+              <span className="section-tag">本地延续</span>
             </div>
-            <p className="inline-note">
-              {currentJobId ? `当前任务：${statusNote}` : "当前还没有活动任务。默认样例已就位，可直接点击“生成剧本草稿”开始演示。"}
-            </p>
+            <p className="inline-note">{progressNote}</p>
           </div>
         </div>
 
@@ -368,7 +333,7 @@ export function WorkspacePage() {
           <div className="panel__header">
             <div>
               <p className="panel__eyebrow">Result Workspace</p>
-              <h2>剧本初稿与结构摘要</h2>
+              <h2>YAML 初稿与结构摘要</h2>
             </div>
             <span className="panel__badge panel__badge--accent">{resultBadgeLabel}</span>
           </div>
@@ -390,8 +355,8 @@ export function WorkspacePage() {
             isLoading={jobResultQuery.isLoading}
             jobId={currentJobId}
             jobStatus={activeJobStatus}
-            originalYamlText={originalYamlText}
             onChange={setEditedYamlText}
+            originalYamlText={originalYamlText}
             yamlText={editedYamlText}
           />
           <ScreenplaySummary
