@@ -1,0 +1,104 @@
+version: "1.0"
+source:
+    title: 最后一棒
+    author: 示例作者
+    language: zh-CN
+    chapter_count: 3
+    chapters:
+        - index: 1
+          title: 第一章 操场加练
+          summary: 周宁晚上独自在操场加练接力，教练突然通知主力队友可能缺席决赛。她第一次意识到最后一棒会落到自己手里。
+        - index: 2
+          title: 第二章 教室争执
+          summary: 第二天一早，她在教室里听见替补队友质疑战术安排，队伍差点在比赛前先吵散。周宁只能临时站出来稳住大家。
+        - index: 3
+          title: 第三章 跑道起跑
+          summary: 比赛当天清晨，周宁站上跑道，决定不再等待主力归队，而是带着现有阵容把接力跑完。
+adaptation:
+    style: 青春运动短剧
+    audience: 校园向
+    notes:
+        - 保留队伍压力
+        - 突出临场成长
+characters:
+    - id: char_周宁
+      name: 周宁
+      role: protagonist
+      description: 从章节行动线中推断出的主视角人物，负责把发现转化为调查行动。
+locations:
+    - id: loc_chapter_01
+      name: 操场
+      description: Primary dramatic location inferred from chapter 1.
+    - id: loc_chapter_02
+      name: 教室
+      description: Primary dramatic location inferred from chapter 2.
+    - id: loc_chapter_03
+      name: 跑道
+      description: Primary dramatic location inferred from chapter 3.
+scenes:
+    - id: scene_001
+      title: 第一章 操场加练
+      source_chapters:
+        - 1
+      slugline:
+        interior_exterior: EXT
+        location_id: loc_chapter_01
+        time: NIGHT
+      summary: 周宁晚上独自在操场加练接力，教练突然通知主力队友可能缺席决赛。她第一次意识到最后一棒会落到自己手里。
+      objective: 在比赛开始前稳住队伍配合，并把临场压力转成可执行的战术。
+      beats:
+        - type: action
+          content: 周宁晚上独自在操场加练接力，教练突然通知主力队友可能缺席决赛。她第一次意识到最后一棒会落到自己手里。
+        - type: dialogue
+          character_id: char_周宁
+          content: 就算少一个人，我们也得把这场接力跑完。
+          emotion: determined
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 队伍能否在比赛开始前重新建立信任？
+    - id: scene_002
+      title: 第二章 教室争执
+      source_chapters:
+        - 2
+      slugline:
+        interior_exterior: INT
+        location_id: loc_chapter_02
+        time: MORNING
+      summary: 第二天一早，她在教室里听见替补队友质疑战术安排，队伍差点在比赛前先吵散。周宁只能临时站出来稳住大家。
+      objective: 在比赛开始前稳住队伍配合，并把临场压力转成可执行的战术。
+      beats:
+        - type: action
+          content: 第二天一早，她在教室里听见替补队友质疑战术安排，队伍差点在比赛前先吵散。周宁只能临时站出来稳住大家。
+        - type: dialogue
+          character_id: char_周宁
+          content: 就算少一个人，我们也得把这场接力跑完。
+          emotion: determined
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 队伍能否在比赛开始前重新建立信任？
+    - id: scene_003
+      title: 第三章 跑道起跑
+      source_chapters:
+        - 3
+      slugline:
+        interior_exterior: EXT
+        location_id: loc_chapter_03
+        time: MORNING
+      summary: 比赛当天清晨，周宁站上跑道，决定不再等待主力归队，而是带着现有阵容把接力跑完。
+      objective: 在比赛开始前稳住队伍配合，并把临场压力转成可执行的战术。
+      beats:
+        - type: action
+          content: 比赛当天清晨，周宁站上跑道，决定不再等待主力归队，而是带着现有阵容把接力跑完。
+        - type: dialogue
+          character_id: char_周宁
+          content: 就算少一个人，我们也得把这场接力跑完。
+          emotion: determined
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 队伍能否在比赛开始前重新建立信任？
+validation:
+    status: passed
+    warnings: []

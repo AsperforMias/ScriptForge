@@ -1,0 +1,104 @@
+version: "1.0"
+source:
+    title: 交稿前夜
+    author: 示例作者
+    language: zh-CN
+    chapter_count: 3
+    chapters:
+        - index: 1
+          title: 第一章 数据被换
+          summary: 苏禾深夜留在办公室复核提案，发现明早汇报用的数据被人替换。她意识到项目组里有人提前动了最终版本。
+        - index: 2
+          title: 第二章 咖啡馆对质
+          summary: 她约同组同事在咖啡馆见面，对方却反问她是不是想独占客户。苏禾意识到怀疑已经在团队里扩散。
+        - index: 3
+          title: 第三章 会议室摊牌
+          summary: 第二天清晨，苏禾带着备份文件走进会议室，决定在正式汇报前把问题摆到台面上。
+adaptation:
+    style: 职场短剧
+    audience: 都市向
+    notes:
+        - 突出时间压力
+        - 保留团队猜疑
+characters:
+    - id: char_苏禾
+      name: 苏禾
+      role: protagonist
+      description: 从章节行动线中推断出的主视角人物，负责把发现转化为调查行动。
+locations:
+    - id: loc_chapter_01
+      name: 办公室
+      description: Primary dramatic location inferred from chapter 1.
+    - id: loc_chapter_02
+      name: 咖啡馆
+      description: Primary dramatic location inferred from chapter 2.
+    - id: loc_chapter_03
+      name: 会议室
+      description: Primary dramatic location inferred from chapter 3.
+scenes:
+    - id: scene_001
+      title: 第一章 数据被换
+      source_chapters:
+        - 1
+      slugline:
+        interior_exterior: INT
+        location_id: loc_chapter_01
+        time: NIGHT
+      summary: 苏禾深夜留在办公室复核提案，发现明早汇报用的数据被人替换。她意识到项目组里有人提前动了最终版本。
+      objective: 在正式汇报前确认项目风险，并决定是内部止损还是当场摊牌。
+      beats:
+        - type: action
+          content: 苏禾深夜留在办公室复核提案，发现明早汇报用的数据被人替换。她意识到项目组里有人提前动了最终版本。
+        - type: dialogue
+          character_id: char_苏禾
+          content: 如果现在不把问题找出来，明天整个项目都会失控。
+          emotion: focused
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 是谁在关键节点动了项目数据？
+    - id: scene_002
+      title: 第二章 咖啡馆对质
+      source_chapters:
+        - 2
+      slugline:
+        interior_exterior: INT
+        location_id: loc_chapter_02
+        time: DAY
+      summary: 她约同组同事在咖啡馆见面，对方却反问她是不是想独占客户。苏禾意识到怀疑已经在团队里扩散。
+      objective: 在正式汇报前确认项目风险，并决定是内部止损还是当场摊牌。
+      beats:
+        - type: action
+          content: 她约同组同事在咖啡馆见面，对方却反问她是不是想独占客户。苏禾意识到怀疑已经在团队里扩散。
+        - type: dialogue
+          character_id: char_苏禾
+          content: 如果现在不把问题找出来，明天整个项目都会失控。
+          emotion: focused
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 是谁在关键节点动了项目数据？
+    - id: scene_003
+      title: 第三章 会议室摊牌
+      source_chapters:
+        - 3
+      slugline:
+        interior_exterior: INT
+        location_id: loc_chapter_03
+        time: MORNING
+      summary: 第二天清晨，苏禾带着备份文件走进会议室，决定在正式汇报前把问题摆到台面上。
+      objective: 在正式汇报前确认项目风险，并决定是内部止损还是当场摊牌。
+      beats:
+        - type: action
+          content: 第二天清晨，苏禾带着备份文件走进会议室，决定在正式汇报前把问题摆到台面上。
+        - type: dialogue
+          character_id: char_苏禾
+          content: 如果现在不把问题找出来，明天整个项目都会失控。
+          emotion: focused
+      notes:
+        adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
+        open_questions:
+            - 是谁在关键节点动了项目数据？
+validation:
+    status: passed
+    warnings: []
