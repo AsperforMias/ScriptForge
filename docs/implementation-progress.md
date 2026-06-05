@@ -53,6 +53,7 @@
 - 多章节输入、`react-hook-form` 校验、`lastJobId` 持久化恢复、2s 轮询与失败/警告展示已接入真实后端数据
 - failed job 现在支持基于当前表单重新创建 job，补齐文档要求的失败后“重新生成”入口
 - MVP 文档中的小说输入范围已收敛为粘贴 / 手工录入，移除未实现的上传承诺
+- 前端 sample preset 已扩展到悬疑、职场、校园运动三类题材，便于演示多场景链路
 - 结果区已以 YAML 文本为核心，支持恢复后端原始结果、下载后端原始 YAML、导出当前编辑文本
 - 结构化摘要区已切换为直接读取后端返回的 `screenplay` JSON，不再依赖静态 demo 数据
 - 本地 `backend@8080 + frontend@5173` 已完成 deterministic 与 `llm(openai_compatible)` 两条真实 UI 链路联调

@@ -340,13 +340,15 @@ button {
 
 .chip-row,
 .status-stack,
-.scene-stack {
+.scene-stack,
+.sample-preset-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.chip-row {
+.chip-row,
+.sample-preset-list {
   flex-direction: row;
   flex-wrap: wrap;
 }
