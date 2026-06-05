@@ -114,6 +114,45 @@ func TestOpenAICompatibleGeneratorNormalizesVersionAndFences(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatibleGeneratorExtractsFencedYAMLAfterProviderPreface(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return fixtureResponse(t, "preface_fenced_night_rain.txt"), nil
+		}),
+	}
+
+	result, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_preface_fenced",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		t.Fatalf("unexpected generator error: %v", err)
+	}
+	if result.Debug == nil || result.Debug.ParseMode != "canonical" {
+		t.Fatalf("expected canonical parse mode for fenced yaml after preface, got %#v", result.Debug)
+	}
+	if result.Document.Source.Title != "Night Rain" {
+		t.Fatalf("unexpected source title after fenced extraction: %s", result.Document.Source.Title)
+	}
+}
+
 func TestOpenAICompatibleGeneratorTransformsLooseDeepSeekSchema(t *testing.T) {
 	input := validOpenAICompatibleCreateJobRequest()
 	source := ingest.Normalize(input)
@@ -207,6 +246,54 @@ func TestOpenAICompatibleGeneratorBackfillsMissingLooseSceneFields(t *testing.T)
 	}
 	if result.Document.Locations[0].Name != "公寓" {
 		t.Fatalf("expected planned location name 公寓, got %s", result.Document.Locations[0].Name)
+	}
+}
+
+func TestOpenAICompatibleGeneratorFallsBackToPlannedCharactersAndMetadata(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return fixtureResponse(t, "loose_missing_metadata_and_characters.yaml"), nil
+		}),
+	}
+
+	result, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_loose_entity_fallback",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		t.Fatalf("unexpected generator error: %v", err)
+	}
+	if result.Document.Source.Author != input.Source.Author {
+		t.Fatalf("expected source author fallback %s, got %s", input.Source.Author, result.Document.Source.Author)
+	}
+	if result.Document.Adaptation.Style != input.Adaptation.Style {
+		t.Fatalf("expected adaptation style fallback %s, got %s", input.Adaptation.Style, result.Document.Adaptation.Style)
+	}
+	if len(result.Document.Characters) != len(entities.Characters) {
+		t.Fatalf("expected fallback characters from entities, got %d want %d", len(result.Document.Characters), len(entities.Characters))
+	}
+	if len(result.Document.Characters) == 0 || result.Document.Characters[0].Name != entities.Characters[0].Name {
+		t.Fatalf("expected first fallback character %s, got %#v", entities.Characters[0].Name, result.Document.Characters)
+	}
+	if result.Debug == nil || result.Debug.ParseMode != "loose_normalized" {
+		t.Fatalf("expected loose_normalized parse mode, got %#v", result.Debug)
 	}
 }
 

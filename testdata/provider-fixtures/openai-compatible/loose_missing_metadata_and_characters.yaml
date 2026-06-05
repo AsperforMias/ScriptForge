@@ -1,0 +1,22 @@
+scenes:
+  - index: 1
+    chapter: 1
+    location: "公寓"
+    time: "深夜"
+    beats:
+      - type: action
+        text: 林琪深夜回到公寓，先在门外停住脚步。
+  - index: 2
+    chapter: 2
+    location: "公寓"
+    time: "夜里"
+    beats:
+      - type: action
+        text: 她在桌边发现陌生字条，意识到有人来过。
+  - index: 3
+    chapter: 3
+    location: "车站"
+    time: "清晨"
+    beats:
+      - type: action
+        text: 林琪带着字条赶到车站，决定主动追查线索。

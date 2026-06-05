@@ -1,0 +1,102 @@
+这里是根据输入整理出的 YAML 初稿，请直接使用下方代码块中的内容。
+
+```yaml
+version: "1.0"
+source:
+  title: "Night Rain"
+  author: "Demo Author"
+  language: "zh-CN"
+  chapter_count: 3
+  chapters:
+    - index: 1
+      title: "Chapter 1"
+      summary: "林琪深夜回到公寓，发现门锁似乎被动过。"
+    - index: 2
+      title: "Chapter 2"
+      summary: "她在房间里找到一张陌生字条，怀疑有人潜入。"
+    - index: 3
+      title: "Chapter 3"
+      summary: "第二天清晨，她决定顺着线索前往车站。"
+adaptation:
+  style: "Suspense Drama"
+  audience: "General"
+  notes: []
+characters:
+  - id: "char_linqi"
+    name: "林琪"
+    role: "protagonist"
+    description: "追查陌生字条来源的女主角。"
+locations:
+  - id: "loc_apartment"
+    name: "公寓"
+    description: "林琪居住的旧公寓。"
+  - id: "loc_station"
+    name: "车站"
+    description: "线索指向的清晨车站。"
+scenes:
+  - id: "scene_001"
+    title: "Chapter 1"
+    source_chapters: [1]
+    slugline:
+      interior_exterior: "INT"
+      location_id: "loc_apartment"
+      time: "NIGHT"
+    summary: "林琪深夜回到公寓，发现门锁似乎被动过。"
+    objective: "确认房间是否被入侵，并决定是否继续追查。"
+    beats:
+      - type: "action"
+        content: "林琪停在门口，反复检查门锁上的细微划痕。"
+      - type: "dialogue"
+        character_id: "char_linqi"
+        content: "有人来过这里。"
+        emotion: "tense"
+    notes:
+      adaptation_reason: "把心理警觉转成可拍摄的门口停顿动作。"
+      open_questions:
+        - "是谁提前进入了林琪的房间？"
+  - id: "scene_002"
+    title: "Chapter 2"
+    source_chapters: [2]
+    slugline:
+      interior_exterior: "INT"
+      location_id: "loc_apartment"
+      time: "NIGHT"
+    summary: "林琪在房间里发现陌生字条，意识到威胁逼近。"
+    objective: "确认入侵者是否刻意留下警告，并逼近核心威胁。"
+    beats:
+      - type: "action"
+        content: "她在桌面下抽出字条，手指因为紧张而发白。"
+      - type: "dialogue"
+        character_id: "char_linqi"
+        content: "今晚别睡？他到底想做什么？"
+        emotion: "tense"
+    notes:
+      adaptation_reason: "用字条发现动作强化悬疑节奏。"
+      open_questions:
+        - "警告背后的人是在威胁林琪，还是在保护她？"
+  - id: "scene_003"
+    title: "Chapter 3"
+    source_chapters: [3]
+    slugline:
+      interior_exterior: "EXT"
+      location_id: "loc_station"
+      time: "MORNING"
+    summary: "林琪带着字条前往车站，决定主动追踪线索。"
+    objective: "把被动受威胁转成主动追查。"
+    beats:
+      - type: "action"
+        content: "清晨的车站里，林琪抓紧字条四处寻找可疑身影。"
+      - type: "dialogue"
+        character_id: "char_linqi"
+        content: "不管是谁留下的，我一定要把人找出来。"
+        emotion: "determined"
+    notes:
+      adaptation_reason: "把章节追踪意图外化成车站行动场面。"
+      open_questions:
+        - "车站里等待她的，是线索还是陷阱？"
+validation:
+  status: "passed"
+  warnings: []
+```
+
+补充说明：如需落地拍摄，可进一步压缩第二场的对白长度。

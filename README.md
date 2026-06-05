@@ -117,6 +117,7 @@ OpenAI-compatible provider note:
 Current backend focus:
 - extend regression coverage for real-world loose YAML variants returned by `openai_compatible` providers
 - continue polishing provider prompt/normalization quality while keeping the current YAML-first output contract
+- provider fixture coverage now includes fenced YAML with explanatory preface and loose YAML that relies on planned metadata/entity fallback
 
 Backend self-check:
 ```bash
