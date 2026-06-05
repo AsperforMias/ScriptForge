@@ -4,6 +4,8 @@
 
 前端首版的职责不是做复杂编辑器，而是把“输入小说 -> 触发生成 -> 查看结果 -> 编辑 YAML -> 导出”这条路径打通，并且让评委一眼看懂产品价值。
 
+视觉与版式方向不在本文件重复定义，统一以 [`frontend-visual-direction.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend-visual-direction.md) 为准。
+
 ## 前端必须覆盖的功能
 
 输入区：

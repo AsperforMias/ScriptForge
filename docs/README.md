@@ -11,11 +11,12 @@ Recommended read order:
 6. [`api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md): required request and response shapes
 7. [`backend-pipeline.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-pipeline.md): stage-by-stage execution contract for the generation pipeline
 8. [`frontend.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend.md): frontend feature contract, user paths, interaction boundaries
-9. [`yaml-schema.md`](/Users/asperformias/Code/github/ScriptForge/docs/yaml-schema.md): screenplay YAML schema and design rationale
-10. [`milestones.md`](/Users/asperformias/Code/github/ScriptForge/docs/milestones.md): definition of done per phase and suggested PR breakdown
-11. [`competition-brief.md`](/Users/asperformias/Code/github/ScriptForge/docs/competition-brief.md): filtered contest requirements and judging implications
-12. [`architecture-self-check.md`](/Users/asperformias/Code/github/ScriptForge/docs/architecture-self-check.md): alignment audit against the prompt and judging criteria
-13. [`collaboration-rules.md`](/Users/asperformias/Code/github/ScriptForge/docs/collaboration-rules.md): PR, commit, branch, pairing, and agent operating rules
+9. [`frontend-visual-direction.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend-visual-direction.md): locked visual language, layout priority, and UI constraints for the frontend workspace
+10. [`yaml-schema.md`](/Users/asperformias/Code/github/ScriptForge/docs/yaml-schema.md): screenplay YAML schema and design rationale
+11. [`milestones.md`](/Users/asperformias/Code/github/ScriptForge/docs/milestones.md): definition of done per phase and suggested PR breakdown
+12. [`competition-brief.md`](/Users/asperformias/Code/github/ScriptForge/docs/competition-brief.md): filtered contest requirements and judging implications
+13. [`architecture-self-check.md`](/Users/asperformias/Code/github/ScriptForge/docs/architecture-self-check.md): alignment audit against the prompt and judging criteria
+14. [`collaboration-rules.md`](/Users/asperformias/Code/github/ScriptForge/docs/collaboration-rules.md): PR, commit, branch, pairing, and agent operating rules
 
 Current runnable ability:
 - The backend job API and deterministic pipeline are runnable locally.
