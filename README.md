@@ -47,6 +47,12 @@ npm install
 npm run dev
 ```
 
+Frontend smoke-check:
+```bash
+cd frontend
+npm run smoke:workspace
+```
+
 Default local demo ports:
 - backend API: `http://127.0.0.1:8080`
 - frontend dev server: `http://127.0.0.1:5173`
@@ -67,6 +73,16 @@ Frontend real-chain self-check:
 7. Optional failed-path check: switch the form to `generationMode=llm` while the backend runs with `LLM_PROVIDER=disabled`, submit once, confirm the failed stage message appears, then click `重新生成当前表单` to verify the frontend creates a fresh job from the same form state.
 8. Narrow the viewport to a tablet or mobile width and confirm the workspace collapses into a readable `Input -> Status -> Result` vertical flow.
 9. After a successful result load, modify the YAML once, confirm the toolbar flips from `当前为后端原稿` to `当前为本地编辑稿`, then test `复制当前 YAML` and `恢复后端原始结果`.
+
+Scripted frontend smoke-check:
+- `npm run smoke:workspace` expects the backend on `:8080`, the frontend dev server on `:5173`, and a local Chrome or Edge executable.
+- It verifies: sample preset load, real `POST /api/v1/jobs`, polling to success, YAML load, a local YAML edit, reset back to the backend result, and scene summary presence.
+- Optional overrides:
+  - `FRONTEND_SMOKE_UI_URL`
+  - `FRONTEND_SMOKE_BACKEND_HEALTH_URL`
+  - `FRONTEND_SMOKE_SAMPLE_LABEL`
+  - `FRONTEND_SMOKE_CHROME_PATH`
+  - `FRONTEND_SMOKE_TIMEOUT_MS`
 
 Frontend API note:
 ```bash

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "smoke:workspace": "node ./scripts/smoke-workspace.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.80.7",
@@ -19,6 +20,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",
+    "playwright-core": "^1.53.2",
     "typescript": "~5.8.3",
     "vite": "^7.0.0"
   }
