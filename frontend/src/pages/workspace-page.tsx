@@ -12,6 +12,8 @@ import {
   defaultWorkspaceFormValues,
   sampleWorkspaceFormValues,
   type WorkspaceFormValues,
+  type WorkspaceSamplePresetId,
+  workspaceSamplePresets,
 } from "../features/create-job/form";
 import { useCreateJob } from "../features/create-job/use-create-job";
 import { useJobPolling } from "../features/job-detail/use-job-polling";
@@ -147,8 +149,10 @@ export function WorkspacePage() {
     }
   }
 
-  function handleLoadSample() {
-    form.reset(sampleWorkspaceFormValues);
+  function handleLoadSample(presetId: WorkspaceSamplePresetId) {
+    const preset = workspaceSamplePresets.find((item) => item.id === presetId);
+
+    form.reset(preset?.values ?? sampleWorkspaceFormValues);
     setFormError("");
   }
 

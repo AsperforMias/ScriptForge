@@ -1,8 +1,12 @@
 import { useFormContext } from "react-hook-form";
-import type { WorkspaceFormValues } from "../../features/create-job/form";
+import {
+  workspaceSamplePresets,
+  type WorkspaceFormValues,
+  type WorkspaceSamplePresetId,
+} from "../../features/create-job/form";
 
 interface SourceFormProps {
-  onLoadSample: () => void;
+  onLoadSample: (presetId: WorkspaceSamplePresetId) => void;
 }
 
 export function SourceForm({ onLoadSample }: SourceFormProps) {
@@ -18,9 +22,21 @@ export function SourceForm({ onLoadSample }: SourceFormProps) {
           <h3 id="source-form-heading">作品与改编设定</h3>
           <p>这里直接接入真实表单状态，创建 job 时会按文档契约映射为后端请求。</p>
         </div>
-        <button className="ghost-button" onClick={onLoadSample} type="button">
-          载入示例
-        </button>
+        <span className="section-tag">Sample Presets</span>
+      </div>
+
+      <div className="sample-preset-list" aria-label="sample presets">
+        {workspaceSamplePresets.map((preset) => (
+          <button
+            className="ghost-button ghost-button--compact"
+            key={preset.id}
+            onClick={() => onLoadSample(preset.id)}
+            title={preset.description}
+            type="button"
+          >
+            {preset.label}
+          </button>
+        ))}
       </div>
 
       <div className="field-grid">
