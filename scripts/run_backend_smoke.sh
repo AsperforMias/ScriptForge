@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="${1:-deterministic}"
+FIXTURE_ALIAS="${2:-night-rain}"
 PORT="${PORT:-18080}"
 JOB_TIMEOUT_SECONDS="${JOB_TIMEOUT_SECONDS:-60}"
 BACKEND_DIR="$ROOT_DIR/backend"
@@ -26,7 +27,7 @@ trap cleanup EXIT
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/run_backend_smoke.sh [deterministic|llm]
+  scripts/run_backend_smoke.sh [deterministic|llm] [fixture]
 
 Environment overrides:
   PORT=<port>                   Temporary backend listen port. Default: 18080
@@ -35,10 +36,44 @@ Environment overrides:
 Notes:
   - llm mode expects repo-root .env.local to exist and contain valid provider vars.
   - deterministic mode does not require any external provider setup.
+  - fixture defaults to night-rain and also accepts: workplace, campus, family, comedy.
 EOF
 }
 
+fixture_path_for() {
+  case "$1" in
+    night-rain|suspense)
+      echo "$ROOT_DIR/testdata/novels/night-rain-request.json"
+      ;;
+    workplace|workplace-crisis)
+      echo "$ROOT_DIR/testdata/novels/workplace-crisis-request.json"
+      ;;
+    campus|campus-relay)
+      echo "$ROOT_DIR/testdata/novels/campus-relay-request.json"
+      ;;
+    family|family-dinner)
+      echo "$ROOT_DIR/testdata/novels/family-dinner-request.json"
+      ;;
+    comedy|comedy-live-mixup)
+      echo "$ROOT_DIR/testdata/novels/comedy-live-mixup-request.json"
+      ;;
+    *)
+      if [[ -f "$ROOT_DIR/testdata/novels/$1" ]]; then
+        echo "$ROOT_DIR/testdata/novels/$1"
+        return 0
+      fi
+      return 1
+      ;;
+  esac
+}
+
 if [[ "$MODE" != "deterministic" && "$MODE" != "llm" ]]; then
+  usage
+  exit 1
+fi
+
+if ! FIXTURE_SOURCE_PATH="$(fixture_path_for "$FIXTURE_ALIAS")"; then
+  echo "unknown fixture alias: $FIXTURE_ALIAS"
   usage
   exit 1
 fi
@@ -56,7 +91,7 @@ if [[ "$MODE" == "llm" ]]; then
   set +a
 fi
 
-cp "$ROOT_DIR/testdata/novels/night-rain-request.json" "$REQUEST_PATH"
+cp "$FIXTURE_SOURCE_PATH" "$REQUEST_PATH"
 if [[ "$MODE" == "llm" ]]; then
   perl -0pi -e 's/"mode": "deterministic"/"mode": "llm"/' "$REQUEST_PATH"
 fi
@@ -123,6 +158,7 @@ result_response="$(curl -fsS "http://127.0.0.1:$PORT/api/v1/jobs/$job_id/result"
 curl -fsS "http://127.0.0.1:$PORT/api/v1/jobs/$job_id/export" >"$EXPORT_PATH"
 
 echo "smoke mode: $MODE"
+echo "fixture: $FIXTURE_ALIAS"
 echo "job id: $job_id"
 echo "export path: $EXPORT_PATH"
 echo "backend log: $LOG_PATH"
