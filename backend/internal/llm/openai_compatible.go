@@ -211,15 +211,34 @@ type looseDocument struct {
 
 func extractYAMLResponse(content string) string {
 	content = strings.TrimSpace(content)
-	if strings.HasPrefix(content, "```") {
-		content = strings.TrimPrefix(content, "```yaml")
-		content = strings.TrimPrefix(content, "```yml")
-		content = strings.TrimPrefix(content, "```")
-		if idx := strings.LastIndex(content, "```"); idx >= 0 {
-			content = content[:idx]
+	if idx := strings.Index(content, "```"); idx >= 0 {
+		content = content[idx+3:]
+		content = strings.TrimPrefix(content, "yaml")
+		content = strings.TrimPrefix(content, "yml")
+		content = strings.TrimLeft(content, "\r\n")
+		if end := strings.Index(content, "```"); end >= 0 {
+			content = content[:end]
+		}
+		return strings.TrimSpace(content)
+	}
+
+	lines := strings.Split(content, "\n")
+	for idx, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(trimmed, "version:"),
+			strings.HasPrefix(trimmed, "source:"),
+			strings.HasPrefix(trimmed, "adaptation:"),
+			strings.HasPrefix(trimmed, "metadata:"),
+			strings.HasPrefix(trimmed, "characters:"),
+			strings.HasPrefix(trimmed, "locations:"),
+			strings.HasPrefix(trimmed, "scenes:"),
+			strings.HasPrefix(trimmed, "validation:"):
+			return strings.TrimSpace(strings.Join(lines[idx:], "\n"))
 		}
 	}
-	return strings.TrimSpace(content)
+
+	return content
 }
 
 func normalizeGeneratedDocument(doc screenplay.Document) screenplay.Document {
