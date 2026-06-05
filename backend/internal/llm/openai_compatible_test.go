@@ -153,6 +153,92 @@ func TestOpenAICompatibleGeneratorExtractsFencedYAMLAfterProviderPreface(t *test
 	}
 }
 
+func TestOpenAICompatibleGeneratorSupportsArrayMessageContent(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			body := `{"choices":[{"message":{"content":[{"type":"text","text":"Here is the screenplay draft you requested."},{"type":"text","text":` +
+				strconv.Quote("```yaml\n"+providerFixture(t, "canonical_night_rain.yaml")+"\n```") +
+				`}]}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	result, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_content_array",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		t.Fatalf("unexpected generator error: %v", err)
+	}
+	if result.Debug == nil || result.Debug.ParseMode != "canonical" {
+		t.Fatalf("expected canonical parse mode, got %#v", result.Debug)
+	}
+	if result.Document.Source.Title != "Night Rain" {
+		t.Fatalf("unexpected source title after content array parsing: %s", result.Document.Source.Title)
+	}
+}
+
+func TestOpenAICompatibleGeneratorRejectsArrayContentWithoutTextParts(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"choices":[{"message":{"content":[{"type":"image_url","image_url":{"url":"https://example.com/demo.png"}}]}}]}`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	_, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_content_array_without_text",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err == nil {
+		t.Fatal("expected array-without-text failure")
+	}
+	if !strings.Contains(err.Error(), "no text parts found in message content array") {
+		t.Fatalf("expected array content extraction error, got %v", err)
+	}
+}
+
 func TestOpenAICompatibleGeneratorTransformsLooseDeepSeekSchema(t *testing.T) {
 	input := validOpenAICompatibleCreateJobRequest()
 	source := ingest.Normalize(input)

@@ -45,7 +45,7 @@
 - `scripts/run_backend_smoke.sh` 已分别通过 deterministic 与 DeepSeek real-provider 路径验证
 - `scripts/run_backend_smoke.sh` 现在支持按题材切换 demo fixture，可直接验证 suspense / workplace / campus / family / comedy 路径
 - `openai_compatible` 的 provider 失败语义已补回归，覆盖 HTTP 429、error payload 与 empty choices
-- `openai_compatible` 已进一步补入“前置说明 + fenced YAML”与“缺 metadata / characters 的 loose YAML”两类 fixture，增强真实 provider 输出变体覆盖
+- `openai_compatible` 已进一步补入“前置说明 + fenced YAML”、“message.content 文本分片数组”与“缺 metadata / characters 的 loose YAML”三类兼容变体，增强真实 provider 输出覆盖
 - HTTP / service / SQLite 层已进一步补入 `job_not_found`、`job_not_ready` 与 export 未就绪等失败路径回归
 - 前端默认落地架构已补入 `docs/frontend.md`，达到后续 Codex session 可直接脚手架实现的程度
 - 前端视觉方向已补入 `docs/frontend-visual-direction.md`，足以支撑后续 session 直接落地 UI 并继续细调

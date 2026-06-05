@@ -36,7 +36,7 @@ type chatCompletionInput struct {
 type chatCompletionsResponse struct {
 	Choices []struct {
 		Message struct {
-			Content string `json:"content"`
+			Content json.RawMessage `json:"content"`
 		} `json:"message"`
 	} `json:"choices"`
 	Error *struct {
@@ -110,7 +110,12 @@ func (g *OpenAICompatibleGenerator) Generate(ctx context.Context, req GenerateRe
 		return GenerateResult{}, NewInvocationError(g.Name(), fmt.Errorf("empty choices"))
 	}
 
-	yamlText := extractYAMLResponse(completion.Choices[0].Message.Content)
+	messageContent, err := extractMessageContent(completion.Choices[0].Message.Content)
+	if err != nil {
+		return GenerateResult{}, NewInvocationError(g.Name(), fmt.Errorf("extract message content: %w", err))
+	}
+
+	yamlText := extractYAMLResponse(messageContent)
 	document, warnings, parseMode, err := parseGeneratedDocument(yamlText, req)
 	if err != nil {
 		return GenerateResult{}, NewInvocationError(g.Name(), fmt.Errorf("parse yaml response: %w", err))
@@ -207,6 +212,78 @@ type looseDocument struct {
 			CharacterID string `yaml:"character_id"`
 		} `yaml:"beats"`
 	} `yaml:"scenes"`
+}
+
+type contentPart struct {
+	Type    string `json:"type"`
+	Text    string `json:"text"`
+	Content string `json:"content"`
+	Value   string `json:"value"`
+}
+
+func extractMessageContent(raw json.RawMessage) (string, error) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return "", fmt.Errorf("missing message content")
+	}
+
+	if trimmed[0] == '"' {
+		var content string
+		if err := json.Unmarshal(trimmed, &content); err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(content), nil
+	}
+
+	if trimmed[0] == '[' {
+		var parts []json.RawMessage
+		if err := json.Unmarshal(trimmed, &parts); err != nil {
+			return "", err
+		}
+
+		textParts := make([]string, 0, len(parts))
+		for _, partRaw := range parts {
+			partText := extractContentPartText(partRaw)
+			if partText == "" {
+				continue
+			}
+			textParts = append(textParts, partText)
+		}
+
+		if len(textParts) == 0 {
+			return "", fmt.Errorf("no text parts found in message content array")
+		}
+
+		return strings.TrimSpace(strings.Join(textParts, "\n")), nil
+	}
+
+	return "", fmt.Errorf("unsupported message content shape")
+}
+
+func extractContentPartText(raw json.RawMessage) string {
+	var direct string
+	if err := json.Unmarshal(raw, &direct); err == nil {
+		return strings.TrimSpace(direct)
+	}
+
+	var part contentPart
+	if err := json.Unmarshal(raw, &part); err == nil {
+		if text := firstNonEmpty(part.Text, part.Content, part.Value); text != "" {
+			return strings.TrimSpace(text)
+		}
+	}
+
+	var nested struct {
+		Type string `json:"type"`
+		Text struct {
+			Value string `json:"value"`
+		} `json:"text"`
+	}
+	if err := json.Unmarshal(raw, &nested); err == nil {
+		return strings.TrimSpace(nested.Text.Value)
+	}
+
+	return ""
 }
 
 func extractYAMLResponse(content string) string {
