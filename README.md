@@ -29,6 +29,7 @@ Current runnable ability:
 - failed jobs can be regenerated from the current frontend form without adding a separate retry API
 - frontend sample presets now cover suspense, workplace, and campus relay demo paths
 - the workspace now exposes explicit idle/loading/succeeded/failed copy and remains readable across desktop, tablet, and mobile layouts
+- the result workspace now distinguishes backend-original vs local-edited YAML, supports copy/reset/export feedback, and adds screenplay overview cards from backend JSON
 - `generation.mode=llm` now supports `mock` and `openai_compatible` providers behind the same job API
 - the `openai_compatible` path has been validated against DeepSeek-compatible `/chat/completions` and normalizes loose provider YAML into the canonical project schema
 - fixture-backed integration tests cover create, status, result, export, invalid input, not-ready, and llm mock behavior
@@ -65,6 +66,7 @@ Frontend real-chain self-check:
 6. Use the export actions to verify both backend raw export and current edited YAML download paths.
 7. Optional failed-path check: switch the form to `generationMode=llm` while the backend runs with `LLM_PROVIDER=disabled`, submit once, confirm the failed stage message appears, then click `重新生成当前表单` to verify the frontend creates a fresh job from the same form state.
 8. Narrow the viewport to a tablet or mobile width and confirm the workspace collapses into a readable `Input -> Status -> Result` vertical flow.
+9. After a successful result load, modify the YAML once, confirm the toolbar flips from `当前为后端原稿` to `当前为本地编辑稿`, then test `复制当前 YAML` and `恢复后端原始结果`.
 
 Frontend API note:
 ```bash

@@ -24,6 +24,7 @@ import { buildApiUrl, requestText } from "../lib/http";
 import type { JobStage, JobStatus, PipelineStageName } from "../types/api";
 
 const LAST_JOB_STORAGE_KEY = "scriptforge:lastJobId";
+type ResultNoticeTone = "info" | "success" | "error";
 
 const stageOrder: PipelineStageName[] = [
   "ingest",
@@ -62,6 +63,11 @@ export function WorkspacePage() {
   const [editedYamlText, setEditedYamlText] = useState("");
   const [loadedResultJobId, setLoadedResultJobId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  const [resultNotice, setResultNotice] = useState<{
+    tone: ResultNoticeTone;
+    title: string;
+    description: string;
+  } | null>(null);
 
   const createJobMutation = useCreateJob();
   const jobDetailsQuery = useJobPolling(currentJobId);
@@ -88,12 +94,18 @@ export function WorkspacePage() {
     setOriginalYamlText(resultPayload.yaml_text);
     setEditedYamlText(resultPayload.yaml_text);
     setLoadedResultJobId(resultPayload.job_id);
+    setResultNotice({
+      tone: "success",
+      title: "已载入后端原始结果",
+      description: "当前 YAML 编辑区已同步为这次任务返回的剧本草稿，可直接修改、复制或导出。",
+    });
   }, [loadedResultJobId, resultPayload]);
 
   const stages = jobDetails?.stages?.length ? jobDetails.stages : createIdleStages();
   const resultSummary = resultPayload?.screenplay ?? null;
   const activeJobStatus: JobStatus | null = activeJob?.status ?? null;
   const resultErrorMessage = getErrorMessage(jobResultQuery.error || jobDetailsQuery.error);
+  const hasEditedChanges = Boolean(originalYamlText) && editedYamlText !== originalYamlText;
   const resultBadgeLabel = useMemo(() => {
     if (jobResultQuery.isLoading) {
       return "结果载入中";
@@ -145,6 +157,11 @@ export function WorkspacePage() {
         setOriginalYamlText("");
         setEditedYamlText("");
         setLoadedResultJobId(null);
+        setResultNotice({
+          tone: "info",
+          title: "任务已创建",
+          description: "正在等待真实 job pipeline 完成；成功后结果区会自动载入新的 YAML 草稿。",
+        });
         queryClient.removeQueries({ queryKey: ["job-result"] });
       },
       onError: (error) => {
@@ -169,8 +186,18 @@ export function WorkspacePage() {
     try {
       const yamlText = await requestText(`/jobs/${currentJobId}/export`);
       downloadTextFile(`${currentJobId}.screenplay.yaml`, yamlText);
+      setResultNotice({
+        tone: "success",
+        title: "已下载后端原始 YAML",
+        description: "导出内容保持与后端返回完全一致，未包含当前编辑区中的本地修改。",
+      });
     } catch (error) {
       setFormError(getErrorMessage(error));
+      setResultNotice({
+        tone: "error",
+        title: "下载后端原始 YAML 失败",
+        description: getErrorMessage(error),
+      });
     }
   }
 
@@ -183,6 +210,11 @@ export function WorkspacePage() {
 
   function handleResetYaml() {
     setEditedYamlText(originalYamlText);
+    setResultNotice({
+      tone: "info",
+      title: "已恢复后端原始结果",
+      description: "当前编辑区已放弃本地修改，重新对齐到本次任务的后端 YAML。",
+    });
   }
 
   function handleExportCurrentYaml() {
@@ -192,6 +224,34 @@ export function WorkspacePage() {
 
     const filename = currentJobId ? `${currentJobId}.edited.screenplay.yaml` : "screenplay.edited.yaml";
     downloadTextFile(filename, editedYamlText);
+    setResultNotice({
+      tone: "success",
+      title: "已导出当前编辑稿",
+      description: hasEditedChanges
+        ? "本次导出包含你在前端编辑区中的本地修改。"
+        : "当前导出内容与后端原始 YAML 一致。",
+    });
+  }
+
+  async function handleCopyCurrentYaml() {
+    if (!editedYamlText.trim()) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(editedYamlText);
+      setResultNotice({
+        tone: "success",
+        title: "已复制当前 YAML",
+        description: hasEditedChanges ? "复制内容包含当前本地修改。" : "复制内容与后端原始 YAML 一致。",
+      });
+    } catch (error) {
+      setResultNotice({
+        tone: "error",
+        title: "复制 YAML 失败",
+        description: getErrorMessage(error),
+      });
+    }
   }
 
   return (
@@ -282,17 +342,22 @@ export function WorkspacePage() {
           <ExportActions
             canExport={Boolean(editedYamlText.trim())}
             canReset={Boolean(originalYamlText)}
+            hasEditedChanges={hasEditedChanges}
             hasJob={Boolean(currentJobId)}
             jobId={currentJobId ?? undefined}
+            notice={resultNotice}
+            onCopyCurrent={handleCopyCurrentYaml}
             onDownloadBackendRaw={handleDownloadBackendRaw}
             onDownloadCurrent={handleExportCurrentYaml}
             onReset={handleResetYaml}
           />
           <YamlEditor
             errorMessage={getErrorMessage(jobResultQuery.error)}
+            hasEditedChanges={hasEditedChanges}
             isLoading={jobResultQuery.isLoading}
             jobId={currentJobId}
             jobStatus={activeJobStatus}
+            originalYamlText={originalYamlText}
             onChange={setEditedYamlText}
             yamlText={editedYamlText}
           />

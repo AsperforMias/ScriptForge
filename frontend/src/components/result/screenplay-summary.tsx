@@ -76,6 +76,30 @@ export function ScreenplaySummary({
     );
   }
 
+  const validationWarnings = screenplay.validation.warnings ?? [];
+  const summaryStats = [
+    {
+      label: "章节",
+      value: String(screenplay.source.chapter_count),
+      hint: screenplay.source.title,
+    },
+    {
+      label: "场景",
+      value: String(screenplay.scenes.length),
+      hint: "来自后端 screenplay JSON",
+    },
+    {
+      label: "角色",
+      value: String(screenplay.characters.length),
+      hint: "用于辅助 scene 阅读",
+    },
+    {
+      label: "校验",
+      value: screenplay.validation.status === "passed" ? "通过" : "未通过",
+      hint: validationWarnings.length ? `${validationWarnings.length} 条 warning` : "当前无 warning",
+    },
+  ];
+
   return (
     <section className="panel-section" aria-labelledby="screenplay-summary-heading">
       <div className="section-heading">
@@ -86,15 +110,40 @@ export function ScreenplaySummary({
         <span className="section-tag">JSON-backed</span>
       </div>
 
+      <div className="summary-overview">
+        {summaryStats.map((item) => (
+          <article className="summary-overview__card" key={item.label}>
+            <span className="summary-overview__label">{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.hint}</small>
+          </article>
+        ))}
+      </div>
+
+      {validationWarnings.length ? (
+        <div className="status-notice status-notice--warning">
+          <strong>Validation Warnings</strong>
+          <ul className="notice-list">
+            {validationWarnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="summary-grid">
         <article className="summary-card">
-          <h4>角色</h4>
+          <div className="summary-card__heading">
+            <h4>角色</h4>
+            <span className="section-tag">{screenplay.characters.length} 个</span>
+          </div>
           {screenplay.characters.length ? (
             <ul className="summary-list">
               {screenplay.characters.map((character) => (
                 <li key={character.id}>
                   <strong>{character.name}</strong>
                   <span>{character.role}</span>
+                  {character.description ? <small>{character.description}</small> : null}
                 </li>
               ))}
             </ul>
@@ -104,7 +153,10 @@ export function ScreenplaySummary({
         </article>
 
         <article className="summary-card">
-          <h4>地点</h4>
+          <div className="summary-card__heading">
+            <h4>地点</h4>
+            <span className="section-tag">{screenplay.locations.length} 个</span>
+          </div>
           {screenplay.locations.length ? (
             <ul className="summary-list">
               {screenplay.locations.map((location) => (
@@ -129,7 +181,10 @@ export function ScreenplaySummary({
                   <p className="scene-card__kicker">{scene.id}</p>
                   <h4>{scene.title}</h4>
                 </div>
-                <span className="chip">来源章节 {scene.source_chapters.join(", ")}</span>
+                <div className="scene-card__chips">
+                  <span className="chip">来源章节 {scene.source_chapters.join(", ")}</span>
+                  <span className="chip">beats {scene.beats.length}</span>
+                </div>
               </div>
               <p className="scene-card__slugline">
                 {scene.slugline.interior_exterior}. {scene.slugline.location_id} / {scene.slugline.time}
