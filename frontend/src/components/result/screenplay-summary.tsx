@@ -1,16 +1,34 @@
 import type { ScreenplayDocument } from "../../types/screenplay";
 
 interface ScreenplaySummaryProps {
-  screenplay: ScreenplayDocument;
+  screenplay: ScreenplayDocument | null;
 }
 
 export function ScreenplaySummary({ screenplay }: ScreenplaySummaryProps) {
+  if (!screenplay) {
+    return (
+      <section className="panel-section" aria-labelledby="screenplay-summary-heading">
+        <div className="section-heading">
+          <div>
+            <h3 id="screenplay-summary-heading">结构化摘要</h3>
+            <p>摘要区直接使用后端返回的 `screenplay` JSON，不在前端自行解析 YAML。</p>
+          </div>
+          <span className="section-tag">JSON-backed</span>
+        </div>
+        <div className="empty-card">
+          <strong>暂无结构化结果</strong>
+          <p>任务成功后，这里会展示角色、地点和 scene 摘要。</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="panel-section" aria-labelledby="screenplay-summary-heading">
       <div className="section-heading">
         <div>
           <h3 id="screenplay-summary-heading">结构化摘要</h3>
-          <p>摘要区直接以后端返回的 `screenplay` JSON 为主，不把 YAML 解析职责挪到前端。</p>
+          <p>摘要区直接使用后端返回的 `screenplay` JSON，不把 YAML 解析职责挪到前端。</p>
         </div>
         <span className="section-tag">JSON-backed</span>
       </div>

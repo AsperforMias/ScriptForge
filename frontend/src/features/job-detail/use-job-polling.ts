@@ -15,7 +15,7 @@ export function useJobPolling(jobId: string | null) {
     refetchInterval: (query) => {
       const status = query.state.data?.data?.job.status;
 
-      if (status === "queued" || status === "running") {
+      if (!status || status === "queued" || status === "running") {
         return 2000;
       }
 

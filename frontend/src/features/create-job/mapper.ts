@@ -1,21 +1,8 @@
-import type { CreateJobRequest, GenerationMode } from "../../types/api";
+import type { CreateJobRequest } from "../../types/api";
+import type { WorkspaceFormValues } from "./form";
+import { parseNotes } from "./form";
 
-export interface WorkspaceChapterDraft {
-  title: string;
-  content: string;
-}
-
-export interface WorkspaceDraft {
-  title: string;
-  author: string;
-  style: string;
-  audience: string;
-  notes: string[];
-  generationMode: GenerationMode;
-  chapters: WorkspaceChapterDraft[];
-}
-
-export function mapDraftToCreateJobRequest(draft: WorkspaceDraft): CreateJobRequest {
+export function mapDraftToCreateJobRequest(draft: WorkspaceFormValues): CreateJobRequest {
   return {
     source: {
       title: draft.title,
@@ -29,7 +16,7 @@ export function mapDraftToCreateJobRequest(draft: WorkspaceDraft): CreateJobRequ
     adaptation: {
       style: draft.style,
       audience: draft.audience,
-      notes: draft.notes,
+      notes: parseNotes(draft.notesText),
     },
     generation: {
       mode: draft.generationMode,

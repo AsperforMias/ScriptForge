@@ -63,6 +63,10 @@ textarea {
   font: inherit;
 }
 
+select {
+  font: inherit;
+}
+
 button {
   cursor: pointer;
 }
@@ -273,6 +277,10 @@ button {
   margin-bottom: 12px;
 }
 
+.field--hint {
+  justify-content: center;
+}
+
 .field span,
 .status-metadata dt,
 .scene-card__meta dt {
@@ -289,6 +297,17 @@ button {
   background: #fffdf9;
   color: var(--text-primary);
   transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.field-error,
+.inline-error {
+  color: var(--error);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.inline-error {
+  margin: 0;
 }
 
 .text-input:focus,
@@ -349,6 +368,12 @@ button {
   margin-bottom: 12px;
 }
 
+.chapter-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .chapter-index {
   color: var(--accent-primary);
   font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
@@ -369,6 +394,11 @@ button {
   background: transparent;
   border-color: rgba(214, 201, 179, 0.9);
   color: var(--text-secondary);
+}
+
+.ghost-button--compact {
+  min-height: 36px;
+  padding: 0.4rem 0.7rem;
 }
 
 .secondary-button {
@@ -395,6 +425,16 @@ button {
 
 .primary-button--full {
   width: 100%;
+}
+
+.submit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(214, 201, 179, 0.92);
+  border-radius: 12px;
+  background: rgba(255, 252, 246, 0.94);
 }
 
 .status-card {
@@ -458,6 +498,26 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.empty-card,
+.status-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(236, 229, 216, 0.55);
+}
+
+.status-notice--warning {
+  border: 1px solid rgba(160, 106, 28, 0.24);
+}
+
+.notice-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
 }
 
 .progress-bar {
