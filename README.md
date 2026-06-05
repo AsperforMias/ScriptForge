@@ -55,6 +55,15 @@ Recommended local startup:
 2. Start the frontend with `npm run dev`; Vite serves the workspace on `:5173`.
 3. Open `http://127.0.0.1:5173`; frontend requests to `/api/v1/*` are proxied to the backend automatically.
 
+Frontend real-chain self-check:
+1. Start the backend on `http://127.0.0.1:8080` and the frontend on `http://127.0.0.1:5173`.
+2. Open the workspace and click one of the built-in sample presets: `悬疑`, `职场`, or `校园运动`.
+3. Keep `generationMode=deterministic`, then click the primary submit action to create a real job through `POST /api/v1/jobs`.
+4. Watch the center `Job Status` column until polling moves the job from `queued/running` to `succeeded`.
+5. Confirm the right-side result area loads real backend data: YAML text, structured screenplay summary, and export actions.
+6. Use the export actions to verify both backend raw export and current edited YAML download paths.
+7. Optional failed-path check: switch the form to `generationMode=llm` while the backend runs with `LLM_PROVIDER=disabled`, submit once, confirm the failed stage message appears, then click `重新生成当前表单` to verify the frontend creates a fresh job from the same form state.
+
 Frontend API note:
 ```bash
 # optional when frontend and backend are on different origins

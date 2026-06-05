@@ -160,8 +160,16 @@ frontend/
 - failed job 现在提供“重新生成当前表单”入口，会基于当前表单重新调用 `POST /api/v1/jobs`
 - 首版输入范围已明确收敛为粘贴 / 手工录入，不再承诺尚未实现的上传入口
 - 前端示例已扩展为可切换的多题材 preset，至少覆盖悬疑、职场与校园运动
+- README 已补齐真实前端自检路径，覆盖 sample preset、job 轮询、YAML/result/export 与 failed-job regenerate 验证步骤
 - 页面会在本地保存 `lastJobId`，刷新后继续查询最近一次任务
 - 后续 PR 继续在现有结构上细化错误态、空态、响应式与编辑体验
+
+推荐自检路径（2026-06-05）：
+1. 启动后端 `:8080` 与前端 `:5173`
+2. 在 `Input Workspace` 选择 `悬疑` / `职场` / `校园运动` 任一 preset
+3. 以 `generationMode=deterministic` 提交真实 job，观察 `Job Status` 区的 2s 轮询与阶段变化
+4. 任务成功后确认 `Result Workspace` 同时展示后端返回的 YAML 文本、结构化摘要与导出动作
+5. 如需验证失败态，保持后端 `LLM_PROVIDER=disabled`，将表单切到 `generationMode=llm` 提交一次，并确认失败信息与“重新生成当前表单”入口可用
 
 本地启动契约（2026-06-05）：
 - 后端默认监听 `:8080`

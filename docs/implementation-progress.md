@@ -54,6 +54,7 @@
 - failed job 现在支持基于当前表单重新创建 job，补齐文档要求的失败后“重新生成”入口
 - MVP 文档中的小说输入范围已收敛为粘贴 / 手工录入，移除未实现的上传承诺
 - 前端 sample preset 已扩展到悬疑、职场、校园运动三类题材，便于演示多场景链路
+- README 与 `docs/frontend.md` 已补齐真实前端自检路径，可直接按 sample -> create job -> polling -> YAML/result/export -> failed regenerate 的顺序验收
 - 结果区已以 YAML 文本为核心，支持恢复后端原始结果、下载后端原始 YAML、导出当前编辑文本
 - 结构化摘要区已切换为直接读取后端返回的 `screenplay` JSON，不再依赖静态 demo 数据
 - 本地 `backend@8080 + frontend@5173` 已完成 deterministic 与 `llm(openai_compatible)` 两条真实 UI 链路联调
@@ -95,8 +96,7 @@
 ## 下一步优先级
 
 优先级 1：
-- 固化 demo 演示路径、README 运行说明和评审入口
-- 收敛前端 README、dev 配置与实现中的本地端口契约，避免多套说法
+- 若演示时间允许，补前端 smoke/check 脚本，把 README 自检路径进一步固化为可执行入口
 - 前端细化错误态、空态与移动端可读性，准备演示口径
 
 优先级 2：
