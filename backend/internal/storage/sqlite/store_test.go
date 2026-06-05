@@ -101,3 +101,43 @@ func TestStoreUpdateJobPersistsLatestProgressAndWarnings(t *testing.T) {
 		t.Fatalf("expected error message to persist, got %s", persisted.ErrorMessage)
 	}
 }
+
+func TestStoreReturnsNotFoundForMissingJob(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "scriptforge.db"))
+	if err != nil {
+		t.Fatalf("open sqlite store: %v", err)
+	}
+	defer store.Close()
+
+	_, err = store.GetJob(context.Background(), "job_missing")
+	if err == nil {
+		t.Fatal("expected missing job error")
+	}
+	var appErr job.AppError
+	if !job.AsAppError(err, &appErr) {
+		t.Fatalf("expected app error, got %v", err)
+	}
+	if appErr.Code != "job_not_found" {
+		t.Fatalf("expected job_not_found, got %s", appErr.Code)
+	}
+}
+
+func TestStoreReturnsNotReadyForMissingArtifact(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "scriptforge.db"))
+	if err != nil {
+		t.Fatalf("open sqlite store: %v", err)
+	}
+	defer store.Close()
+
+	_, err = store.GetArtifact(context.Background(), "job_missing_artifact")
+	if err == nil {
+		t.Fatal("expected missing artifact error")
+	}
+	var appErr job.AppError
+	if !job.AsAppError(err, &appErr) {
+		t.Fatalf("expected app error, got %v", err)
+	}
+	if appErr.Code != "job_not_ready" {
+		t.Fatalf("expected job_not_ready, got %s", appErr.Code)
+	}
+}

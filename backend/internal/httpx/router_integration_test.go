@@ -185,6 +185,11 @@ func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 		t.Fatalf("expected 409, got %d", resultResp.Code)
 	}
 
+	exportResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+createEnvelope.Data.Job.ID+"/export", nil)
+	if exportResp.Code != http.StatusConflict {
+		t.Fatalf("expected export 409, got %d", exportResp.Code)
+	}
+
 	statusResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+createEnvelope.Data.Job.ID, nil)
 
 	if statusResp.Code != http.StatusOK {
@@ -211,6 +216,35 @@ func TestRouterReturnsConflictWhenResultIsNotReady(t *testing.T) {
 	}
 	if statusEnvelope.Data.Job.ProgressPercent != 5 {
 		t.Fatalf("expected ingest progress 5, got %d", statusEnvelope.Data.Job.ProgressPercent)
+	}
+}
+
+func TestRouterReturnsNotFoundForUnknownJobEndpoints(t *testing.T) {
+	router, _, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
+
+	paths := []string{
+		"/api/v1/jobs/job_missing",
+		"/api/v1/jobs/job_missing/result",
+		"/api/v1/jobs/job_missing/export",
+	}
+
+	for _, path := range paths {
+		resp := performRequest(t, router, http.MethodGet, path, nil)
+		if resp.Code != http.StatusNotFound {
+			t.Fatalf("expected 404 for %s, got %d", path, resp.Code)
+		}
+
+		var envelope struct {
+			Error struct {
+				Code string `json:"code"`
+			} `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+			t.Fatalf("decode not found response for %s: %v", path, err)
+		}
+		if envelope.Error.Code != "job_not_found" {
+			t.Fatalf("expected job_not_found for %s, got %s", path, envelope.Error.Code)
+		}
 	}
 }
 

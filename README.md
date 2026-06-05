@@ -120,6 +120,7 @@ Current backend focus:
 - extend regression coverage for real-world loose YAML variants returned by `openai_compatible` providers
 - continue polishing provider prompt/normalization quality while keeping the current YAML-first output contract
 - provider fixture coverage now includes fenced YAML with explanatory preface and loose YAML that relies on planned metadata/entity fallback
+- failure regressions now explicitly cover `job_not_found`, `job_not_ready`, and export-not-ready behavior across service, HTTP, and SQLite store layers
 
 Backend self-check:
 ```bash

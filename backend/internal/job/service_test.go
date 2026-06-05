@@ -81,6 +81,48 @@ func TestGetResultReturnsGenerationFailedForFailedJob(t *testing.T) {
 	}
 }
 
+func TestExportReturnsNotReadyForQueuedJob(t *testing.T) {
+	repo := newFakeRepository()
+	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1)
+	req := validCreateJobRequest()
+
+	created, err := service.Create(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected create error: %v", err)
+	}
+
+	_, err = service.Export(context.Background(), created.ID)
+	if err == nil {
+		t.Fatal("expected export not ready error")
+	}
+
+	var appErr AppError
+	if !AsAppError(err, &appErr) {
+		t.Fatal("expected app error")
+	}
+	if appErr.Code != "job_not_ready" {
+		t.Fatalf("unexpected error code: %s", appErr.Code)
+	}
+}
+
+func TestGetReturnsNotFoundForUnknownJob(t *testing.T) {
+	repo := newFakeRepository()
+	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1)
+
+	_, err := service.Get(context.Background(), "job_missing")
+	if err == nil {
+		t.Fatal("expected not found error")
+	}
+
+	var appErr AppError
+	if !AsAppError(err, &appErr) {
+		t.Fatal("expected app error")
+	}
+	if appErr.Code != "job_not_found" {
+		t.Fatalf("unexpected error code: %s", appErr.Code)
+	}
+}
+
 type fakeRepository struct {
 	mu        sync.RWMutex
 	jobs      map[string]Job
