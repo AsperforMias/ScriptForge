@@ -136,6 +136,10 @@ scripts/run_backend_smoke.sh deterministic
 
 # real provider path (requires .env.local)
 scripts/run_backend_smoke.sh llm
+
+# pick a specific demo fixture
+scripts/run_backend_smoke.sh deterministic family
+scripts/run_backend_smoke.sh deterministic comedy
 ```
 
 Example fixture inputs:

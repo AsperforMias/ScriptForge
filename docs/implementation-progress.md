@@ -43,6 +43,7 @@
 - `openai_compatible` 已补入 fixture 驱动的回归集，覆盖 canonical、fenced、loose schema、缺字段回填与无 scenes 失败场景
 - `scripts/run_backend_smoke.sh` 已补齐，提供 deterministic 与 real-provider 的统一后端烟测入口
 - `scripts/run_backend_smoke.sh` 已分别通过 deterministic 与 DeepSeek real-provider 路径验证
+- `scripts/run_backend_smoke.sh` 现在支持按题材切换 demo fixture，可直接验证 suspense / workplace / campus / family / comedy 路径
 - `openai_compatible` 的 provider 失败语义已补回归，覆盖 HTTP 429、error payload 与 empty choices
 - `openai_compatible` 已进一步补入“前置说明 + fenced YAML”与“缺 metadata / characters 的 loose YAML”两类 fixture，增强真实 provider 输出变体覆盖
 - HTTP / service / SQLite 层已进一步补入 `job_not_found`、`job_not_ready` 与 export 未就绪等失败路径回归
