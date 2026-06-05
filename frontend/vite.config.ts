@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         "/api": {
           changeOrigin: true,
-          target: env.VITE_API_PROXY_TARGET || "http://127.0.0.1:8081",
+          target: env.VITE_API_PROXY_TARGET || "http://127.0.0.1:8080",
         },
       },
     },

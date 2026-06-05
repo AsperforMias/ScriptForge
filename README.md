@@ -44,14 +44,22 @@ npm run dev
 ```
 
 Default local demo ports:
-- frontend dev server: `http://127.0.0.1:8080`
-- backend API: `http://127.0.0.1:8081`
-- Vite dev proxy forwards `/api/*` to `http://127.0.0.1:8081` by default
+- backend API: `http://127.0.0.1:8080`
+- frontend dev server: `http://127.0.0.1:5173`
+- Vite dev proxy forwards `/api/*` to `http://127.0.0.1:8080` by default
+
+Recommended local startup:
+1. Start the backend from the repo root or `backend/`; the default `HTTP_ADDR` is `:8080`.
+2. Start the frontend with `npm run dev`; Vite serves the workspace on `:5173`.
+3. Open `http://127.0.0.1:5173`; frontend requests to `/api/v1/*` are proxied to the backend automatically.
 
 Frontend API note:
 ```bash
 # optional when frontend and backend are on different origins
 set VITE_API_BASE_URL=http://localhost:8080/api/v1
+
+# optional when the backend is not on the default local port
+set VITE_API_PROXY_TARGET=http://127.0.0.1:8080
 ```
 
 Local/deployment prerequisite for real provider runs:

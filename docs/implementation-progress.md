@@ -48,12 +48,12 @@
 - `frontend/` 已按锁定方案落地 `Vite + React + TypeScript + TanStack Query + React Hook Form` 骨架
 - 单页 `WorkspacePage` 已落地三栏工作台信息架构：`Input Workspace` / `Job Status` / `Result Workspace`
 - 前端目录骨架、API 类型、React Query hooks scaffold 与 editorial 基础样式已就位
-- README 已补齐前端本地启动说明与跨源 API 环境变量约定
+- README 已补齐前端本地启动说明与跨源 API 环境变量约定，并统一为 `backend@8080 + frontend@5173` 本地启动契约
 - 前端工作台已接入真实 `POST /api/v1/jobs`、`GET /api/v1/jobs/{id}`、`GET /api/v1/jobs/{id}/result` 与 `GET /api/v1/jobs/{id}/export`
 - 多章节输入、`react-hook-form` 校验、`lastJobId` 持久化恢复、2s 轮询与失败/警告展示已接入真实后端数据
 - 结果区已以 YAML 文本为核心，支持恢复后端原始结果、下载后端原始 YAML、导出当前编辑文本
 - 结构化摘要区已切换为直接读取后端返回的 `screenplay` JSON，不再依赖静态 demo 数据
-- 本地 `frontend@8080 + backend@8081` 已完成 deterministic 与 `llm(openai_compatible)` 两条真实 UI 链路联调
+- 本地 `backend@8080 + frontend@5173` 已完成 deterministic 与 `llm(openai_compatible)` 两条真实 UI 链路联调
 - SQLite store 已补充串行连接、`busy_timeout` 与 `WAL` 配置，解决轮询联调下 job 完成态偶发 `database is locked` 导致的假卡住问题
 - deterministic workflow 规则已补强为中文目标、对话、开放问题生成
 - deterministic workflow 单测与 fixture 回归测试
@@ -93,6 +93,7 @@
 
 优先级 1：
 - 固化 demo 演示路径、README 运行说明和评审入口
+- 收敛前端 README、dev 配置与实现中的本地端口契约，避免多套说法
 - 前端细化错误态、空态与移动端可读性，准备演示口径
 
 优先级 2：
