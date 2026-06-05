@@ -93,11 +93,11 @@ Scripted frontend smoke-check:
 
 Frontend API note:
 ```bash
-# optional when frontend and backend are on different origins
-set VITE_API_BASE_URL=http://localhost:8080/api/v1
+# bash / zsh: optional when frontend and backend are on different origins
+export VITE_API_BASE_URL=http://localhost:8080/api/v1
 
-# optional when the backend is not on the default local port
-set VITE_API_PROXY_TARGET=http://127.0.0.1:8080
+# bash / zsh: optional when the backend is not on the default local port
+export VITE_API_PROXY_TARGET=http://127.0.0.1:8080
 ```
 
 Local/deployment prerequisite for real provider runs:

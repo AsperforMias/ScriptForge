@@ -5,7 +5,7 @@
 更新时间：2026-06-05
 
 当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器，以及前端工作台首版真实联调落地。
-当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端处于“Phase 3: frontend workflow”主链路打通阶段，已完成单页工作台骨架、editorial 三栏布局、多章节表单、真实 job 创建/轮询、YAML 结果区、结构化摘要与导出动作接入。
+当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / demo polish”，当前重点转为 smoke-check、响应式可读性、结果区 polish 与演示口径收束。
 
 已完成：
 - 题目与赛事要求的精简总结
@@ -73,8 +73,9 @@
 - deterministic workflow 已补充家庭情感与都市轻喜剧两类题材规则
 - deterministic workflow 单测与 fixture 回归测试
 
-未开始：
+尚未完成：
 - 更丰富的 fixture 覆盖面
+  说明：当前已具备多题材 deterministic 样例和多类 provider fixture，但仍可继续扩展更多真实 provider 返回变体与 demo 专用样例
 - demo 视频与演示稿素材
 - 公网部署选项
 
@@ -93,16 +94,16 @@
 - 目标：实现最小可运行的章节输入 -> 结构化剧本 YAML 输出
 
 阶段 3：前端工作流
-- 状态：进行中
+- 状态：已完成
 - 目标：打通输入、生成、查看、编辑、导出
 
 阶段 4：评审强化
 - 状态：进行中
-- 目标：补 demo 样例、README、测试说明、部署说明、演示素材
+- 目标：继续补 smoke-check 覆盖、演示素材、README 收束和必要的 demo 参数说明
 
 阶段 5：LLM 增强
 - 状态：进行中
-- 目标：保持 deterministic 基线不退化，并把真实外部 provider 接入收缩到配置层
+- 目标：保持 deterministic 基线不退化，并继续增强真实外部 provider 的兼容回归与演示稳定性
 
 ## 下一步优先级
 
@@ -111,48 +112,46 @@
 
 优先级 2：
 - 扩展 deterministic 与 llm 的 fixture 覆盖面
-- 补充更多题材样例输入输出
-- 增补存储层与 HTTP 失败场景回归
+- 继续扩展真实 provider 返回变体回归
+- 视演示需要补充更多题材样例输入输出
 
 优先级 3：
 - 若演示时间允许，可继续增强 smoke-check 对结果区 polish 的覆盖面
 - 视时间决定是否提供公网演示环境
 
-## 建议 PR 计划
+## 最近已完成的 PR 计划
 
-前端建议按以下小 PR 顺序推进：
+前端近期已完成并落回 `main`：
 1. `feat/frontend-phase6-responsive-and-empty-states`
-- 目标：补移动端可读性、空态、加载态、失败态与状态文案细化
-- 验收：桌面三栏保持稳定，移动端退化为纵向堆叠，create/polling/result/failed 各状态都有清晰展示
-
 2. `feat/frontend-phase7-result-editing-polish`
-- 目标：优化 YAML 编辑区、结果摘要信息层次、导出反馈与编辑恢复体验
-- 验收：YAML 编辑、恢复、导出路径更顺滑，不改变后端契约
-
 3. `feat/frontend-phase8-smoke-check`
-- 目标：补最小前端自检入口，可为 README 脚本化检查或轻量 e2e
-- 验收：队友、评委或 agent 能按固定步骤快速验证真实前端链路
-
 4. `feat/frontend-phase9-demo-copy-and-flow`
-- 目标：固化演示时默认 sample、页面文案、引导信息与 demo 操作顺序
-- 验收：首屏信息、按钮文案、提示文本有统一口径，便于录视频和现场讲解
 
-后端建议按以下小 PR 顺序推进：
+后端近期已完成并落回 `main`：
 1. `feat/backend-phase18-provider-fixture-expansion`
-- 目标：继续扩展 `openai_compatible` provider 的 loose-output fixture 与解析回归
-- 验收：新增 fixture 后 `go test ./...` 仍通过，provider 容错覆盖面扩大
-
 2. `feat/backend-phase19-add-more-genre-fixtures`
-- 目标：增加 1 到 2 类新题材 deterministic/llm 样例输入输出
-- 验收：新增题材至少覆盖样例请求、期望 YAML 或可验证结果，README 或 docs 可引用
-
 3. `feat/backend-phase20-http-and-storage-failure-regressions`
-- 目标：补 HTTP 错误、存储异常、provider 异常等失败场景回归
-- 验收：失败路径错误码、返回体和状态持久化行为稳定
-
 4. `feat/backend-phase21-demo-hardening`
-- 目标：收敛 demo 使用模型、provider 调试信息、最终演示参数与自检路径
-- 验收：本地 demo 路径、真实 provider 路径和排障入口稳定，录制视频前无需再改主链路
+
+## 后续可继续拆分的 PR 方向
+
+前端建议继续按以下小 PR 推进：
+1. `feat/frontend-phase10-smoke-coverage-expansion`
+- 目标：扩展 smoke-check 对失败态、移动端和复制/恢复反馈的覆盖
+- 验收：README 与脚本都能稳定验证更多关键交互，而不是只覆盖 happy path
+
+2. `feat/frontend-phase11-demo-asset-polish`
+- 目标：继续收敛录屏时的默认视口、默认文案和状态提示细节
+- 验收：录制 demo 时不需要再临时解释 UI 文案或页面行为
+
+后端建议继续按以下小 PR 推进：
+1. `feat/backend-phase22-provider-variant-regressions`
+- 目标：继续扩展 `openai_compatible` 的真实返回变体与容错 fixture
+- 验收：新增变体后 `go test ./...` 仍通过，provider 解析行为更稳定
+
+2. `feat/backend-phase23-demo-asset-support`
+- 目标：补更多可直接录屏使用的 fixture、说明文案或 smoke 参数收束
+- 验收：后端 demo 路径、fixture 选择与 README 说明进一步统一
 
 ## 已锁定决策
 
