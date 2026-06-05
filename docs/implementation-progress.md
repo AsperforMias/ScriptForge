@@ -27,6 +27,7 @@
 - deterministic pipeline runner
 - 基础后端测试与 pipeline 端到端测试
 - 正式样例输入 fixture
+- 悬疑 / 职场 / 校园运动三类 deterministic 样例输入输出 fixture
 - HTTP 集成测试与结果导出验证
 - README 后端自检入口
 - job 状态持久化一致性（`progress_percent` / `warnings`）
@@ -41,6 +42,8 @@
 - `openai_compatible` 已补入 fixture 驱动的回归集，覆盖 canonical、fenced、loose schema、缺字段回填与无 scenes 失败场景
 - `scripts/run_backend_smoke.sh` 已补齐，提供 deterministic 与 real-provider 的统一后端烟测入口
 - `scripts/run_backend_smoke.sh` 已分别通过 deterministic 与 DeepSeek real-provider 路径验证
+- `openai_compatible` 的 provider 失败语义已补回归，覆盖 HTTP 429、error payload 与 empty choices
+- 前端默认落地架构已补入 `docs/frontend.md`，达到后续 Codex session 可直接脚手架实现的程度
 - deterministic workflow 规则已补强为中文目标、对话、开放问题生成
 - deterministic workflow 单测与 fixture 回归测试
 
@@ -79,8 +82,8 @@
 ## 下一步优先级
 
 优先级 1：
-- 扩展真实 provider loose YAML 变体的回归测试与 fixture
 - 固化 demo 演示路径、README 运行说明和评审入口
+- 前端按既定默认架构启动工作台骨架并接入现有 job API
 
 优先级 2：
 - 扩展 deterministic 与 llm 的 fixture 覆盖面

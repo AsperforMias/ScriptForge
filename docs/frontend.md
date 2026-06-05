@@ -83,6 +83,159 @@
 - 过度动画
 - 非核心视觉特效
 
+## 默认落地方案
+
+若没有前端 teammate 的明确反对，后续 human/agent session 默认按以下方案开工：
+- 构建方式：`Vite`
+- 框架：`React + TypeScript`
+- 路由：单页应用，保留 `react-router` 的最小接入能力
+- 异步数据：`@tanstack/react-query`
+- 表单：`react-hook-form`
+- 样式：模块化 CSS 或轻量 utility class，首版不引入复杂设计系统
+- YAML 编辑：首版默认 `textarea`，若时间充足再替换为 `Monaco`
+
+这样选择的原因：
+- 启动快，适合 72h 项目
+- API 轮询与状态缓存简单
+- 对 Codex session 足够明确，不需要再猜前端脚手架
+
+## 默认目录结构
+
+建议直接落成：
+
+```text
+frontend/
+  package.json
+  index.html
+  src/
+    main.tsx
+    app/
+      router.tsx
+      query-client.ts
+    pages/
+      workspace-page.tsx
+    components/
+      input/
+        source-form.tsx
+        chapter-list.tsx
+      jobs/
+        job-status-panel.tsx
+        stage-timeline.tsx
+      result/
+        yaml-editor.tsx
+        screenplay-summary.tsx
+        export-actions.tsx
+    features/
+      create-job/
+        api.ts
+        mapper.ts
+        use-create-job.ts
+      job-detail/
+        api.ts
+        use-job-polling.ts
+      job-result/
+        api.ts
+        use-job-result.ts
+    lib/
+      http.ts
+      download.ts
+      format.ts
+    types/
+      api.ts
+      screenplay.ts
+    styles/
+      globals.css
+```
+
+约束：
+- `features/` 只放和后端接口直接耦合的逻辑
+- `components/` 只放 UI
+- `types/api.ts` 必须对齐 `docs/api-contract.md`
+- `types/screenplay.ts` 必须对齐 `docs/yaml-schema.md`
+
+## 页面方案
+
+首版直接做单页 `WorkspacePage`，分成 3 列或 3 个纵向区块：
+- `Input Workspace`
+  - 作品标题
+  - 作者
+  - 改编风格
+  - 额外说明
+  - 章节列表编辑
+- `Job Status`
+  - 当前 job 基本信息
+  - 阶段时间线
+  - 错误提示
+  - 重新生成入口
+- `Result Workspace`
+  - YAML 文本编辑区
+  - 结构化摘要区
+  - 导出按钮
+
+移动端可以退化成分段折叠，不要求桌面三列完全保留。
+
+## 状态流与接口调用
+
+默认状态流：
+1. 输入区本地维护表单状态
+2. 点击生成后调用 `POST /api/v1/jobs`
+3. 拿到 `job.id` 后进入轮询
+4. 轮询 `GET /api/v1/jobs/{job_id}`，直到 `succeeded` 或 `failed`
+5. 若成功，调用 `GET /api/v1/jobs/{job_id}/result`
+6. 点击导出时，直接请求 `GET /api/v1/jobs/{job_id}/export`
+
+默认轮询规则：
+- 轮询间隔：`2s`
+- `queued/running` 时继续轮询
+- `succeeded/failed` 时停止轮询
+- 页面刷新后，如本地仍保存 `lastJobId`，允许继续查询
+
+## 前端数据模型
+
+建议在 `frontend/src/types/api.ts` 定义：
+- `CreateJobRequest`
+- `JobSummary`
+- `JobStage`
+- `JobDetailsResponse`
+- `JobResultResponse`
+- `ApiEnvelope<T>`
+- `ApiError`
+
+建议在 `frontend/src/types/screenplay.ts` 定义：
+- `ScreenplayDocument`
+- `ScreenplayScene`
+- `ScreenplayBeat`
+
+约束：
+- 先从后端 contract 生成或手写最小类型
+- 不要在组件内写匿名大对象类型
+
+## YAML 编辑策略
+
+首版默认策略：
+- 后端返回的 `yaml_text` 直接放入编辑区
+- 前端不负责 YAML Schema 校验
+- 编辑区只提供：
+  - 文本修改
+  - 重置为后端原始结果
+  - 导出当前文本
+
+结构化摘要视图可直接读取后端返回的 `screenplay` JSON，而不是前端自行解析 YAML。
+
+## 前端 PR 拆分建议
+
+推荐顺序：
+1. `frontend: scaffold vite react workspace`
+2. `frontend: add multi-chapter input form`
+3. `frontend: add job polling and stage status panel`
+4. `frontend: add yaml result workspace and export actions`
+5. `frontend: refine responsive layout and error states`
+
+每个 PR 都必须保证：
+- 能本地启动
+- 不破坏现有 API contract
+- README 或相关 docs 同步更新
+
 ## API 协作预期
 
 首版建议后端提供的最小接口集合：
