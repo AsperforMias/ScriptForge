@@ -56,6 +56,8 @@
 - MVP 文档中的小说输入范围已收敛为粘贴 / 手工录入，移除未实现的上传承诺
 - 前端 sample preset 已扩展到悬疑、职场、校园运动三类题材，便于演示多场景链路
 - README 与 `docs/frontend.md` 已补齐真实前端自检路径，可直接按 sample -> create job -> polling -> YAML/result/export -> failed regenerate 的顺序验收
+- 前端状态文案已补齐到 idle / loading / succeeded / failed 四类真实链路，不再把空态、失败态和结果载入态混成同一套提示
+- 响应式布局已细化为桌面三栏、平板双列过渡、移动端 `Input -> Status -> Result` 纵向堆叠，便于现场演示和手机查看
 - 结果区已以 YAML 文本为核心，支持恢复后端原始结果、下载后端原始 YAML、导出当前编辑文本
 - 结构化摘要区已切换为直接读取后端返回的 `screenplay` JSON，不再依赖静态 demo 数据
 - 本地 `backend@8080 + frontend@5173` 已完成 deterministic 与 `llm(openai_compatible)` 两条真实 UI 链路联调
@@ -98,7 +100,7 @@
 
 优先级 1：
 - 若演示时间允许，补前端 smoke/check 脚本，把 README 自检路径进一步固化为可执行入口
-- 前端细化错误态、空态与移动端可读性，准备演示口径
+- 前端结果编辑体验、导出反馈与摘要层次继续细化，准备 phase 7 结果区打磨
 
 优先级 2：
 - 扩展 deterministic 与 llm 的 fixture 覆盖面
@@ -106,7 +108,6 @@
 - 增补存储层与 HTTP 失败场景回归
 
 优先级 3：
-- 前端结果编辑体验、响应式细化与错误状态优化
 - 视时间决定是否提供公网演示环境
 
 ## 建议 PR 计划

@@ -161,8 +161,10 @@ frontend/
 - 首版输入范围已明确收敛为粘贴 / 手工录入，不再承诺尚未实现的上传入口
 - 前端示例已扩展为可切换的多题材 preset，至少覆盖悬疑、职场与校园运动
 - README 已补齐真实前端自检路径，覆盖 sample preset、job 轮询、YAML/result/export 与 failed-job regenerate 验证步骤
+- 工作台已补齐 idle / loading / succeeded / failed 四类真实状态文案，并把结果区空态与失败态对齐到真实 job/result 查询状态
+- 响应式断点已细化为桌面三栏、平板双列过渡、移动端纵向堆叠，保持 `Input -> Status -> Result` 的阅读顺序
 - 页面会在本地保存 `lastJobId`，刷新后继续查询最近一次任务
-- 后续 PR 继续在现有结构上细化错误态、空态、响应式与编辑体验
+- 后续 PR 继续在现有结构上细化结果编辑体验、导出反馈与 demo copy
 
 推荐自检路径（2026-06-05）：
 1. 启动后端 `:8080` 与前端 `:5173`
@@ -170,6 +172,7 @@ frontend/
 3. 以 `generationMode=deterministic` 提交真实 job，观察 `Job Status` 区的 2s 轮询与阶段变化
 4. 任务成功后确认 `Result Workspace` 同时展示后端返回的 YAML 文本、结构化摘要与导出动作
 5. 如需验证失败态，保持后端 `LLM_PROVIDER=disabled`，将表单切到 `generationMode=llm` 提交一次，并确认失败信息与“重新生成当前表单”入口可用
+6. 将视口收窄到平板或手机宽度，确认三工作区按 `Input -> Status -> Result` 纵向阅读，不出现结果区先于状态区的错序
 
 本地启动契约（2026-06-05）：
 - 后端默认监听 `:8080`

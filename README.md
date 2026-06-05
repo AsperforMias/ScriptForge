@@ -28,6 +28,7 @@ Current runnable ability:
 - `frontend/` now runs a Vite + React + TypeScript editorial workspace with real manual multi-chapter input, job polling, YAML result loading, structured summary, and export actions
 - failed jobs can be regenerated from the current frontend form without adding a separate retry API
 - frontend sample presets now cover suspense, workplace, and campus relay demo paths
+- the workspace now exposes explicit idle/loading/succeeded/failed copy and remains readable across desktop, tablet, and mobile layouts
 - `generation.mode=llm` now supports `mock` and `openai_compatible` providers behind the same job API
 - the `openai_compatible` path has been validated against DeepSeek-compatible `/chat/completions` and normalizes loose provider YAML into the canonical project schema
 - fixture-backed integration tests cover create, status, result, export, invalid input, not-ready, and llm mock behavior
@@ -63,6 +64,7 @@ Frontend real-chain self-check:
 5. Confirm the right-side result area loads real backend data: YAML text, structured screenplay summary, and export actions.
 6. Use the export actions to verify both backend raw export and current edited YAML download paths.
 7. Optional failed-path check: switch the form to `generationMode=llm` while the backend runs with `LLM_PROVIDER=disabled`, submit once, confirm the failed stage message appears, then click `重新生成当前表单` to verify the frontend creates a fresh job from the same form state.
+8. Narrow the viewport to a tablet or mobile width and confirm the workspace collapses into a readable `Input -> Status -> Result` vertical flow.
 
 Frontend API note:
 ```bash
