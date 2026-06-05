@@ -1,38 +1,245 @@
-# Frontend Demo Recording Guide
+# Demo 录制指导
 
-This document is presenter-facing. Keep these cues out of the product page so the workspace itself stays focused on novel authors and screenplay drafting.
+## 用途
 
-## Default walkthrough
+本文件不是产品文档，而是录制 demo 视频时的讲解脚本与镜头提示。
 
-Recommended opening sample:
+目标有两个：
+- 让评委快速理解这个项目为什么贴合赛题
+- 让前端页面成为“展示后端亮点的窗口”，而不是只展示一个表单页
+
+## 先给结论
+
+### 当前前端是否足以展现后端亮点
+
+结论：`足够，但要按对的讲法来录`
+
+原因：
+- 左侧输入区能明确展示“至少 3 章以上小说输入”和改编要求，不会把项目讲成普通聊天生成器
+- 中间状态区能真实展示 job 创建、阶段推进、错误信息和重新生成入口，这是后端任务化 API 与 pipeline 的可视化入口
+- 右侧结果区能展示 YAML 原稿、结构化摘要、恢复原稿、复制与导出动作，能把“结构化产物而不是黑盒文本”讲清楚
+
+限制：
+- 前端本身不会直接展示 SQLite、artifact store、provider abstraction 这些后端内部能力
+- 这些点需要你在讲解时主动点出来，而不是等评委自己猜
+
+因此：
+- 前端足以承载后端亮点
+- 但 demo 的重点不能只放在“页面怎么点”，必须明确讲出后端的任务模型、阶段管线和 YAML-first 设计
+
+## 视频总策略
+
+这个项目不应该被讲成：
+- “我们做了一个输入文本然后生成结果的 AI 工具”
+
+而应该被讲成：
+- “我们做了一个面向小说改编的结构化剧本工作台，前端只是入口，核心价值在后端把长文本改编拆成任务化、多阶段、可校验、可导出的剧本生成流程”
+
+评委最应该记住的 4 件事：
+1. 输入不是一句 prompt，而是 `3 章以上小说`
+2. 输出不是一段普通文本，而是可编辑的 `YAML 剧本初稿`
+3. 生成不是黑盒同步返回，而是有真实阶段状态的 job pipeline
+4. 系统不是只靠模型“聊天”，而是有 deterministic 基线、Schema 校验和 provider 兼容层
+
+## 推荐录制版本
+
+首推：
+- 样例：`职场`
+- 模式：`deterministic`
+
+原因：
+- 内容容易理解
+- 人物冲突和时间压力清楚
+- 比悬疑更适合第一次讲产品价值
+- deterministic 路径更稳定，最适合录首版主视频
+
+备选样例：
+- `悬疑`
+  适合强调线索、追踪和紧张氛围
+- `校园运动`
+  适合强调群像、成长和节奏感
+
+不建议首条主视频就用：
+- `llm` 模式
+
+原因：
+- 更容易受到 provider 波动影响
+- 首条视频应该先保稳定，再讲扩展能力
+
+## 推荐视频结构
+
+建议总时长：
+- `2.5` 到 `4` 分钟
+
+建议结构：
+1. `15-20s` 讲题目、目标和差异点
+2. `40-60s` 演示输入区
+3. `35-50s` 演示中间状态区和真实任务推进
+4. `50-70s` 演示 YAML 结果区和结构化摘要
+5. `20-30s` 演示编辑、恢复、复制、导出
+6. `20-40s` 讲后端亮点和工程能力
+
+## 可直接照着讲的开场
+
+建议开场表述：
+
+“这个项目做的是 AI 小说转剧本工具。和普通聊天式生成不同，我们要求输入至少 3 个章节的小说内容，后端会把改编拆成一个真实的任务化 pipeline，最终输出结构化 YAML 剧本初稿。作者拿到结果后，不只是看一段文本，而是可以继续编辑、恢复、导出，后续还能继续打磨。”
+
+这段话的作用：
+- 先对齐题目
+- 先点明差异
+- 先给后端亮点埋钩子
+
+## 镜头顺序
+
+### 第一段：输入区
+
+镜头停留位置：
+- 左侧 `Input Workspace`
+
+必须讲的点：
+- 这是 `3` 章以上的小说输入，不是一句 prompt
+- 可以填写作品标题、风格、受众和补充说明
+- 这个输入结构是为了让后端做更稳定的改编，而不是一次性自由生成
+
+建议讲法：
+
+“这里不是单轮对话输入，而是按作品信息和多章节内容组织素材。这样后端才能先做章节清洗、提纲抽取、人物地点整理，再往下生成剧本结构。”
+
+不要花太多时间在：
+- 样式细节
+- 表单微交互
+
+### 第二段：点击生成后停留在中栏
+
+镜头停留位置：
+- 中间 `Job Status`
+
+这是最关键的一段，因为它直接展示后端不是黑盒。
+
+必须讲的点：
+- 点击后不是同步返回结果
+- 前端调用的是 `POST /api/v1/jobs`
+- 后端会创建真实 job，并轮询 `GET /jobs/{id}`
+- 阶段是显式的，不是伪造 loading
+
+建议讲法：
+
+“这里能看到整个生成不是一次性同步返回，而是任务化处理。后端会依次经过 ingest、outline、entities、scene planning、screenplay generation、validation 和 persistence。这个过程能直接在前端看到，是因为我们把生成设计成了真实 job pipeline，而不是单接口黑盒。”
+
+这一段是全视频里最该强调的后端亮点。
+
+### 第三段：结果区先讲 YAML，再讲摘要
+
+镜头停留位置：
+- 右侧 `Result Workspace`
+
+讲解顺序必须是：
+1. YAML
+2. 结构化摘要
+3. 编辑和导出
+
+不要先讲卡片摘要，否则会把项目讲得像普通内容展示页。
+
+建议讲法：
+
+“结果区先展示的是 YAML，因为这才是项目的权威产物。它不是一段自然语言回复，而是结构化剧本草稿。下面的摘要区只是辅助阅读，数据同样来自后端返回的 screenplay JSON，而不是前端自己解析 YAML 拼出来的。”
+
+必须点出的后端亮点：
+- YAML-first
+- 有 Schema 校验
+- 摘要直接读后端结构化对象
+
+### 第四段：编辑、恢复、复制、导出
+
+这段用来证明结果不是静态演示。
+
+建议操作：
+1. 在 YAML 中改一两行
+2. 展示“当前为本地编辑稿”
+3. 点一次恢复原稿
+4. 点一次导出或复制
+
+建议讲法：
+
+“这里的定位不是最终成片，而是作者可继续打磨的剧本初稿。所以我们保留了编辑、恢复原稿和导出能力，强调的是‘结构化初稿可继续加工’，这和赛题要求是一致的。”
+
+### 第五段：补一句真实 LLM 扩展
+
+这段不要在主视频里演示太久，但要说。
+
+建议讲法：
+
+“当前主视频用 deterministic 路径做稳定演示，但后端已经支持 openai-compatible 的真实 provider 接入，并做了兼容返回归一化和失败回归。也就是说，这个系统不是只能跑规则链路，而是已经具备接真实模型的工程能力。”
+
+## 录制时必须讲出来的后端亮点
+
+如果不主动讲，这些能力前端本身不会自动替你说话：
+
+1. 后端是任务化 API，不是同步生成接口
+2. 后端 pipeline 是多阶段的
+3. 输出是 YAML-first，不是普通大段文本
+4. deterministic 是稳定基线，不依赖实时模型也能产出合法结果
+5. `openai_compatible` 是扩展层，不把项目绑死到某一家 provider
+6. 结果经过 Schema 校验
+7. job 结果和 artifact 有持久化，不是一次性内存 demo
+
+## 建议录制顺序
+
+### 主视频
+
+推荐：
 - `职场`
+- `deterministic`
 
-Recommended first run:
-- keep `generationMode=deterministic`
+作用：
+- 最稳定
+- 最能完整讲清主链路
 
-Suggested 90-second flow:
-1. Start from the left workspace and explain the source title, adaptation style, audience, notes, and multi-chapter input.
-2. Click the primary generate action and let the middle column show the real status polling plus stage progression.
-3. Move to the right workspace and explain the YAML draft first, then the structured summary, then the reset / copy / export actions.
+### 备选补充镜头
 
-## Alternate samples
+如果视频里想额外补一个“失败可恢复”镜头：
+- 切到 `generationMode=llm`
+- 后端保持 `LLM_PROVIDER=disabled`
+- 提交一次，展示失败信息
+- 再点“重新生成当前内容”
 
-Use these when you want a different tone in the same live chain:
-- `悬疑`: night return, clue discovery, active investigation
-- `校园运动`: relay pressure, team conflict, growth under deadline
+这个镜头的作用：
+- 证明失败态不是假提示
+- 证明前端和后端的异常链路是打通的
 
-## What to verify on camera
+## 不建议的录法
 
-- Sample preset switching works before submission
-- A real job is created from the frontend form
-- The status column moves through queued / running / succeeded
-- The result area loads backend-returned YAML and structured summary
-- Local YAML edits can be reset or exported
-- Failed jobs can be regenerated from the current form state
+不要这样录：
+- 一上来就展示页面有多漂亮
+- 全程只讲 UI，不讲后端任务模型
+- 只展示成功结果，不展示处理中状态
+- 先讲摘要卡片，后讲 YAML
+- 把项目讲成“接了个模型接口自动生成剧本”
 
-## Presenter note
+这些录法会明显削弱你们的后端优势。
 
-If you need technical setup, port contracts, or smoke-check commands, use:
+## 录制前检查清单
+
+录制前至少确认：
+- 后端 `:8080` 可启动
+- 前端 `:5173` 可启动
+- 默认 `职场` 样例可直接提交
+- deterministic 路径能稳定走完
+- 结果区能正常展示 YAML 和结构化摘要
+- 本地编辑、恢复、复制、导出动作可用
+- 如需录失败态，`LLM_PROVIDER=disabled` 时 `llm` 模式确实能稳定失败并给出重试入口
+
+## 最后一句应该怎么收
+
+建议收尾表述：
+
+“所以这个项目的重点不是做一个会写点文本的 AI 页面，而是把小说改编拆成一个可解释、可验证、可编辑、可导出的剧本生成流程。前端负责把这条链路展示出来，真正的竞争力主要在后端结构化管线和工程落地能力。”
+
+## 参考入口
+
+需要补技术细节时，优先看：
 - [`../README.md`](../README.md)
 - [`implementation-progress.md`](implementation-progress.md)
+- [`backend-pipeline.md`](backend-pipeline.md)
 - [`frontend.md`](frontend.md)
