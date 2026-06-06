@@ -45,7 +45,7 @@ scenes:
         location_id: loc_chapter_01
         time: NIGHT
       summary: 林琪深夜回到公寓，发现门锁似乎被人动过。她停在走廊里，不确定是否应该立刻进去。
-      objective: 确认房间是否已经失守，并决定主角该撤离还是进入现场。
+      objective: 确认门锁异常是否意味着有人闯入，并判断主角能否立刻进入现场。
       beats:
         - type: action
           content: 林琪深夜回到公寓，发现门锁似乎被人动过。她停在走廊里，不确定是否应该立刻进去。
@@ -56,7 +56,7 @@ scenes:
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 是谁在主角回家前动过门锁？
+            - 是谁动过门锁，屋里还留下了什么痕迹？
     - id: scene_002
       title: 第二章 陌生字条
       source_chapters:
@@ -66,7 +66,7 @@ scenes:
         location_id: loc_chapter_02
         time: NIGHT
       summary: 她在房间里找到一张陌生字条，上面只写着今晚别睡。林琪意识到有人提前进入过房间。
-      objective: 弄清匿名警告的可信度，并把威胁来源从猜测推进到具体目标。
+      objective: 确认陌生字条是在警告还是威胁，并找出谁提前进入过房间。
       beats:
         - type: action
           content: 她在房间里找到一张陌生字条，上面只写着今晚别睡。林琪意识到有人提前进入过房间。
@@ -77,7 +77,7 @@ scenes:
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 留下字条的人为什么知道主角的作息？
+            - 留下字条的人为什么知道主角今晚会回来？
     - id: scene_003
       title: 第三章 清晨追踪
       source_chapters:
@@ -87,7 +87,7 @@ scenes:
         location_id: loc_chapter_03
         time: MORNING
       summary: 第二天清晨，林琪带着字条前往车站，试图顺着纸上的线索找到寄信人。
-      objective: 顺着已有线索主动追查寄信人，让故事从受威胁转向反向调查。
+      objective: 顺着字条和车站线索追查寄信人，把被动防备转成主动调查。
       beats:
         - type: action
           content: 第二天清晨，林琪带着字条前往车站，试图顺着纸上的线索找到寄信人。
@@ -98,7 +98,7 @@ scenes:
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 车站线索会把主角引向谁？
+            - 顺着这条车站线索，主角究竟会找到谁？
 validation:
     status: passed
     warnings: []

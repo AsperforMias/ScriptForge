@@ -45,18 +45,18 @@ scenes:
         location_id: loc_chapter_01
         time: NIGHT
       summary: 许言在夜市帮朋友看摊时，误把来取设备的摄影师当成竞争对手，当场闹出笑话。
-      objective: 在误会继续扩大前确认彼此立场，并把尴尬转成可用的合作机会。
+      objective: 先止住夜市里的失控误会，再判断这次撞见会不会变成新的合作。
       beats:
         - type: action
           content: 许言在夜市帮朋友看摊时，误把来取设备的摄影师当成竞争对手，当场闹出笑话。
         - type: dialogue
           character_id: char_许言
-          content: 先别急着生气，我们至少得把这场误会解释清楚。
+          content: 我先认这次闹错了，但这件事不能就这么糊过去。
           emotion: awkward
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 这次临时合作会不会把误会变成新的关系起点？
+            - 这场夜市误会会把两人的关系推向敌对还是合作？
     - id: scene_002
       title: 第二章 餐馆圆场
       source_chapters:
@@ -66,7 +66,7 @@ scenes:
         location_id: loc_chapter_02
         time: DAY
       summary: 第二天中午，两人在餐馆碰面试图解释误会，却因为朋友临时起哄把场面越描越乱。
-      objective: 在误会继续扩大前确认彼此立场，并把尴尬转成可用的合作机会。
+      objective: 在餐馆里把误会说清楚，并避免朋友起哄继续推高尴尬。
       beats:
         - type: action
           content: 第二天中午，两人在餐馆碰面试图解释误会，却因为朋友临时起哄把场面越描越乱。
@@ -77,7 +77,7 @@ scenes:
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 这次临时合作会不会把误会变成新的关系起点？
+            - 这顿餐馆圆场会不会把误会解释得更糟？
     - id: scene_003
       title: 第三章 广场开播
       source_chapters:
@@ -87,18 +87,18 @@ scenes:
         location_id: loc_chapter_03
         time: NIGHT
       summary: 傍晚，他们决定在广场一起试播，把之前的误会变成一次意外成功的直播。
-      objective: 在误会继续扩大前确认彼此立场，并把尴尬转成可用的合作机会。
+      objective: 把前两章的尴尬转成一次真正能落地的合作试播。
       beats:
         - type: action
           content: 傍晚，他们决定在广场一起试播，把之前的误会变成一次意外成功的直播。
         - type: dialogue
           character_id: char_许言
-          content: 先别急着生气，我们至少得把这场误会解释清楚。
+          content: 既然都站到镜头前了，就把这次试播做成真的。
           emotion: awkward
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 这次临时合作会不会把误会变成新的关系起点？
+            - 这次广场试播能不能把之前的尴尬真的翻篇？
 validation:
     status: passed
     warnings: []

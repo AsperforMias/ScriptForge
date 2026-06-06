@@ -6,6 +6,9 @@
 
 当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器，以及前端工作台首版真实联调落地。
 当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / product-facing polish”，当前重点转为 smoke-check、响应式可读性、结果区 polish 与产品文案收束。
+后端当前自检基线补充约束：
+- `go test ./...` 以 `backend/` 为执行目录，并使用可写 `GOCACHE`，避免本地环境差异把沙箱/平台缓存权限误判为代码失败
+- deterministic fixture 仍保留，但不再作为唯一验收对象；后续回归必须额外覆盖至少一条“非 fixture、自定义中文三章节输入”的 create -> run -> result 基本链路
 
 已完成：
 - 题目与赛事要求的精简总结
