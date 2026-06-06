@@ -31,10 +31,10 @@
 - 共享协议变更时，先改 `docs/` 再改实现
 
 共享协议与架构约束优先参考：
-- [`decision-log.md`](/Users/asperformias/Code/github/ScriptForge/docs/decision-log.md)
-- [`backend-tech-stack.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-tech-stack.md)
-- [`api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md)
-- [`backend-pipeline.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-pipeline.md)
+- [`decision-log.md`](decision-log.md)
+- [`backend-tech-stack.md`](backend-tech-stack.md)
+- [`api-contract.md`](api-contract.md)
+- [`backend-pipeline.md`](backend-pipeline.md)
 
 ## 分支与 PR 规则
 
@@ -69,7 +69,7 @@ PR 描述必须包含：
 - 若复用历史代码，写明来源
 
 仓库中已提供：
-- [`.github/pull_request_template.md`](/Users/asperformias/Code/github/ScriptForge/.github/pull_request_template.md)
+- [`.github/pull_request_template.md`](../.github/pull_request_template.md)
 
 PR 工作流：
 1. 从最新 `main` 切新分支，不直接在 `main` 上开发

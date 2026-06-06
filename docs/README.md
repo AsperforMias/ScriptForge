@@ -3,21 +3,21 @@
 This directory is the single source of truth for project scope, progress, and collaboration rules. Human contributors and AI agents should read these files before changing code.
 
 Recommended read order:
-1. [`final-solution.md`](/Users/asperformias/Code/github/ScriptForge/docs/final-solution.md): final target, scope boundaries, architecture shape, module responsibilities
-2. [`implementation-progress.md`](/Users/asperformias/Code/github/ScriptForge/docs/implementation-progress.md): current delivery status, remaining work, next priorities
-3. [`decision-log.md`](/Users/asperformias/Code/github/ScriptForge/docs/decision-log.md): locked decisions, deferred decisions, and rationale
-4. [`backend-architecture.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-architecture.md): Go service structure, middleware stack, storage choices, and competitive backend shape
-5. [`backend-tech-stack.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-tech-stack.md): concrete library choices, config, SQLite schema, artifact layout, and testing rules
-6. [`api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md): required request and response shapes
-7. [`backend-pipeline.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-pipeline.md): stage-by-stage execution contract for the generation pipeline
-8. [`frontend.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend.md): frontend feature contract, user paths, interaction boundaries
-9. [`frontend-visual-direction.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend-visual-direction.md): locked visual language, layout priority, and UI constraints for the frontend workspace
-10. [`yaml-schema.md`](/Users/asperformias/Code/github/ScriptForge/docs/yaml-schema.md): screenplay YAML schema and design rationale
-11. [`demo-recording-guide.md`](/Users/asperformias/Code/github/ScriptForge/docs/demo-recording-guide.md): presenter-facing demo order, narration cues, and recording checks that should stay out of the product page
-12. [`milestones.md`](/Users/asperformias/Code/github/ScriptForge/docs/milestones.md): definition of done per phase and suggested PR breakdown
-13. [`competition-brief.md`](/Users/asperformias/Code/github/ScriptForge/docs/competition-brief.md): filtered contest requirements and judging implications
-14. [`architecture-self-check.md`](/Users/asperformias/Code/github/ScriptForge/docs/architecture-self-check.md): alignment audit against the prompt and judging criteria
-15. [`collaboration-rules.md`](/Users/asperformias/Code/github/ScriptForge/docs/collaboration-rules.md): PR, commit, branch, pairing, and agent operating rules
+1. [`final-solution.md`](final-solution.md): final target, scope boundaries, architecture shape, module responsibilities
+2. [`implementation-progress.md`](implementation-progress.md): current delivery status, remaining work, next priorities
+3. [`decision-log.md`](decision-log.md): locked decisions, deferred decisions, and rationale
+4. [`backend-architecture.md`](backend-architecture.md): Go service structure, middleware stack, storage choices, and competitive backend shape
+5. [`backend-tech-stack.md`](backend-tech-stack.md): concrete library choices, config, SQLite schema, artifact layout, and testing rules
+6. [`api-contract.md`](api-contract.md): required request and response shapes
+7. [`backend-pipeline.md`](backend-pipeline.md): stage-by-stage execution contract for the generation pipeline
+8. [`frontend.md`](frontend.md): frontend feature contract, user paths, interaction boundaries
+9. [`frontend-visual-direction.md`](frontend-visual-direction.md): locked visual language, layout priority, and UI constraints for the frontend workspace
+10. [`yaml-schema.md`](yaml-schema.md): screenplay YAML schema and design rationale
+11. [`demo-recording-guide.md`](demo-recording-guide.md): presenter-facing demo order, narration cues, and recording checks that should stay out of the product page
+12. [`milestones.md`](milestones.md): definition of done per phase and suggested PR breakdown
+13. [`competition-brief.md`](competition-brief.md): filtered contest requirements and judging implications
+14. [`architecture-self-check.md`](architecture-self-check.md): alignment audit against the prompt and judging criteria
+15. [`collaboration-rules.md`](collaboration-rules.md): PR, commit, branch, pairing, and agent operating rules
 
 Current runnable ability:
 - The backend job API and YAML result pipeline are runnable locally.
