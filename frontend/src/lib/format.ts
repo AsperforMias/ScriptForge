@@ -132,6 +132,23 @@ export function formatLocationDescription(description?: string) {
   return trimmed;
 }
 
+export function formatCharacterDescription(description?: string) {
+  const trimmed = description?.trim() ?? "";
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/^从章节显式证据中识别出的关联人物/i.test(trimmed)) {
+    return "";
+  }
+
+  if (/^从章节行动线中推断出的主视角人物/i.test(trimmed)) {
+    return "";
+  }
+
+  return trimmed;
+}
+
 function normalizeUserFacingText(text: string) {
   return text.replace(/\s+/g, " ").trim();
 }

@@ -1,6 +1,7 @@
 import type { JobStatus } from "../../types/api";
 import type { ScreenplayDocument } from "../../types/screenplay";
 import {
+  formatCharacterDescription,
   formatCharacterRole,
   formatInteriorExterior,
   formatLocationDescription,
@@ -47,7 +48,7 @@ export function ScreenplaySummary({
         return {
           tone: "error",
           title: "本次没有可用的结构摘要",
-          description: "请先查看中间的失败原因，再决定是否调整素材或重新生成。",
+          description: "请先查看上方失败原因，再决定是否调整素材或重新生成。",
         };
       }
 
@@ -70,8 +71,8 @@ export function ScreenplaySummary({
       <section className="panel-section" aria-labelledby="screenplay-summary-heading">
         <div className="section-heading">
           <div>
-            <h3 id="screenplay-summary-heading">结构摘要</h3>
-            <p>先看整体规模，再顺着角色、地点和场景卡片快速浏览这次改编结果。</p>
+            <h3 id="screenplay-summary-heading">角色、地点与场景</h3>
+            <p>先扫一眼规模，再顺着角色、地点和场景卡片快速回看这次改编结果。</p>
           </div>
           <span className="section-tag">概览</span>
         </div>
@@ -92,6 +93,64 @@ export function ScreenplaySummary({
     "后续悬念是否具体、可继续打磨，而不是笼统占位。",
   ];
   const locationsById = new Map(screenplay.locations.map((location) => [location.id, location]));
+  const seenCharacterDescriptions = new Set<string>();
+  const summarizedCharacters = screenplay.characters.map((character) => {
+    const description = formatCharacterDescription(character.description);
+    if (!description || seenCharacterDescriptions.has(description)) {
+      return { ...character, summaryDescription: "" };
+    }
+
+    seenCharacterDescriptions.add(description);
+    return { ...character, summaryDescription: description };
+  });
+  const locationGroups = new Map<string, { id: string; name: string; description: string; count: number }>();
+  for (const location of screenplay.locations) {
+    const key = location.name.trim() || location.id;
+    const current = locationGroups.get(key);
+    const description = formatLocationDescription(location.description);
+    if (!current) {
+      locationGroups.set(key, {
+        id: location.id,
+        name: location.name,
+        description,
+        count: 1,
+      });
+      continue;
+    }
+
+    current.count += 1;
+    if (
+      (!current.description || current.description === "等待补充地点说明") &&
+      description &&
+      description !== "等待补充地点说明"
+    ) {
+      current.description = description;
+    }
+  }
+  const summarizedLocations = [...locationGroups.values()].map((location) => {
+    const genericDescription =
+      location.description === "当前章节里最主要的发生地点。" ||
+      location.description === "根据章节线索整理出的主要发生地点。";
+
+    if (location.count > 1 && genericDescription) {
+      return {
+        ...location,
+        summaryDescription: "",
+      };
+    }
+
+    if (location.count > 1) {
+      return {
+        ...location,
+        summaryDescription: location.description,
+      };
+    }
+
+    return {
+      ...location,
+      summaryDescription: genericDescription ? "" : location.description,
+    };
+  });
   const summaryStats = [
     {
       label: "章节",
@@ -121,8 +180,8 @@ export function ScreenplaySummary({
     <section className="panel-section" aria-labelledby="screenplay-summary-heading">
       <div className="section-heading">
         <div>
-          <h3 id="screenplay-summary-heading">结构摘要</h3>
-          <p>这部分帮助你先把握角色、地点和场景结构，再回到 YAML 继续精修这份可继续编辑的剧本初稿。</p>
+          <h3 id="screenplay-summary-heading">角色、地点与场景</h3>
+          <p>先看整体规模，再回看角色、地点和场景卡片，最后回到 YAML 继续精修。</p>
         </div>
         <span className="section-tag">概览</span>
       </div>
@@ -173,15 +232,19 @@ export function ScreenplaySummary({
             <span className="section-tag">{screenplay.characters.length} 位</span>
           </div>
           {screenplay.characters.length ? (
-            <ul className="summary-list">
-              {screenplay.characters.map((character) => (
+            <div className="summary-card__scroll">
+              <ul className="summary-list">
+              {summarizedCharacters.map((character) => (
                 <li key={character.id}>
-                  <strong>{character.name}</strong>
-                  <span>{formatCharacterRole(character.role)}</span>
-                  {character.description ? <small>{character.description}</small> : null}
+                  <div className="summary-list__primary">
+                    <strong>{character.name}</strong>
+                    <span className="summary-inline-tag">{formatCharacterRole(character.role)}</span>
+                  </div>
+                  {character.summaryDescription ? <small>{character.summaryDescription}</small> : null}
                 </li>
               ))}
-            </ul>
+              </ul>
+            </div>
           ) : (
             <p className="summary-empty">当前结果还没有单独整理角色信息。</p>
           )}
@@ -190,17 +253,22 @@ export function ScreenplaySummary({
         <article className="summary-card">
           <div className="summary-card__heading">
             <h4>地点</h4>
-            <span className="section-tag">{screenplay.locations.length} 处</span>
+            <span className="section-tag">{summarizedLocations.length} 处</span>
           </div>
           {screenplay.locations.length ? (
-            <ul className="summary-list">
-              {screenplay.locations.map((location) => (
+            <div className="summary-card__scroll">
+              <ul className="summary-list">
+              {summarizedLocations.map((location) => (
                 <li key={location.id}>
-                  <strong>{location.name}</strong>
-                  <span>{formatLocationDescription(location.description)}</span>
+                  <div className="summary-list__primary">
+                    <strong>{location.name}</strong>
+                    <span className="summary-inline-tag">{location.count} 场</span>
+                  </div>
+                  {location.summaryDescription ? <small>{location.summaryDescription}</small> : null}
                 </li>
               ))}
-            </ul>
+              </ul>
+            </div>
           ) : (
             <p className="summary-empty">当前结果还没有单独整理地点信息。</p>
           )}
