@@ -18,7 +18,7 @@ const statusLabels: Record<JobStatus, string> = {
 };
 
 const generationModeLabels: Record<GenerationMode, string> = {
-  deterministic: "标准草稿",
+  deterministic: "标准草稿（兜底）",
   llm: "AI 增强",
 };
 

@@ -48,6 +48,33 @@ func TestRunnerRunProducesArtifactsAndYAML(t *testing.T) {
 	}
 }
 
+func TestRunnerRunFallsBackToDeterministicWhenLLMFails(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := artifact.New(tmpDir)
+	runner := NewRunner(store, errorGenerator{name: "stub-llm", err: llm.NewUnavailableError("provider disabled in test")})
+
+	req := validCreateJobRequest()
+	req.Generation.Mode = "llm"
+
+	result, err := runner.Run(context.Background(), "job_test_runner_llm_fallback", req)
+	if err != nil {
+		t.Fatalf("unexpected run error: %v", err)
+	}
+
+	if len(result.Document.Scenes) != 3 {
+		t.Fatalf("expected deterministic fallback to keep 3 scenes, got %d", len(result.Document.Scenes))
+	}
+	if len(result.Warnings) == 0 {
+		t.Fatal("expected fallback warnings")
+	}
+	if !containsSubstring(result.Warnings, "fell back to deterministic baseline") {
+		t.Fatalf("expected fallback warning, got %#v", result.Warnings)
+	}
+	if !containsSubstring(result.Document.Validation.Warnings, "fell back to deterministic baseline") {
+		t.Fatalf("expected validation warnings to include fallback marker, got %#v", result.Document.Validation.Warnings)
+	}
+}
+
 func TestRunnerRunMatchesDeterministicFixture(t *testing.T) {
 	testCases := []struct {
 		name         string
@@ -190,6 +217,28 @@ func TestRunnerRunSupportsRealisticCustomSuspenseRegression(t *testing.T) {
 	if !reflect.DeepEqual(yamlDoc, result.Document) {
 		t.Fatal("expected yaml_text and in-memory document to describe the same screenplay")
 	}
+}
+
+type errorGenerator struct {
+	name string
+	err  error
+}
+
+func (g errorGenerator) Name() string {
+	return g.name
+}
+
+func (g errorGenerator) Generate(_ context.Context, _ llm.GenerateRequest) (llm.GenerateResult, error) {
+	return llm.GenerateResult{}, g.err
+}
+
+func containsSubstring(values []string, needle string) bool {
+	for _, value := range values {
+		if strings.Contains(value, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestRunnerRunSupportsFamilyWordSuspenseRegression(t *testing.T) {
@@ -336,7 +385,7 @@ func TestRunnerRunPersistsProviderDebugSnapshot(t *testing.T) {
 	}
 }
 
-func TestRunnerRunFailsWhenLLMProviderIsUnavailable(t *testing.T) {
+func TestRunnerRunFallsBackWhenLLMProviderIsUnavailable(t *testing.T) {
 	tmpDir := t.TempDir()
 	store := artifact.New(tmpDir)
 	runner := NewRunner(store, llm.NewUnavailableGenerator("provider not configured"))
@@ -345,11 +394,17 @@ func TestRunnerRunFailsWhenLLMProviderIsUnavailable(t *testing.T) {
 	req.Generation.Mode = "llm"
 
 	result, err := runner.Run(context.Background(), "job_test_runner_llm_disabled", req)
-	if err == nil {
-		t.Fatal("expected llm provider error")
+	if err != nil {
+		t.Fatalf("unexpected llm fallback error: %v", err)
 	}
-	if result.CurrentStage != "screenplay_generation" {
-		t.Fatalf("expected screenplay_generation failure, got %s", result.CurrentStage)
+	if result.CurrentStage != "persistence" {
+		t.Fatalf("expected successful fallback to reach persistence, got %s", result.CurrentStage)
+	}
+	if !containsSubstring(result.Warnings, "fell back to deterministic baseline") {
+		t.Fatalf("expected fallback warning, got %#v", result.Warnings)
+	}
+	if result.ProviderDebugPath != "" {
+		t.Fatalf("expected no provider debug artifact on fallback, got %s", result.ProviderDebugPath)
 	}
 }
 

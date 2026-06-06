@@ -20,9 +20,10 @@ type Service struct {
 	runner     Runner
 	yamlReader YAMLReader
 	semaphore  chan struct{}
+	defaultMode string
 }
 
-func NewService(logger *slog.Logger, repo Repository, runner Runner, yamlReader YAMLReader, maxConcurrency int) *Service {
+func NewService(logger *slog.Logger, repo Repository, runner Runner, yamlReader YAMLReader, maxConcurrency int, defaultMode string) *Service {
 	if maxConcurrency <= 0 {
 		maxConcurrency = 1
 	}
@@ -33,10 +34,12 @@ func NewService(logger *slog.Logger, repo Repository, runner Runner, yamlReader 
 		runner:     runner,
 		yamlReader: yamlReader,
 		semaphore:  make(chan struct{}, maxConcurrency),
+		defaultMode: normalizeGenerationMode(defaultMode),
 	}
 }
 
 func (s *Service) Create(ctx context.Context, req CreateJobRequest) (Job, error) {
+	req.Generation.Mode = s.resolveGenerationMode(req.Generation.Mode)
 	if err := validateCreateJobRequest(req); err != nil {
 		return Job{}, err
 	}
@@ -83,6 +86,28 @@ func (s *Service) Create(ctx context.Context, req CreateJobRequest) (Job, error)
 	go s.execute(jobID, req)
 
 	return created, nil
+}
+
+func (s *Service) resolveGenerationMode(requestMode string) string {
+	mode := normalizeGenerationMode(requestMode)
+	if mode != "" {
+		return mode
+	}
+	if s.defaultMode != "" {
+		return s.defaultMode
+	}
+	return "llm"
+}
+
+func normalizeGenerationMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "deterministic":
+		return "deterministic"
+	case "llm":
+		return "llm"
+	default:
+		return ""
+	}
 }
 
 func (s *Service) Get(ctx context.Context, jobID string) (Details, error) {

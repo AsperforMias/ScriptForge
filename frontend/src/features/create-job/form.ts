@@ -38,7 +38,7 @@ const emptyWorkspaceFormValues: WorkspaceFormValues = {
   style: "",
   audience: "",
   notesText: "",
-  generationMode: "deterministic",
+  generationMode: "llm",
   chapters: [createEmptyChapterDraft(1), createEmptyChapterDraft(2), createEmptyChapterDraft(3)],
 };
 
@@ -53,7 +53,7 @@ export const workspaceSamplePresets: WorkspaceSamplePreset[] = [
       style: "悬疑短剧",
       audience: "大众向",
       notesText: "强化悬疑氛围\n保留主角主动调查的动机",
-      generationMode: "deterministic",
+      generationMode: "llm",
       chapters: [
         {
           title: "第一章 深夜回家",
@@ -84,7 +84,7 @@ export const workspaceSamplePresets: WorkspaceSamplePreset[] = [
       style: "职场短剧",
       audience: "都市向",
       notesText: "突出时间压力\n保留团队猜疑",
-      generationMode: "deterministic",
+      generationMode: "llm",
       chapters: [
         {
           title: "第一章 数据被换",
@@ -114,7 +114,7 @@ export const workspaceSamplePresets: WorkspaceSamplePreset[] = [
       style: "青春运动短剧",
       audience: "校园向",
       notesText: "保留队伍压力\n突出临场成长",
-      generationMode: "deterministic",
+      generationMode: "llm",
       chapters: [
         {
           title: "第一章 操场加练",

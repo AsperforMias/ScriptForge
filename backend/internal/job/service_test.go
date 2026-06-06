@@ -8,9 +8,25 @@ import (
 	"testing"
 )
 
+func TestCreateAppliesConfiguredDefaultGenerationMode(t *testing.T) {
+	repo := newFakeRepository()
+	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1, "llm")
+	req := validCreateJobRequest()
+	req.Generation.Mode = ""
+
+	created, err := service.Create(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected create error: %v", err)
+	}
+
+	if created.GenerationMode != "llm" {
+		t.Fatalf("expected default generation mode llm, got %s", created.GenerationMode)
+	}
+}
+
 func TestCreateRejectsLessThanThreeChapters(t *testing.T) {
 	repo := newFakeRepository()
-	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1)
+	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1, "llm")
 	req := validCreateJobRequest()
 	req.Source.Chapters = req.Source.Chapters[:2]
 
@@ -30,7 +46,7 @@ func TestCreateRejectsLessThanThreeChapters(t *testing.T) {
 
 func TestGetResultReturnsNotReadyForQueuedJob(t *testing.T) {
 	repo := newFakeRepository()
-	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1)
+	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1, "llm")
 	req := validCreateJobRequest()
 
 	created, err := service.Create(context.Background(), req)
@@ -54,7 +70,7 @@ func TestGetResultReturnsNotReadyForQueuedJob(t *testing.T) {
 
 func TestGetResultReturnsGenerationFailedForFailedJob(t *testing.T) {
 	repo := newFakeRepository()
-	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1)
+	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1, "llm")
 
 	repo.jobs["job_failed"] = Job{
 		ID:             "job_failed",
@@ -83,7 +99,7 @@ func TestGetResultReturnsGenerationFailedForFailedJob(t *testing.T) {
 
 func TestExportReturnsNotReadyForQueuedJob(t *testing.T) {
 	repo := newFakeRepository()
-	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1)
+	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1, "llm")
 	req := validCreateJobRequest()
 
 	created, err := service.Create(context.Background(), req)
@@ -107,7 +123,7 @@ func TestExportReturnsNotReadyForQueuedJob(t *testing.T) {
 
 func TestGetReturnsNotFoundForUnknownJob(t *testing.T) {
 	repo := newFakeRepository()
-	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1)
+	service := NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, fakeRunner{}, fakeYAMLReader{}, 1, "llm")
 
 	_, err := service.Get(context.Background(), "job_missing")
 	if err == nil {

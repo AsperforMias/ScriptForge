@@ -97,13 +97,13 @@ export function SourceForm({ activePresetId, onLoadSample, onResetToBlank }: Sou
         <label className="field">
           <span>生成方式</span>
           <select className="text-input" disabled={isSubmitting} {...register("generationMode")}>
-            <option value="deterministic">标准草稿</option>
             <option value="llm">AI 增强</option>
+            <option value="deterministic">标准草稿（兜底）</option>
           </select>
         </label>
         <div className="field field--hint">
           <span>方式说明</span>
-          <p className="inline-note">标准草稿更稳，适合先梳理结构；AI 增强适合继续丰富表达与戏剧张力。</p>
+          <p className="inline-note">默认优先使用 AI 增强生成可编辑 YAML 初稿；若你只想跑结构基线或作为兜底，可切换到标准草稿。</p>
         </div>
       </div>
 
