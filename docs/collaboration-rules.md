@@ -161,6 +161,6 @@ AI agent 可以用于：
 截至 2026-06-05，默认优先级为：
 1. demo 视频与演示稿素材收束
 2. fixture / smoke-check / provider 兼容回归继续补强
-3. 视时间决定是否补公网部署
+3. 视时间决定是否补可选公网演示，但这不是硬性要求；优先保证 README、本地启动流程与 demo 可复现
 
 若后续阶段变化，应先更新 `implementation-progress.md`，再调整执行顺序。
