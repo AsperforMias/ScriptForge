@@ -3,8 +3,8 @@ import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChapterList } from "../components/input/chapter-list";
 import { SourceForm } from "../components/input/source-form";
-import { JobStatusPanel } from "../components/jobs/job-status-panel";
 import { ExportActions } from "../components/result/export-actions";
+import { GenerationProgressStrip } from "../components/result/generation-progress-strip";
 import { ScreenplaySummary } from "../components/result/screenplay-summary";
 import { YamlEditor } from "../components/result/yaml-editor";
 import { mapDraftToCreateJobRequest } from "../features/create-job/mapper";
@@ -22,7 +22,7 @@ import { useCreateJob } from "../features/create-job/use-create-job";
 import { useJobPolling } from "../features/job-detail/use-job-polling";
 import { useJobResult } from "../features/job-result/use-job-result";
 import { downloadTextFile } from "../lib/download";
-import { formatDateTime, formatUserFacingError, getErrorMessage } from "../lib/format";
+import { formatUserFacingError, getErrorMessage } from "../lib/format";
 import { requestText } from "../lib/http";
 import type { JobStage, JobStatus, PipelineStageName } from "../types/api";
 
@@ -201,18 +201,6 @@ export function WorkspacePage() {
     return "可编辑初稿";
   }, [activeJobStatus, jobResultQuery.isLoading, resultPayload]);
 
-  const progressNote = useMemo(() => {
-    if (activeJob) {
-      return `最近更新：${formatDateTime(activeJob.updated_at)}`;
-    }
-
-    if (currentJobId && jobDetailsQuery.isLoading) {
-      return "正在恢复最近一次生成记录。";
-    }
-
-    return "生成完成后，你可以在右侧继续微调 YAML，并导出为本地文件。";
-  }, [activeJob, currentJobId, jobDetailsQuery.isLoading]);
-
   function startJob(values: WorkspaceFormValues) {
     setFormError("");
     createJobMutation.reset();
@@ -235,7 +223,7 @@ export function WorkspacePage() {
         setResultNotice({
           tone: "info",
           title: "已开始生成",
-          description: "中间会持续更新处理进度；完成后，右侧会自动载入新的剧本初稿。",
+          description: "右侧顶部会持续更新处理进度；完成后，结果区会自动载入新的剧本初稿。",
         });
         queryClient.removeQueries({ queryKey: ["job-result"] });
       },
@@ -343,7 +331,7 @@ export function WorkspacePage() {
           <div>
             <h1>ScriptForge 剧本改编工作台</h1>
             <p>
-              把 3 章以上的小说文本整理成可继续打磨的 YAML 剧本初稿。左侧输入原文与改编要求，中间查看生成进度，右侧继续编辑、摘要浏览与导出。
+              把 3 章以上的小说文本整理成可继续打磨的 YAML 剧本初稿。左侧输入原文与改编要求，右侧查看进度、继续编辑、摘要浏览与导出。
             </p>
           </div>
           <div className="page-intro__aside">
@@ -380,15 +368,14 @@ export function WorkspacePage() {
           </form>
         </FormProvider>
 
-        <div className="panel panel--status">
+        <div className="panel panel--result">
           <div className="panel__header">
             <div>
-              <p className="panel__eyebrow">进度区</p>
-              <h2>生成进度</h2>
+              <h2>生成结果</h2>
             </div>
-            <span className="panel__badge panel__badge--muted">自动更新</span>
+            <span className="panel__badge panel__badge--accent">{resultBadgeLabel}</span>
           </div>
-          <JobStatusPanel
+          <GenerationProgressStrip
             canRegenerate={activeJob?.status === "failed" && !createJobMutation.isPending}
             createError={getErrorMessage(createJobMutation.error)}
             hasJobId={Boolean(currentJobId)}
@@ -399,26 +386,6 @@ export function WorkspacePage() {
             resultError={getErrorMessage(jobResultQuery.error || jobDetailsQuery.error)}
             stages={stages}
           />
-          <div className="panel-section">
-            <div className="section-heading section-heading--tight">
-              <div>
-                <h3>继续创作</h3>
-                <p>页面会记住最近一次生成记录，刷新后仍可继续查看结果与修改内容。</p>
-              </div>
-              <span className="section-tag">本地延续</span>
-            </div>
-            <p className="inline-note">{progressNote}</p>
-          </div>
-        </div>
-
-        <div className="panel panel--result">
-          <div className="panel__header">
-            <div>
-              <p className="panel__eyebrow">结果区</p>
-              <h2>YAML 初稿与结构摘要</h2>
-            </div>
-            <span className="panel__badge panel__badge--accent">{resultBadgeLabel}</span>
-          </div>
           <ExportActions
             canExport={Boolean(editedYamlText.trim())}
             canReset={Boolean(originalYamlText)}

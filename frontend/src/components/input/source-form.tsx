@@ -43,7 +43,7 @@ export function SourceForm({ activePresetId, onLoadSample, onResetToBlank }: Sou
         ))}
       </div>
 
-      <div className="action-row">
+      <div className="action-row action-row--support">
         <button
           className="ghost-button ghost-button--compact"
           disabled={isSubmitting}
@@ -52,7 +52,7 @@ export function SourceForm({ activePresetId, onLoadSample, onResetToBlank }: Sou
         >
           切换为空白手工输入
         </button>
-        <p className="inline-note">
+        <p className="inline-note action-row__note">
           {activePresetLabel
             ? `当前已载入「${activePresetLabel}」示例。你可以直接覆盖字段，或先切换为空白手工输入再录入自己的 3 章内容。`
             : "当前是自定义草稿，可直接粘贴自己的 3 章内容并提交生成。"}

@@ -85,7 +85,7 @@ export function ChapterList() {
         ))}
       </div>
 
-      <div className="action-row">
+      <div className="action-row action-row--support">
         <button
           className="secondary-button"
           disabled={isSubmitting}
@@ -94,7 +94,7 @@ export function ChapterList() {
         >
           添加章节
         </button>
-        <p className="inline-note">章节顺序会直接影响生成时的先后关系。</p>
+        <p className="inline-note action-row__note">章节顺序会直接影响生成时的先后关系。</p>
       </div>
     </section>
   );
