@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/config"
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
@@ -22,6 +23,7 @@ import (
 	"github.com/AsperforMias/ScriptForge/backend/internal/screenplay"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/artifact"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/sqlite"
+	"github.com/AsperforMias/ScriptForge/backend/internal/testutil"
 	"gopkg.in/yaml.v3"
 )
 
@@ -368,6 +370,60 @@ func TestRouterJobLifecycleWithGrowthFantasyInput(t *testing.T) {
 		t.Fatalf("expected valid screenplay from growth-fantasy request: %v", err)
 	}
 	assertGrowthFantasyScreenplay(t, resultEnvelope.Data.Screenplay)
+
+	var yamlDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(resultEnvelope.Data.YAMLText), &yamlDoc); err != nil {
+		t.Fatalf("unmarshal yaml text: %v", err)
+	}
+	if !reflect.DeepEqual(yamlDoc, resultEnvelope.Data.Screenplay) {
+		t.Fatalf("expected api screenplay json and yaml_text to describe the same document")
+	}
+}
+
+func TestRouterJobLifecycleWithRealGrowthFantasyInput(t *testing.T) {
+	router, repo, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
+
+	requestBody, err := json.Marshal(testutil.GrowthFantasyRealInputRequest())
+	if err != nil {
+		t.Fatalf("marshal real growth-fantasy request: %v", err)
+	}
+
+	createResp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(requestBody))
+	if createResp.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", createResp.Code)
+	}
+
+	var createEnvelope struct {
+		Data struct {
+			Job struct {
+				ID string `json:"id"`
+			} `json:"job"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	waitForSucceededJob(t, repo, createEnvelope.Data.Job.ID)
+
+	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+createEnvelope.Data.Job.ID+"/result", nil)
+	if resultResp.Code != http.StatusOK {
+		t.Fatalf("expected 200 result status, got %d", resultResp.Code)
+	}
+
+	var resultEnvelope struct {
+		Data struct {
+			Screenplay screenplay.Document `json:"screenplay"`
+			YAMLText   string              `json:"yaml_text"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resultResp.Body).Decode(&resultEnvelope); err != nil {
+		t.Fatalf("decode result response: %v", err)
+	}
+	if err := screenplay.Validate(resultEnvelope.Data.Screenplay); err != nil {
+		t.Fatalf("expected valid screenplay from real growth-fantasy request: %v", err)
+	}
+	assertRealGrowthFantasyScreenplay(t, resultEnvelope.Data.Screenplay)
 
 	var yamlDoc screenplay.Document
 	if err := yaml.Unmarshal([]byte(resultEnvelope.Data.YAMLText), &yamlDoc); err != nil {
@@ -933,9 +989,118 @@ func assertGrowthFantasyScreenplay(t *testing.T, doc screenplay.Document) {
 	}
 }
 
+func assertRealGrowthFantasyScreenplay(t *testing.T, doc screenplay.Document) {
+	t.Helper()
+
+	if len(doc.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(doc.Scenes))
+	}
+	if len(doc.Validation.Warnings) == 0 {
+		t.Fatal("expected real growth-fantasy response to surface validation warnings")
+	}
+
+	for _, badName := range testutil.GrowthFantasyRealInputForbiddenFragments() {
+		for _, character := range doc.Characters {
+			if character.Name == badName {
+				t.Fatalf("expected filtered fragment %s to stay out of characters, got %#v", badName, doc.Characters)
+			}
+		}
+	}
+	if got := doc.Characters[0].Name; got != "厄洛斯" {
+		t.Fatalf("expected protagonist 厄洛斯, got %s", got)
+	}
+
+	matched := 0
+	for _, expected := range testutil.GrowthFantasyRealInputExpectedNames() {
+		for _, character := range doc.Characters {
+			if character.Name == expected {
+				matched++
+				break
+			}
+		}
+	}
+	if matched < 3 {
+		t.Fatalf("expected core names to be recovered, matched %d in %#v", matched, doc.Characters)
+	}
+
+	for idx, scene := range doc.Scenes {
+		if strings.TrimSpace(scene.Objective) == "" || looksLikeNarrativeCarryover(scene.Objective) {
+			t.Fatalf("expected compact objective for scene %d, got %s", idx+1, scene.Objective)
+		}
+		if len(scene.Notes.OpenQuestions) == 0 || looksLikeNarrativeCarryover(scene.Notes.OpenQuestions[0]) {
+			t.Fatalf("expected compact open question for scene %d, got %#v", idx+1, scene.Notes.OpenQuestions)
+		}
+
+		actionBeatCount := 0
+		for _, beat := range scene.Beats {
+			if beat.Type == "dialogue" && looksLikeNarrativeCarryover(beat.Content) {
+				t.Fatalf("expected compact dialogue for scene %d, got %s", idx+1, beat.Content)
+			}
+			if beat.Type != "action" {
+				continue
+			}
+			actionBeatCount++
+			if beat.Content == scene.Summary || looksLikeBrokenActionBeat(beat.Content) {
+				t.Fatalf("expected scene %d action beat to stay shootable, got %s", idx+1, beat.Content)
+			}
+		}
+		if actionBeatCount == 0 {
+			t.Fatalf("expected action beat for scene %d", idx+1)
+		}
+	}
+
+	for _, warning := range doc.Validation.Warnings {
+		if strings.Contains(warning, "当前按通用成长/世界观场景规则生成") {
+			t.Fatalf("expected warnings to move beyond generic growth copy, got %#v", doc.Validation.Warnings)
+		}
+	}
+	if !containsSpecificWarning(doc.Validation.Warnings, "characters:", "fragment") &&
+		!containsSpecificWarning(doc.Validation.Warnings, "protagonist confidence") &&
+		!containsSpecificWarning(doc.Validation.Warnings, "objective is still derived") &&
+		!containsSpecificWarning(doc.Validation.Warnings, "beat adaptation remains") &&
+		!containsSpecificWarning(doc.Validation.Warnings, "location/slugline confidence is low") {
+		t.Fatalf("expected concrete low-confidence warnings, got %#v", doc.Validation.Warnings)
+	}
+}
+
 func containsAnyText(input string, keywords ...string) bool {
 	for _, keyword := range keywords {
 		if strings.Contains(input, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+func looksLikeNarrativeCarryover(input string) bool {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return true
+	}
+	if utf8.RuneCountInString(input) > 40 {
+		return true
+	}
+	return containsAnyText(input, "因为", "随着", "直到", "只能靠", "所能看到", "难不成", "让人感觉", "也不知道", "这让他", "原本", "【", "】", "...", "……")
+}
+
+func looksLikeBrokenActionBeat(input string) bool {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return true
+	}
+	return containsAnyText(input, "【", "】", "...", "……", "——") || strings.HasPrefix(input, "“") || strings.HasPrefix(input, "”")
+}
+
+func containsSpecificWarning(warnings []string, keywords ...string) bool {
+	for _, warning := range warnings {
+		matched := true
+		for _, keyword := range keywords {
+			if !strings.Contains(warning, keyword) {
+				matched = false
+				break
+			}
+		}
+		if matched {
 			return true
 		}
 	}

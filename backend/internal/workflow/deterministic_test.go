@@ -3,9 +3,12 @@ package workflow
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/ingest"
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
+	"github.com/AsperforMias/ScriptForge/backend/internal/screenplay"
+	"github.com/AsperforMias/ScriptForge/backend/internal/testutil"
 )
 
 func TestBuildOutlineProducesConflictPerChapter(t *testing.T) {
@@ -350,6 +353,81 @@ func TestDeterministicWorkflowHardensCustomGrowthFantasyInput(t *testing.T) {
 	}
 }
 
+func TestDeterministicWorkflowHardensRealGrowthFantasyInput(t *testing.T) {
+	req := testutil.GrowthFantasyRealInputRequest()
+	source := ingest.Normalize(req)
+	outline := BuildOutline(source)
+	entities := ExtractEntities(source)
+	plan := BuildScenePlan(source, outline, entities)
+	doc := BuildDocument(req, source, outline, entities, plan)
+
+	if err := screenplay.Validate(doc); err != nil {
+		t.Fatalf("expected valid screenplay document: %v", err)
+	}
+	if len(doc.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(doc.Scenes))
+	}
+
+	for _, badName := range testutil.GrowthFantasyRealInputForbiddenFragments() {
+		if characterNamesContain(entities, badName) {
+			t.Fatalf("expected fragment-like candidate %s to stay out of characters, got %#v", badName, entities.Characters)
+		}
+	}
+
+	if got := doc.Characters[0].Name; got != "厄洛斯" {
+		t.Fatalf("expected protagonist 厄洛斯 for real growth-fantasy input, got %s", got)
+	}
+	if matched := countExpectedCharacterMatches(entities, testutil.GrowthFantasyRealInputExpectedNames()); matched < 3 {
+		t.Fatalf("expected real growth-fantasy input to recover core names, matched %d in %#v", matched, entities.Characters)
+	}
+
+	for idx, scene := range doc.Scenes {
+		if strings.TrimSpace(scene.Objective) == "" {
+			t.Fatalf("expected objective for scene %d", idx+1)
+		}
+		if looksLikeNarrativeCarryover(scene.Objective) {
+			t.Fatalf("expected compact scene objective for scene %d, got %s", idx+1, scene.Objective)
+		}
+		if len(scene.Notes.OpenQuestions) == 0 {
+			t.Fatalf("expected open question for scene %d", idx+1)
+		}
+		if looksLikeNarrativeCarryover(scene.Notes.OpenQuestions[0]) {
+			t.Fatalf("expected compact open question for scene %d, got %s", idx+1, scene.Notes.OpenQuestions[0])
+		}
+
+		actionBeatCount := 0
+		for _, beat := range scene.Beats {
+			if beat.Type == "dialogue" && looksLikeNarrativeCarryover(beat.Content) {
+				t.Fatalf("expected compact dialogue for scene %d, got %s", idx+1, beat.Content)
+			}
+			if beat.Type != "action" {
+				continue
+			}
+			actionBeatCount++
+			if beat.Content == scene.Summary || looksLikeBrokenActionBeat(beat.Content) {
+				t.Fatalf("expected scene %d action beat to stay shootable, got %s", idx+1, beat.Content)
+			}
+		}
+		if actionBeatCount == 0 {
+			t.Fatalf("expected at least one action beat for scene %d", idx+1)
+		}
+	}
+
+	if len(doc.Validation.Warnings) == 0 {
+		t.Fatal("expected real growth-fantasy input to surface concrete validation warnings")
+	}
+	if hasGenericGrowthWarning(doc.Validation.Warnings) {
+		t.Fatalf("expected warnings to move beyond generic growth copy, got %#v", doc.Validation.Warnings)
+	}
+	if !hasSpecificWarning(doc.Validation.Warnings, "characters:", "fragment") &&
+		!hasSpecificWarning(doc.Validation.Warnings, "protagonist confidence") &&
+		!hasSpecificWarning(doc.Validation.Warnings, "objective is still derived") &&
+		!hasSpecificWarning(doc.Validation.Warnings, "beat adaptation remains") &&
+		!hasSpecificWarning(doc.Validation.Warnings, "location/slugline confidence is low") {
+		t.Fatalf("expected specific low-confidence warnings, got %#v", doc.Validation.Warnings)
+	}
+}
+
 func normalizeFixtureSource() ingest.NormalizedSource {
 	var req job.CreateJobRequest
 	req.Source.Title = "夜雨疑云"
@@ -479,6 +557,65 @@ func normalizeGrowthFantasySource() ingest.NormalizedSource {
 func characterNamesContain(entities EntityBundle, expectedName string) bool {
 	for _, character := range entities.Characters {
 		if character.Name == expectedName {
+			return true
+		}
+	}
+	return false
+}
+
+func countExpectedCharacterMatches(entities EntityBundle, expected []string) int {
+	matched := 0
+	for _, name := range expected {
+		if characterNamesContain(entities, name) {
+			matched++
+		}
+	}
+	return matched
+}
+
+func looksLikeNarrativeCarryover(input string) bool {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return true
+	}
+	if utf8.RuneCountInString(input) > 40 {
+		return true
+	}
+	return containsAny(
+		input,
+		"因为", "随着", "直到", "只能靠", "所能看到", "难不成", "让人感觉", "也不知道", "这让他", "原本", "【", "】", "...", "……",
+	)
+}
+
+func looksLikeBrokenActionBeat(input string) bool {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return true
+	}
+	return containsAny(input, "【", "】", "...", "……", "——") ||
+		strings.HasPrefix(input, "“") ||
+		strings.HasPrefix(input, "”")
+}
+
+func hasGenericGrowthWarning(warnings []string) bool {
+	for _, warning := range warnings {
+		if strings.Contains(warning, "当前按通用成长/世界观场景规则生成") {
+			return true
+		}
+	}
+	return false
+}
+
+func hasSpecificWarning(warnings []string, keywords ...string) bool {
+	for _, warning := range warnings {
+		matched := true
+		for _, keyword := range keywords {
+			if !strings.Contains(warning, keyword) {
+				matched = false
+				break
+			}
+		}
+		if matched {
 			return true
 		}
 	}
