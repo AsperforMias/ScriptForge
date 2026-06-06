@@ -177,6 +177,9 @@ func TestOpenAICompatibleBuildRequestSanitizesFogHarborEchoContext(t *testing.T)
 	if _, exists := contextPayload["location_candidates"]; exists {
 		t.Fatalf("expected top-level location_candidates to be omitted to reduce prompt pollution, got %#v", contextPayload["location_candidates"])
 	}
+	if got, ok := contextPayload["scene_count_target"].(float64); !ok || int(got) != 3 {
+		t.Fatalf("expected scene_count_target=3 in request payload, got %#v", contextPayload["scene_count_target"])
+	}
 
 	chaptersAny, ok := contextPayload["chapters"].([]any)
 	if !ok || len(chaptersAny) < 3 {
@@ -188,6 +191,9 @@ func TestOpenAICompatibleBuildRequestSanitizesFogHarborEchoContext(t *testing.T)
 	}
 	if _, exists := firstChapter["summary"]; exists {
 		t.Fatalf("expected chapter summary to be omitted from provider context, got %#v", firstChapter["summary"])
+	}
+	if got, ok := firstChapter["suggested_scene_count"].(float64); !ok || int(got) != 1 {
+		t.Fatalf("expected first chapter suggested_scene_count=1, got %#v", firstChapter["suggested_scene_count"])
 	}
 
 	charactersAny, ok := firstChapter["character_candidates"].([]any)
@@ -826,6 +832,240 @@ validation:
 	}
 }
 
+func TestOpenAICompatibleGeneratorCompressesFogHarborOverSplitCanonicalOutput(t *testing.T) {
+	input := testutil.FogHarborEchoRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			content := `version: "1.0"
+source:
+  title: "雾港回声"
+  author: "自定义输入作者"
+  language: "zh-CN"
+  chapter_count: 3
+  chapters:
+    - index: 1
+      title: "第一章 归港的人"
+      summary: "林渡归港，苏雯递伞并警告。"
+    - index: 2
+      title: "第二章 旧楼里的纸条"
+      summary: "林渡在医院拿到纸条。"
+    - index: 3
+      title: "第三章 地下室的第二把钥匙"
+      summary: "林渡在老房子发现地图与持钥匙者。"
+adaptation:
+  style: "悬疑网剧"
+  audience: "大众向"
+  notes: []
+characters:
+  - id: "char_lin_du"
+    name: "林渡"
+    role: "protagonist"
+    description: "主角。"
+  - id: "char_su_wen"
+    name: "苏雯"
+    role: "supporting"
+    description: "旧同学。"
+  - id: "char_xu_yan"
+    name: "许言"
+    role: "supporting"
+    description: "医生。"
+locations:
+  - id: "loc_cross"
+    name: "十字路口报刊亭"
+    description: "街口报刊亭。"
+  - id: "loc_hospital_corridor"
+    name: "市立第三医院走廊"
+    description: "医院走廊。"
+  - id: "loc_hospital_room"
+    name: "病房"
+    description: "医院病房。"
+  - id: "loc_old_house_living_room"
+    name: "老房子客厅"
+    description: "返家后的客厅。"
+  - id: "loc_old_house_stairway"
+    name: "楼梯口"
+    description: "楼下楼梯口。"
+scenes:
+  - id: "scene_001"
+    title: "夜雨归港"
+    source_chapters: [1]
+    slugline:
+      interior_exterior: "EXT"
+      location_id: "loc_cross"
+      time: "NIGHT"
+    summary: "林渡回城，苏雯递伞并警告。"
+    objective: "建立悬疑基调，引入苏雯的警告。"
+    beats:
+      - type: "action"
+        content: "林渡站在十字路口报刊亭前。"
+      - type: "dialogue"
+        character_id: "char_lin_du"
+        content: "你怎么在这？"
+    notes:
+      adaptation_reason: "保留回城和示警。"
+      open_questions:
+        - "接下来会发生什么？"
+    evidence:
+      chapter_indexes: [1]
+      excerpt: "林渡站在报刊亭前，苏雯递伞并警告他。"
+      cues: ["报刊亭", "苏雯"]
+    review:
+      confidence: "high"
+      issues: []
+  - id: "scene_002"
+    title: "医院走廊"
+    source_chapters: [2]
+    slugline:
+      interior_exterior: "INT"
+      location_id: "loc_hospital_corridor"
+      time: "NIGHT"
+    summary: "许言在走廊拦住林渡。"
+    objective: "林渡要确认父亲为什么突然住院。"
+    beats:
+      - type: "action"
+        content: "林渡刚到病房门口，就被许言拦住。"
+      - type: "dialogue"
+        character_id: "char_lin_du"
+        content: "我爸怎么样？"
+    notes:
+      adaptation_reason: "单独强调走廊对话。"
+    evidence:
+      chapter_indexes: [2]
+      excerpt: "林渡刚走到病房门口，就被拦住。"
+      cues: ["病房门口", "许言"]
+    review:
+      confidence: "medium"
+      issues: []
+  - id: "scene_003"
+    title: "病房纸条"
+    source_chapters: [2]
+    slugline:
+      interior_exterior: "INT"
+      location_id: "loc_hospital_room"
+      time: "NIGHT"
+    summary: "许言转交纸条，林建国手指微动。"
+    objective: "弄清楚父亲昏迷的原因。"
+    beats:
+      - type: "action"
+        content: "许言把纸条递给林渡。"
+      - type: "action"
+        content: "病床上的林建国手指蜷了一下。"
+    notes:
+      adaptation_reason: "单独强调病房线索。"
+      open_questions:
+        - "纸条为什么会写给林渡？"
+    evidence:
+      chapter_indexes: [2]
+      excerpt: "纸条上写着别让他们找到地下室的第二把钥匙。"
+      cues: ["纸条", "第二把钥匙"]
+    review:
+      confidence: "medium"
+      issues: []
+  - id: "scene_004"
+    title: "返家镜室"
+    source_chapters: [3]
+    slugline:
+      interior_exterior: "INT"
+      location_id: "loc_old_house_living_room"
+      time: "NIGHT"
+    summary: "林渡回到老房子，在客厅发现镜室地图。"
+    objective: "林渡要确认镜室和第二把钥匙之间的联系。"
+    beats:
+      - type: "action"
+        content: "林渡发现桌上的牛皮纸袋和地图。"
+      - type: "action"
+        content: "地图上用红笔圈出镜室。"
+    notes:
+      adaptation_reason: "保留返家调查。"
+    evidence:
+      chapter_indexes: [3]
+      excerpt: "地图在地下一层的位置圈出镜室。"
+      cues: ["镜室", "地图"]
+    review:
+      confidence: "medium"
+      issues: []
+  - id: "scene_005"
+    title: "楼下持钥匙者"
+    source_chapters: [3]
+    slugline:
+      interior_exterior: "INT"
+      location_id: "loc_old_house_stairway"
+      time: "NIGHT"
+    summary: "楼梯口出现两个男人，其中一人拿着相同铜钥匙。"
+    objective: "林渡想知道楼下的人为什么也有同样的钥匙。"
+    beats:
+      - type: "action"
+        content: "两个男人停在楼梯口，像在确认门牌。"
+      - type: "action"
+        content: "鸭舌帽男掏出旧铜钥匙，在指尖转了一圈。"
+    notes:
+      adaptation_reason: "保留门外威胁。"
+      open_questions:
+        - "楼下的人是谁派来的？"
+    evidence:
+      chapter_indexes: [3]
+      excerpt: "鸭舌帽男拿着与林渡手中相似的铜钥匙。"
+      cues: ["楼梯口", "铜钥匙"]
+    review:
+      confidence: "medium"
+      issues: []
+validation:
+  status: "passed"
+  warnings: []`
+			payload := `{"choices":[{"message":{"content":` + strconv.Quote(content) + `}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(payload)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	result, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_fog_harbor_over_split",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		t.Fatalf("unexpected generator error: %v", err)
+	}
+	if got := len(result.Document.Scenes); got != 3 {
+		t.Fatalf("expected over-split fog harbor canonical output to compress to 3 scenes, got %d", got)
+	}
+	for idx, scene := range result.Document.Scenes {
+		if len(scene.SourceChapters) != 1 || scene.SourceChapters[0] != idx+1 {
+			t.Fatalf("expected compressed scene %d to stay aligned to chapter %d, got %#v", idx+1, idx+1, scene.SourceChapters)
+		}
+	}
+	if got := result.Document.Scenes[0].Objective; got != "" {
+		t.Fatalf("expected scene 1 template objective to be cleared after compression, got %q", got)
+	}
+	if result.Document.Scenes[1].Review == nil || result.Document.Scenes[1].Review.Confidence != "medium" {
+		t.Fatalf("expected merged hospital scene to keep medium confidence review, got %#v", result.Document.Scenes[1].Review)
+	}
+	if !containsIssue(result.Document.Scenes[1].Review, "merged to keep a stable editable draft") {
+		t.Fatalf("expected merged hospital scene review to disclose scene-boundary merge, got %#v", result.Document.Scenes[1].Review)
+	}
+	if len(result.Document.Scenes[2].Beats) < 3 {
+		t.Fatalf("expected merged old-house scene to retain multiple beats, got %#v", result.Document.Scenes[2].Beats)
+	}
+}
+
 func TestOpenAICompatibleGeneratorRejectsLooseSchemaWithoutScenes(t *testing.T) {
 	input := validOpenAICompatibleCreateJobRequest()
 	source := ingest.Normalize(input)
@@ -860,6 +1100,18 @@ func TestOpenAICompatibleGeneratorRejectsLooseSchemaWithoutScenes(t *testing.T) 
 	if !strings.Contains(err.Error(), "no scenes found in loose yaml") {
 		t.Fatalf("expected no scenes error, got %v", err)
 	}
+}
+
+func containsIssue(review *screenplay.Review, fragment string) bool {
+	if review == nil {
+		return false
+	}
+	for _, issue := range review.Issues {
+		if strings.Contains(issue, fragment) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestOpenAICompatibleGeneratorSurfacesProviderHTTPFailure(t *testing.T) {
