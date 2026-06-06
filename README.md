@@ -1,12 +1,71 @@
 # ScriptForge
 
-AI-powered Novel-to-Screenplay Workspace.
+Turn a real 3-chapter novel into an editable screenplay YAML draft through a job-based Go pipeline and a lightweight review workspace.
+
+## Judge Snapshot
+
+ScriptForge is a 72-hour MVP for the contest prompt "AI 小说转剧本工具".
+
+It is not a single chat box. The current deliverable already includes:
+- manual 3-chapter novel input
+- async job creation and polling
+- `llm-first` YAML screenplay generation
+- schema validation plus scene-level `evidence` / `review`
+- frontend YAML viewing, editing, and export
+
+## Real Sample
+
+Primary real-input regression sample:
+- source text: [`test/fog-harbor-echo.md`](test/fog-harbor-echo.md)
+- real run mode: `generation.mode=llm`
+- current observed output shape: `3` scenes, source-grounded character/location extraction, editable YAML draft
+
+Real workspace capture from the current local app:
+
+![Fog Harbor Workspace](docs/images/fog-harbor-workspace.png)
+
+## 3-Step Local Run
+
+1. Prepare provider config:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Fill the real provider key in `.env.local`.
+
+2. Start the backend:
+
+```bash
+cd backend
+go run ./cmd/api
+```
+
+3. Start the frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Then open `http://127.0.0.1:5173`, switch to blank manual input if needed, paste your own 3 chapters, and generate the YAML draft.
+
+## Why This Repo Is Competitive
+
+- The output contract is structured YAML, not an untraceable free-form answer.
+- The backend is a staged Go pipeline with job persistence, validation, export, and provider debug artifacts.
+- The frontend is intentionally lightweight, but the full user path is already runnable: input -> status -> YAML -> edit -> export.
+- The repo is document-first, with scope, decisions, progress, API contract, pipeline contract, and demo guidance all checked into `docs/`.
+
+## Key Links
+
+- [Documentation Index](docs/README.md)
+- [YAML Schema and design rationale](docs/yaml-schema.md)
+- [Competition brief and judging implications](docs/competition-brief.md)
+- [Frontend demo recording guide](docs/demo-recording-guide.md)
 
 This repository is being initialized for a 72-hour training-camp project. The implementation baseline is document-first: product scope, architecture decisions, progress tracking, PR rules, and handoff context live under [`docs/`](docs/README.md).
-
-Key links:
-- [YAML Schema and design rationale](docs/yaml-schema.md)
-- [Frontend demo recording guide](docs/demo-recording-guide.md)
 
 Read in this order before making changes:
 1. [`docs/final-solution.md`](docs/final-solution.md)
@@ -20,13 +79,15 @@ Read in this order before making changes:
 9. [`docs/architecture-self-check.md`](docs/architecture-self-check.md)
 10. [`docs/collaboration-rules.md`](docs/collaboration-rules.md)
 
-Current state:
+## Current State
+
 - Documentation baseline: ready and executable
 - Backend implementation: job API, YAML export path, and `llm` provider path are runnable
 - Goal: keep future human/agent sessions aligned to the same scope and judging constraints
 - Important correction: the intended product direction is now `llm-first`; `deterministic` remains available only as fallback / smoke baseline and should not keep expanding as the main generation strategy
 
-Current runnable ability:
+## Current Runnable Ability
+
 - `backend/` exposes `POST /api/v1/jobs`
 - background job pipeline persists job status and YAML artifacts
 - `GET /api/v1/jobs/:id`, `GET /api/v1/jobs/:id/result`, and `GET /api/v1/jobs/:id/export` are available
@@ -40,39 +101,31 @@ Current runnable ability:
 - the `openai_compatible` path has been validated against DeepSeek-compatible `/chat/completions` and normalizes loose provider YAML into the canonical project schema
 - fixture-backed integration tests cover create, status, result, export, invalid input, not-ready, and llm mock behavior
 
-Backend quick start:
-```bash
-cd backend
-go run ./cmd/api
-```
+## Frontend Smoke-Check
 
-Frontend quick start:
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend smoke-check:
 ```bash
 cd frontend
 npm run smoke:workspace
 ```
 
-Default local demo ports:
+## Default Local Demo Ports
+
 - backend API: `http://127.0.0.1:8080`
 - frontend dev server: `http://127.0.0.1:5173`
 - Vite dev proxy forwards `/api/*` to `http://127.0.0.1:8080` by default
 
-Recommended local startup:
+## Recommended Local Startup
+
 1. Start the backend from the repo root or `backend/`; the default `HTTP_ADDR` is `:8080`.
 2. Start the frontend with `npm run dev`; Vite serves the workspace on `:5173`.
 3. Open `http://127.0.0.1:5173`; frontend requests to `/api/v1/*` are proxied to the backend automatically.
 
-Demo walkthrough note:
+## Demo Walkthrough Note
+
 - Use [docs/demo-recording-guide.md](docs/demo-recording-guide.md) for presenter-facing narration, sample order, and recording flow. The product page itself stays focused on author use rather than judge instructions.
 
-Frontend real-chain self-check:
+## Frontend Real-Chain Self-Check
+
 1. Start the backend on `http://127.0.0.1:8080` and the frontend on `http://127.0.0.1:5173`.
 2. Open the workspace; the recommended `职场` sample is loaded only for quick start, but the primary acceptance path is still `切换为空白手工输入` and pasting your own 3 chapters.
 3. Keep `generationMode=llm` as the corrected target default for the main path; if local provider credentials are unavailable, use `deterministic` only as a temporary fallback for smoke/debug instead of treating it as the long-term main strategy.
@@ -84,7 +137,8 @@ Frontend real-chain self-check:
 9. After a successful result load, modify the YAML once, confirm the toolbar flips from `当前为生成初稿` to `当前为本地编辑稿`, then test `复制当前 YAML` and `恢复生成初稿`.
 10. Run one extra non-preset pass: click `切换为空白手工输入`, enter your own 3 chapters, then repeat `create job -> polling -> YAML/result/export` to confirm the main path does not depend on built-in samples.
 
-Scripted frontend smoke-check:
+## Scripted Frontend Smoke-Check
+
 - `npm run smoke:workspace` expects the backend on `:8080`, the frontend dev server on `:5173`, and a local Chrome or Edge executable.
 - It verifies two real frontend acceptance paths: a sample preset run and a non-preset manual 3-chapter run, both covering real `POST /api/v1/jobs`, polling, YAML load, structured summary, export, local edit, `复制当前 YAML`, disabled-provider fallback regenerate, `lastJobId` refresh restore, and mobile `Input -> Status -> Result` panel order.
 - Do not treat the sample preset path as the main product proof. Real manual 3-chapter input is the primary acceptance path for this project.
@@ -96,7 +150,8 @@ Scripted frontend smoke-check:
   - `FRONTEND_SMOKE_CHROME_PATH`
   - `FRONTEND_SMOKE_TIMEOUT_MS`
 
-Frontend API note:
+## Frontend API Note
+
 ```bash
 # bash / zsh: optional when frontend and backend are on different origins
 export VITE_API_BASE_URL=http://localhost:8080/api/v1
@@ -105,7 +160,8 @@ export VITE_API_BASE_URL=http://localhost:8080/api/v1
 export VITE_API_PROXY_TARGET=http://127.0.0.1:8080
 ```
 
-Local/deployment prerequisite for real provider runs:
+## Local / Deployment Prerequisite For Real Provider Runs
+
 ```bash
 cp .env.local.example .env.local
 # edit .env.local and fill your real key
@@ -114,13 +170,15 @@ set -a && source .env.local && set +a
 
 `backend/internal/config` now auto-discovers a repo-root `.env.local` when you run `cd backend && go run ./cmd/api`, so the manual `source` step is optional for local backend-only runs and still useful when you want the same variables in your current shell session.
 
-Backend quick start with a local external provider:
+## Backend Quick Start With A Local External Provider
+
 ```bash
 cd backend
 go run ./cmd/api
 ```
 
-LLM mode options:
+## LLM Mode Options
+
 ```bash
 # local verification without external network
 export LLM_PROVIDER=mock
@@ -132,7 +190,8 @@ export LLM_MODEL=your-model-name
 export LLM_API_KEY=your-api-key
 ```
 
-Local secret handling:
+## Local Secret Handling
+
 - keep provider credentials in a repo-root `.env.local`
 - `.env.local` is gitignored and must never be committed
 - start from `.env.local.example` so other human/agent sessions inherit the same expected variable names
@@ -143,31 +202,36 @@ Local secret handling:
   - [DeepSeek Models & Pricing](https://api-docs.deepseek.com/quick_start/pricing)
   - [DeepSeek JSON Output](https://api-docs.deepseek.com/guides/json_mode)
 
-OpenAI-compatible provider note:
+## OpenAI-Compatible Provider Note
+
 - keep `LLM_PROVIDER=openai_compatible`
 - swap only `LLM_BASE_URL`, `LLM_MODEL`, and `LLM_API_KEY` when moving from DeepSeek to another compatible provider
 - the current backend path remains YAML-first because the project output contract is YAML, even though DeepSeek also documents JSON Output support
 
-Current backend focus:
+## Current Backend Focus
+
 - correct the project back to an `llm-first` generation direction
 - keep deterministic only as fallback / smoke baseline instead of growing it into a rule-heavy adaptation engine
 - continue polishing provider prompt, normalization, and validation honesty while keeping the YAML-first output contract
 - keep real manual Chinese 3-chapter inputs as the main acceptance target, with fixtures only as regression support
 
-Backend self-check:
+## Backend Self-Check
+
 ```bash
 cd backend
 GOCACHE=/tmp/scriptforge-gocache go test ./...
 GOCACHE=/tmp/scriptforge-gocache go build -o /tmp/scriptforge-api ./cmd/api
 ```
 
-Backend acceptance note:
+## Backend Acceptance Note
+
 - run backend self-checks from `backend/`; the repo root is not a Go module root
 - keep YAML fixture regressions, but do not treat fixtures as the only acceptance target
 - at least one regression should cover a custom Chinese 3-chapter input through the real job pipeline rather than only comparing canned fixtures
 - if a custom real input produces structurally valid but semantically weak YAML, treat that as a product blocker rather than a tolerable fixture gap
 
-Backend smoke-check:
+## Backend Smoke-Check
+
 ```bash
 # deterministic local path
 scripts/run_backend_smoke.sh deterministic
@@ -180,21 +244,24 @@ scripts/run_backend_smoke.sh deterministic family
 scripts/run_backend_smoke.sh deterministic comedy
 ```
 
-Example fixture inputs:
+## Example Fixture Inputs
+
 - [`testdata/novels/night-rain-request.json`](testdata/novels/night-rain-request.json)
 - [`testdata/novels/workplace-crisis-request.json`](testdata/novels/workplace-crisis-request.json)
 - [`testdata/novels/campus-relay-request.json`](testdata/novels/campus-relay-request.json)
 - [`testdata/novels/family-dinner-request.json`](testdata/novels/family-dinner-request.json)
 - [`testdata/novels/comedy-live-mixup-request.json`](testdata/novels/comedy-live-mixup-request.json)
 
-Example expected outputs:
+## Example Expected Outputs
+
 - [`testdata/expected/night-rain.screenplay.yaml`](testdata/expected/night-rain.screenplay.yaml)
 - [`testdata/expected/workplace-crisis.screenplay.yaml`](testdata/expected/workplace-crisis.screenplay.yaml)
 - [`testdata/expected/campus-relay.screenplay.yaml`](testdata/expected/campus-relay.screenplay.yaml)
 - [`testdata/expected/family-dinner.screenplay.yaml`](testdata/expected/family-dinner.screenplay.yaml)
 - [`testdata/expected/comedy-live-mixup.screenplay.yaml`](testdata/expected/comedy-live-mixup.screenplay.yaml)
 
-Initial repository layout:
+## Initial Repository Layout
+
 ```text
 docs/
 .github/
@@ -204,5 +271,7 @@ scripts/
 testdata/
 deploy/
 ```
+
+## Handoff
 
 Use [`docs/README.md`](docs/README.md) as the main handoff and intake index.
