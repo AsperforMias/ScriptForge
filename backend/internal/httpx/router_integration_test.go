@@ -216,6 +216,60 @@ func TestRouterJobLifecycleWithCustomChineseInput(t *testing.T) {
 	}
 }
 
+func TestRouterJobLifecycleWithRealisticCustomSuspenseInput(t *testing.T) {
+	router, repo, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
+
+	requestBody, err := json.Marshal(customSuspenseCreateJobRequest())
+	if err != nil {
+		t.Fatalf("marshal suspense request: %v", err)
+	}
+
+	createResp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(requestBody))
+	if createResp.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", createResp.Code)
+	}
+
+	var createEnvelope struct {
+		Data struct {
+			Job struct {
+				ID string `json:"id"`
+			} `json:"job"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	waitForSucceededJob(t, repo, createEnvelope.Data.Job.ID)
+
+	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+createEnvelope.Data.Job.ID+"/result", nil)
+	if resultResp.Code != http.StatusOK {
+		t.Fatalf("expected 200 result status, got %d", resultResp.Code)
+	}
+
+	var resultEnvelope struct {
+		Data struct {
+			Screenplay screenplay.Document `json:"screenplay"`
+			YAMLText   string              `json:"yaml_text"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resultResp.Body).Decode(&resultEnvelope); err != nil {
+		t.Fatalf("decode result response: %v", err)
+	}
+	if err := screenplay.Validate(resultEnvelope.Data.Screenplay); err != nil {
+		t.Fatalf("expected valid screenplay from suspense request: %v", err)
+	}
+	assertCustomSuspenseScreenplay(t, resultEnvelope.Data.Screenplay)
+
+	var yamlDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(resultEnvelope.Data.YAMLText), &yamlDoc); err != nil {
+		t.Fatalf("unmarshal yaml text: %v", err)
+	}
+	if !reflect.DeepEqual(yamlDoc, resultEnvelope.Data.Screenplay) {
+		t.Fatalf("expected api screenplay json and yaml_text to describe the same document")
+	}
+}
+
 func TestRouterRejectsInvalidChapterCount(t *testing.T) {
 	router, _, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
 
@@ -601,6 +655,76 @@ func customChineseCreateJobRequest() job.CreateJobRequest {
 		{Index: 3, Title: "第三章 钟楼扑空", Content: "傍晚，叙述者带着磁带赶到老城区的旧钟楼，却发现约见人已经提前离开，只留下一把钥匙。"},
 	}
 	return req
+}
+
+func customSuspenseCreateJobRequest() job.CreateJobRequest {
+	var req job.CreateJobRequest
+	req.Source.Title = "回潮暗线"
+	req.Source.Author = "自定义作者"
+	req.Adaptation.Style = "悬疑现实短剧"
+	req.Adaptation.Audience = "青年向"
+	req.Adaptation.Notes = []string{"以当前章节证据驱动场景目标", "避免凭空补车站线索"}
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 旧客厅录音", Content: "沈砚回到父亲留下的旧客厅整理遗物，听见录音机里多出一段夹着潮声的陌生对话。她不敢惊动家里其他人，只想先确认那段录音是不是被人动过。"},
+		{Index: 2, Title: "第二章 河堤碰面", Content: "第二天傍晚，沈砚按匿名留言赶到河堤，发现纸条提到的线索指向废弃船坞，而不是任何车站。她决定先弄清是谁把钥匙塞进自己口袋，再判断这场约见是不是圈套。"},
+		{Index: 3, Title: "第三章 船坞试锁", Content: "夜里，沈砚独自走进废弃船坞，用那把生锈钥匙去试库房侧门的锁孔。门后传来的撞击声让她意识到，真正想藏起来的东西还在里面。"},
+	}
+	return req
+}
+
+func assertCustomSuspenseScreenplay(t *testing.T, doc screenplay.Document) {
+	t.Helper()
+
+	if len(doc.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(doc.Scenes))
+	}
+	if len(doc.Locations) != 3 {
+		t.Fatalf("expected 3 locations, got %d", len(doc.Locations))
+	}
+
+	expectedLocations := []string{"客厅", "河堤", "船坞"}
+	for idx, location := range doc.Locations {
+		if location.Name != expectedLocations[idx] {
+			t.Fatalf("expected location %s for chapter %d, got %s", expectedLocations[idx], idx+1, location.Name)
+		}
+	}
+
+	if got := doc.Scenes[0].Objective; !containsAnyText(got, "录音") {
+		t.Fatalf("expected scene 1 objective to mention recording clue, got %s", got)
+	}
+	if got := doc.Scenes[0].Objective; containsAnyText(got, "团圆饭", "误会说开", "和解") {
+		t.Fatalf("expected scene 1 objective to avoid family template leakage, got %s", got)
+	}
+	if got := doc.Scenes[0].Beats[1].Content; !containsAnyText(got, "录音") {
+		t.Fatalf("expected scene 1 dialogue to mention recording clue, got %s", got)
+	}
+
+	if got := doc.Scenes[1].Objective; containsAnyText(got, "车站", "寄信人") {
+		t.Fatalf("expected scene 2 objective to avoid station template, got %s", got)
+	}
+	if got := doc.Scenes[1].Beats[1].Content; containsAnyText(got, "车站", "寄信人") {
+		t.Fatalf("expected scene 2 dialogue to avoid station template, got %s", got)
+	}
+	if got := doc.Scenes[1].Notes.OpenQuestions[0]; containsAnyText(got, "车站", "寄信人") {
+		t.Fatalf("expected scene 2 open question to avoid station template, got %s", got)
+	}
+
+	if got := doc.Scenes[2].Objective; !containsAnyText(got, "钥匙", "打开") {
+		t.Fatalf("expected scene 3 objective to stay on key clue, got %s", got)
+	}
+	if got := doc.Scenes[2].Notes.OpenQuestions[0]; !containsAnyText(got, "钥匙", "门") {
+		t.Fatalf("expected scene 3 open question to stay on key/door clue, got %s", got)
+	}
+}
+
+func containsAnyText(input string, keywords ...string) bool {
+	for _, keyword := range keywords {
+		if strings.Contains(input, keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 func yamlDocumentsEqual(actualYAML, expectedYAML string) bool {
