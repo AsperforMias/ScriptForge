@@ -107,7 +107,7 @@ export function WorkspacePage() {
     setResultNotice({
       tone: "success",
       title: "已载入最新生成结果",
-      description: "右侧 YAML 编辑区已经同步到这次生成的剧本初稿；你可以继续编辑、复制或导出当前版本。",
+      description: "右侧 YAML 编辑区已经同步到这次生成的剧本初稿；请先复核角色名、场景目标、beats 与开放问题，再继续编辑或导出。",
     });
   }, [loadedResultJobId, resultPayload]);
 
@@ -133,7 +133,7 @@ export function WorkspacePage() {
     }
 
     if (activeJobStatus === "succeeded" && resultPayload) {
-      return "结果已就绪";
+      return "初稿已就绪";
     }
 
     if (activeJobStatus === "failed") {

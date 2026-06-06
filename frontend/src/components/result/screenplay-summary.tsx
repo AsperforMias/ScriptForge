@@ -76,6 +76,13 @@ export function ScreenplaySummary({
   }
 
   const validationWarnings = screenplay.validation.warnings ?? [];
+  const validationLabel = screenplay.validation.status === "passed" ? "结构通过" : "结构待修复";
+  const reviewFocusItems = [
+    "角色名是否完整、稳定，避免碎词或错指。",
+    "scene objective 是否紧贴当前章节证据，而不是跨题材套模板。",
+    "beats 是否像可拍摄片段，而不是被截断的摘要。",
+    "open questions 是否具体、可继续打磨，而不是空泛占位。",
+  ];
   const summaryStats = [
     {
       label: "章节",
@@ -93,9 +100,11 @@ export function ScreenplaySummary({
       hint: "用于快速回看人物关系",
     },
     {
-      label: "校验",
-      value: screenplay.validation.status === "passed" ? "通过" : "需检查",
-      hint: validationWarnings.length ? `${validationWarnings.length} 条提醒` : "当前无提醒",
+      label: "结构校验",
+      value: validationLabel,
+      hint: validationWarnings.length
+        ? `${validationWarnings.length} 条提醒，仍需人工复核内容质量`
+        : "仅表示结构校验通过，仍需人工复核内容质量",
     },
   ];
 
@@ -104,9 +113,38 @@ export function ScreenplaySummary({
       <div className="section-heading">
         <div>
           <h3 id="screenplay-summary-heading">结构摘要</h3>
-          <p>这部分帮助你先把握角色、地点和场景结构，再回到 YAML 继续精修正文。</p>
+          <p>这部分帮助你先把握角色、地点和场景结构，再回到 YAML 继续精修这份可继续编辑的剧本初稿。</p>
         </div>
         <span className="section-tag">Summary</span>
+      </div>
+
+      <div className="quality-guard" role="note" aria-label="Result quality guidance">
+        <strong>这是可继续编辑的 YAML 剧本初稿，不是质量已确认的最终剧本。</strong>
+        <p>
+          {screenplay.validation.status === "passed"
+            ? "当前结果已通过结构 / Schema 校验，但这不代表人物命名、场景目标、beats 或开放问题已经可靠。"
+            : "当前结果连结构校验也未完全通过，需要先结合提醒修订，再继续判断语义质量。"}
+        </p>
+        <ul className="notice-list quality-guard__list">
+          {reviewFocusItems.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+        {validationWarnings.length ? (
+          <div className="quality-guard__warnings status-notice status-notice--warning">
+            <strong>后端 validation.warnings</strong>
+            <ul className="notice-list">
+              {validationWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div className="quality-guard__warnings status-notice status-notice--neutral">
+            <strong>当前没有 validation.warnings</strong>
+            <p>这只表示后端暂未给出额外结构提醒，不代表内容质量、题材贴合度或可拍摄性已经没有问题。</p>
+          </div>
+        )}
       </div>
 
       <div className="summary-overview">
@@ -118,17 +156,6 @@ export function ScreenplaySummary({
           </article>
         ))}
       </div>
-
-      {validationWarnings.length ? (
-        <div className="status-notice status-notice--warning">
-          <strong>结构提醒</strong>
-          <ul className="notice-list">
-            {validationWarnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       <div className="summary-grid">
         <article className="summary-card">

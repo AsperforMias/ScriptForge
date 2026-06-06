@@ -39,6 +39,9 @@ export function ExportActions({
         >
           {hasEditedChanges ? "当前为本地编辑稿" : "当前为生成初稿"}
         </span>
+        <p className="result-toolbar__caption">
+          这是可继续编辑的 YAML 剧本初稿，导出前请优先复核角色名、objective、beats 与 open questions。
+        </p>
       </div>
       <div className="result-toolbar__actions">
         <button className="secondary-button" disabled={!canReset} onClick={onReset} type="button">

@@ -64,7 +64,8 @@ export function JobStatusPanel({
       return {
         tone: "success",
         title: "剧本初稿已生成",
-        description: "右侧结果区会继续载入 YAML 初稿与结构化摘要，方便你马上进入修改。",
+        description:
+          "右侧会载入可继续编辑的 YAML 初稿与结构化摘要；请优先复核角色名、场景目标、beats 与开放问题。",
       };
     }
 
