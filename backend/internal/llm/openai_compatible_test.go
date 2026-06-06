@@ -375,6 +375,125 @@ func TestOpenAICompatibleGeneratorSupportsArrayMessageContent(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatibleGeneratorRegeneratesMalformedYAMLBeforeFallback(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+
+	attempts := 0
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("read request body: %v", err)
+			}
+			payload := string(body)
+			if attempts == 1 {
+				if strings.Contains(payload, "Previous attempt 1 failed to parse") {
+					t.Fatalf("did not expect retry wording in first request, got %s", payload)
+				}
+				content := `version: "1.0"
+source:
+  title: "Night Rain"
+  author: "Demo Author"
+  language: "zh-CN"
+  chapter_count: 3
+  chapters:
+    - index: 1
+      title: "Chapter 1"
+      summary: "林琪发现门锁异常。"
+adaptation:
+  style: "Suspense Drama"
+  audience: "General"
+  notes: []
+characters:
+  - id: "char_lin_qi"
+    name: "林琪"
+    role: "protagonist"
+    description: "主角。"
+locations:
+  - id: "loc_apartment"
+    name: "公寓"
+    description: "主场景。"
+scenes:
+  - id: "scene_001"
+    title: "深夜回家"
+    source_chapters: [1]
+    slugline:
+      interior_exterior: "INT"
+      location_id: "loc_apartment"
+      time: "NIGHT"
+    summary: "林琪回到公寓。"
+    beats:
+      - type: "action"
+        content: "林琪走到门前。"
+    notes:
+      adaptation_reason: "保留回家异样。"
+      open_questions:
+        - "是谁动过门锁？"
+    evidence:
+      chapter_indexes: [1]
+      excerpt: "门锁似乎被动过。"
+      cues:
+        - "门锁"
+    review:
+      confidence: "high
+      issues: []
+validation:
+  status: "passed"
+  warnings: []`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(`{"choices":[{"message":{"content":` + strconv.Quote(content) + `}}]}`)),
+					Header:     make(http.Header),
+				}, nil
+			}
+			if !strings.Contains(payload, "Previous attempt 1 failed to parse") {
+				t.Fatalf("expected retry wording in second request, got %s", payload)
+			}
+			return fixtureResponse(t, "canonical_night_rain.yaml"), nil
+		}),
+	}
+
+	result, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_retry_parse",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		t.Fatalf("unexpected generator error: %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("expected 2 provider attempts, got %d", attempts)
+	}
+	if result.Debug == nil {
+		t.Fatal("expected debug snapshot")
+	}
+	if len(result.Debug.RetryRawContents) != 1 {
+		t.Fatalf("expected one retry raw content entry, got %#v", result.Debug)
+	}
+	if len(result.Debug.ParseErrors) == 0 {
+		t.Fatalf("expected initial parse error to be recorded, got %#v", result.Debug)
+	}
+	if !warningsContainSubstring(result.Warnings, "format retry pass") {
+		t.Fatalf("expected retry warning, got %#v", result.Warnings)
+	}
+}
+
 func TestOpenAICompatibleGeneratorRejectsArrayContentWithoutTextParts(t *testing.T) {
 	input := validOpenAICompatibleCreateJobRequest()
 	source := ingest.Normalize(input)
@@ -1278,6 +1397,15 @@ func validOpenAICompatibleCreateJobRequest() job.CreateJobRequest {
 		{Index: 3, Title: "Chapter 3", Content: "第二天清晨，她决定顺着线索前往车站。"},
 	}
 	return req
+}
+
+func warningsContainSubstring(values []string, needle string) bool {
+	for _, value := range values {
+		if strings.Contains(value, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 type roundTripFunc func(req *http.Request) (*http.Response, error)

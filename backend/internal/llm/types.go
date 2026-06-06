@@ -33,10 +33,13 @@ type GenerateResult struct {
 }
 
 type DebugSnapshot struct {
-	Provider   string `json:"provider"`
-	Model      string `json:"model,omitempty"`
-	ParseMode  string `json:"parse_mode,omitempty"`
-	RawContent string `json:"raw_content"`
+	Provider           string   `json:"provider"`
+	Model              string   `json:"model,omitempty"`
+	ParseMode          string   `json:"parse_mode,omitempty"`
+	RawContent         string   `json:"raw_content"`
+	OriginalRawContent string   `json:"original_raw_content,omitempty"`
+	RetryRawContents   []string `json:"retry_raw_contents,omitempty"`
+	ParseErrors        []string `json:"parse_errors,omitempty"`
 }
 
 type Generator interface {
