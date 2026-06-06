@@ -724,10 +724,10 @@ func newTestHarness(t *testing.T, runner job.Runner) (http.Handler, *sqlite.Stor
 	}
 
 	artifactStore := artifact.New(artifactDir)
-	service := job.NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, runner, artifactStore, 1)
 	cfg := config.Load()
 	cfg.SQLitePath = dbPath
 	cfg.ArtifactDir = artifactDir
+	service := job.NewService(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, runner, artifactStore, 1, cfg.GenerationModeDefault)
 
 	router := NewRouter(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), service)
 	t.Cleanup(func() {

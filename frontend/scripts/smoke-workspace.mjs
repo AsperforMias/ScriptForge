@@ -125,6 +125,7 @@ async function clearRememberedJob(page) {
   await page.goto(uiUrl, { waitUntil: "networkidle" });
   await page.evaluate(() => {
     window.localStorage.removeItem("scriptforge:lastJobId");
+    window.localStorage.removeItem("scriptforge:workspaceDraft");
   });
   await page.reload({ waitUntil: "networkidle" });
 }

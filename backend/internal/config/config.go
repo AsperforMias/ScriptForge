@@ -35,7 +35,7 @@ func Load() Config {
 		RequestBodyLimitBytes: envInt64("REQUEST_BODY_LIMIT_BYTES", 4*1024*1024),
 		JobMaxConcurrency:     envInt("JOB_MAX_CONCURRENCY", 2),
 		CORSAllowOrigin:       envString("CORS_ALLOW_ORIGIN", "*"),
-		GenerationModeDefault: envString("GENERATION_MODE_DEFAULT", "deterministic"),
+		GenerationModeDefault: envString("GENERATION_MODE_DEFAULT", "llm"),
 		LLMProvider:           envString("LLM_PROVIDER", "disabled"),
 		LLMModel:              envString("LLM_MODEL", ""),
 		LLMBaseURL:            envString("LLM_BASE_URL", ""),

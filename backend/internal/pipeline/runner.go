@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/ingest"
@@ -73,13 +74,14 @@ func (r *Runner) Run(ctx context.Context, jobID string, req job.CreateJobRequest
 	markStageSucceeded(stages, "scene_planning")
 
 	markStageRunning(stages, "screenplay_generation")
-	document, providerDebug, err := r.generateDocument(ctx, jobID, req, source, outline, entities, plan)
+	document, providerDebug, generationWarnings, err := r.generateDocument(ctx, jobID, req, source, outline, entities, plan)
 	if err != nil {
 		return failResult(stages, "screenplay_generation", err), err
 	}
 	markStageSucceeded(stages, "screenplay_generation")
 
 	markStageRunning(stages, "validation")
+	document.Validation.Warnings = mergeWarnings(document.Validation.Warnings, generationWarnings)
 	validated, err := screenplay.ValidateAndSerialize(document)
 	if err != nil {
 		return failResult(stages, "validation", err), err
@@ -107,7 +109,7 @@ func (r *Runner) Run(ctx context.Context, jobID string, req job.CreateJobRequest
 		NormalizedSourcePath: normalizedPath,
 		ProviderDebugPath:    providerDebugPath,
 		YAMLPath:             yamlPath,
-		Warnings:             validated.Warnings,
+		Warnings:             mergeWarnings(generationWarnings, validated.Warnings),
 		Stages:               stages,
 		CurrentStage:         "persistence",
 	}, nil
@@ -131,9 +133,9 @@ func markStageRunning(stages []job.Stage, stageName string) {
 	}
 }
 
-func (r *Runner) generateDocument(ctx context.Context, jobID string, req job.CreateJobRequest, source ingest.NormalizedSource, outline workflow.OutlineBundle, entities workflow.EntityBundle, plan workflow.ScenePlan) (screenplay.Document, *llm.DebugSnapshot, error) {
+func (r *Runner) generateDocument(ctx context.Context, jobID string, req job.CreateJobRequest, source ingest.NormalizedSource, outline workflow.OutlineBundle, entities workflow.EntityBundle, plan workflow.ScenePlan) (screenplay.Document, *llm.DebugSnapshot, []string, error) {
 	if req.Generation.Mode != "llm" {
-		return workflow.BuildDocument(req, source, outline, entities, plan), nil, nil
+		return workflow.BuildDocument(req, source, outline, entities, plan), nil, nil, nil
 	}
 
 	result, err := r.llmGenerator.Generate(ctx, llm.GenerateRequest{
@@ -145,12 +147,34 @@ func (r *Runner) generateDocument(ctx context.Context, jobID string, req job.Cre
 		Plan:     plan,
 	})
 	if err != nil {
-		return screenplay.Document{}, nil, err
+		fallbackDocument := workflow.BuildDocument(req, source, outline, entities, plan)
+		warnings := []string{
+			fmt.Sprintf("llm generation via %s failed; fell back to deterministic baseline: %s", r.llmGenerator.Name(), err.Error()),
+		}
+		return fallbackDocument, nil, warnings, nil
 	}
 	if len(result.Warnings) > 0 && len(result.Document.Validation.Warnings) == 0 {
 		result.Document.Validation.Warnings = append(result.Document.Validation.Warnings, result.Warnings...)
 	}
-	return result.Document, result.Debug, nil
+	return result.Document, result.Debug, result.Warnings, nil
+}
+
+func mergeWarnings(parts ...[]string) []string {
+	seen := map[string]struct{}{}
+	merged := make([]string, 0)
+	for _, values := range parts {
+		for _, value := range values {
+			if value == "" {
+				continue
+			}
+			if _, ok := seen[value]; ok {
+				continue
+			}
+			seen[value] = struct{}{}
+			merged = append(merged, value)
+		}
+	}
+	return merged
 }
 
 func markStageSucceeded(stages []job.Stage, stageName string) {

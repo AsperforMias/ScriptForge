@@ -10,10 +10,10 @@ import { YamlEditor } from "../components/result/yaml-editor";
 import { mapDraftToCreateJobRequest } from "../features/create-job/mapper";
 import {
   blankWorkspaceFormValues,
+  createEmptyChapterDraft,
   cloneWorkspaceFormValues,
   defaultWorkspaceFormValues,
   findMatchingWorkspaceSamplePresetId,
-  recommendedWorkspaceSamplePreset,
   type WorkspaceFormValues,
   type WorkspaceSamplePresetId,
   workspaceSamplePresets,
@@ -27,6 +27,7 @@ import { requestText } from "../lib/http";
 import type { JobStage, JobStatus, PipelineStageName } from "../types/api";
 
 const LAST_JOB_STORAGE_KEY = "scriptforge:lastJobId";
+const WORKSPACE_DRAFT_STORAGE_KEY = "scriptforge:workspaceDraft";
 type ResultNoticeTone = "info" | "success" | "error";
 
 const stageOrder: PipelineStageName[] = [
@@ -54,17 +55,65 @@ function hasAtLeastThreeCompleteChapters(values: WorkspaceFormValues) {
   return completeChapters.length >= 3;
 }
 
+function parseStoredWorkspaceDraft(raw: string | null): WorkspaceFormValues | null {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<WorkspaceFormValues> | null;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    const values = cloneWorkspaceFormValues(defaultWorkspaceFormValues);
+    values.title = typeof parsed.title === "string" ? parsed.title : values.title;
+    values.author = typeof parsed.author === "string" ? parsed.author : values.author;
+    values.style = typeof parsed.style === "string" ? parsed.style : values.style;
+    values.audience = typeof parsed.audience === "string" ? parsed.audience : values.audience;
+    values.notesText = typeof parsed.notesText === "string" ? parsed.notesText : values.notesText;
+    values.generationMode =
+      parsed.generationMode === "deterministic" || parsed.generationMode === "llm"
+        ? parsed.generationMode
+        : values.generationMode;
+
+    if (Array.isArray(parsed.chapters) && parsed.chapters.length > 0) {
+      values.chapters = parsed.chapters.map((chapter, index) => {
+        const fallback = createEmptyChapterDraft(index + 1);
+        if (!chapter || typeof chapter !== "object") {
+          return fallback;
+        }
+
+        return {
+          title: typeof chapter.title === "string" ? chapter.title : fallback.title,
+          content: typeof chapter.content === "string" ? chapter.content : fallback.content,
+        };
+      });
+      while (values.chapters.length < 3) {
+        values.chapters.push(createEmptyChapterDraft(values.chapters.length + 1));
+      }
+    }
+
+    return values;
+  } catch {
+    return null;
+  }
+}
+
 export function WorkspacePage() {
   const queryClient = useQueryClient();
+  const initialFormValues =
+    parseStoredWorkspaceDraft(window.localStorage.getItem(WORKSPACE_DRAFT_STORAGE_KEY)) ??
+    cloneWorkspaceFormValues(defaultWorkspaceFormValues);
   const form = useForm<WorkspaceFormValues>({
-    defaultValues: cloneWorkspaceFormValues(defaultWorkspaceFormValues),
+    defaultValues: initialFormValues,
   });
   const watchedFormValues = useWatch({
     control: form.control,
-    defaultValue: cloneWorkspaceFormValues(defaultWorkspaceFormValues),
+    defaultValue: initialFormValues,
   });
   const [activeSamplePresetId, setActiveSamplePresetId] = useState<WorkspaceSamplePresetId | null>(
-    recommendedWorkspaceSamplePreset.id,
+    findMatchingWorkspaceSamplePresetId(initialFormValues),
   );
   const [currentJobId, setCurrentJobId] = useState<string | null>(() => {
     return window.localStorage.getItem(LAST_JOB_STORAGE_KEY);
@@ -115,6 +164,11 @@ export function WorkspacePage() {
     if (!watchedFormValues) {
       return;
     }
+
+    window.localStorage.setItem(
+      WORKSPACE_DRAFT_STORAGE_KEY,
+      JSON.stringify(watchedFormValues as WorkspaceFormValues),
+    );
 
     const matchingPresetId = findMatchingWorkspaceSamplePresetId(watchedFormValues as WorkspaceFormValues);
 
@@ -224,7 +278,7 @@ export function WorkspacePage() {
 
   function handleLoadSample(presetId: WorkspaceSamplePresetId) {
     const preset = workspaceSamplePresets.find((item) => item.id === presetId);
-    const nextValues = preset?.values ?? recommendedWorkspaceSamplePreset.values;
+    const nextValues = preset?.values ?? defaultWorkspaceFormValues;
 
     form.reset(cloneWorkspaceFormValues(nextValues));
     setActiveSamplePresetId(presetId);

@@ -52,7 +52,7 @@ func main() {
 		RequestTimeout: cfg.LLMRequestTimeout.String(),
 	})
 	runner := pipeline.NewRunner(artifactStore, llmGenerator)
-	jobService := job.NewService(logger, repo, runner, artifactStore, cfg.JobMaxConcurrency)
+	jobService := job.NewService(logger, repo, runner, artifactStore, cfg.JobMaxConcurrency, cfg.GenerationModeDefault)
 	router := httpx.NewRouter(cfg, logger, jobService)
 
 	server := &http.Server{
