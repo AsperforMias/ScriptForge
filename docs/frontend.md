@@ -170,24 +170,24 @@ frontend/
 - 工作台首屏仍默认载入推荐的 `职场` 示例，便于首次体验；同时必须提供显式的“切换为空白手工输入 / 直接覆盖当前字段”入口，避免 UI 暗示只能提交示例内容
 - README 已补齐真实前端自检路径，覆盖 sample preset、非 preset 手工输入、job 轮询、YAML/result/export 与 failed-job regenerate 验证步骤
 - 工作台已补齐 idle / loading / succeeded / failed 四类真实状态文案，并把结果区空态与失败态对齐到真实 job/result 查询状态
-- 响应式断点已细化为桌面三栏、平板双列过渡、移动端纵向堆叠，保持 `Input -> Status -> Result` 的阅读顺序
-- `frontend/scripts/smoke-workspace.mjs` 与 `npm run smoke:workspace` 已就位，可自动验证 sample preset 主链路、非 preset 手工 3 章链路、disabled-provider fallback regenerate、`复制当前 YAML`、`lastJobId` 与 workspace draft 刷新恢复，以及移动端 `Input -> Status -> Result` 阅读顺序
+- 响应式断点已细化为桌面双栏、平板双列过渡、移动端纵向堆叠，保持 `Input -> Result` 的阅读顺序，并把生成进度固定收束在结果区顶部
+- `frontend/scripts/smoke-workspace.mjs` 与 `npm run smoke:workspace` 已就位，可自动验证 sample preset 主链路、非 preset 手工 3 章链路、disabled-provider fallback regenerate、`复制当前 YAML`、`lastJobId` 与 workspace draft 刷新恢复，以及移动端 `Input -> Result` 阅读顺序
 - 结果区现已统一使用“当前为生成初稿 / 当前为本地编辑稿 / 恢复生成初稿 / 下载生成初稿 YAML / 复制当前 YAML / 导出 YAML”这套文案，并为复制、恢复、导出动作提供真实反馈提示
 - 结构化摘要现已补充 overview 层，优先展示章节 / 场景 / 角色 / 结构校验状态，再展开角色、地点与 scene 卡片
 - 结果区现已固定展示“这是可继续编辑的 YAML 剧本初稿”的人工复核提示；即使 `validation.warnings` 为空，也会继续提醒“结构通过 != 内容质量通过”
 - `validation.warnings` 现已与人工复核说明合并展示，重点提醒用户优先检查角色名、objective、beats 与 open questions，避免 `validation.status=passed` 被误读为“结果质量没问题”
 - 页面会在本地保存 `lastJobId` 与 workspace draft，刷新后继续恢复最近一次任务和左侧输入草稿
-- 当前已知限制：由于后端现阶段在整条 `runner.Run(...)` 完成后才统一写回 stage 详情，前端轮询期间可能长时间看到 `当前阶段=素材接收 / 5%`，随后直接跳到完成；这是真实状态写回粒度限制，不是前端伪 loading
+- 当前已知限制：由于后端现阶段的阶段写回粒度仍偏粗，前端进度条在长耗时 provider 响应期间不会展示细粒度的逐阶段实时推进；这是真实状态写回限制，不是前端伪 loading
 - 录屏讲解顺序、默认演示口径与检查点现已迁移到 `docs/demo-recording-guide.md`，与产品页面解耦
 
 推荐自检路径（2026-06-05）：
 1. 启动后端 `:8080` 与前端 `:5173`
 2. 打开页面后，优先执行一次“切换为空白手工输入 -> 录入自己的 3 章内容”的主链路，不要把默认 preset 当成主要验收证据
 3. 以 `generationMode=llm` 作为修正后的主路径提交真实 job；若本地 provider 尚未配置，可临时使用 `deterministic` 做 smoke/debug，但不要再把它当作长期主策略
-4. 任务成功后确认 `Result Workspace` 同时展示后端返回的 YAML 文本、结构化摘要与导出动作
-5. 若中间状态区在执行期间长时间停在 `素材接收 / 5%`，按当前实现视为已知限制；应同时确认任务最终能跳到 `已完成` 并载入 YAML，而不是把它误判成前端轮询失效
+4. 任务成功后确认 `Result Workspace` 同时展示顶部生成进度、后端返回的 YAML 文本、结构化摘要与导出动作
+5. 若结果区顶部进度在执行期间长时间未出现细粒度阶段变化，按当前实现视为已知限制；应同时确认任务最终能跳到 `已完成` 并载入 YAML，而不是把它误判成前端轮询失效
 6. 如需验证 disabled-provider 兜底态，保持后端 `LLM_PROVIDER=disabled`，将表单切到 `generationMode=llm` 提交一次，并确认 job 仍可成功返回、结果区出现明确 fallback warning，且“重新生成当前内容”入口可继续基于当前表单触发新任务
-7. 将视口收窄到平板或手机宽度，确认三工作区按 `Input -> Status -> Result` 纵向阅读，不出现结果区先于状态区的错序
+7. 将视口收窄到平板或手机宽度，确认工作区按 `Input -> Result` 纵向阅读，不出现结果区先于输入区的错序
 8. 在成功结果上做一次本地 YAML 修改，确认结果工具条会从“当前为生成初稿”切换到“当前为本地编辑稿”，再测试 `复制当前 YAML` 与 `恢复生成初稿`
 9. 若本地已启动 Chrome / Edge，可直接运行 `npm run smoke:workspace` 验证 sample preset 与非 preset 手工输入两条真实 job 链路，以及 YAML 载入、结构摘要、导出、本地编辑、复制、disabled-provider fallback regenerate、刷新恢复与移动端阅读顺序
 10. 额外执行一次“非 preset 自检”：点击 `切换为空白手工输入`，录入自己的 3 章内容，再走一遍 `create job -> polling -> YAML/result/export`，确认主链路不依赖仓库内置样例
@@ -206,24 +206,23 @@ frontend/
 
 ## 页面方案
 
-首版直接做单页 `WorkspacePage`，分成 3 列或 3 个纵向区块：
+首版直接做单页 `WorkspacePage`，桌面端收束为 2 列，生成进度合并进结果区顶部：
 - `Input Workspace`
   - 作品标题
   - 作者
   - 改编风格
   - 额外说明
   - 章节列表编辑
-- `Job Status`
-  - 当前 job 基本信息
-  - 阶段时间线
-  - 错误提示
-  - 重新生成入口
 - `Result Workspace`
+  - 顶部生成进度条
+  - 当前 job 基本信息
+  - 错误提示 / fallback 提示
+  - 重新生成入口
   - YAML 文本编辑区
   - 结构化摘要区
   - 导出按钮
 
-移动端可以退化成分段折叠，不要求桌面三列完全保留。
+移动端退化成 `Input -> Result` 纵向堆叠，不再保留独立状态列。
 
 ## 状态流与接口调用
 
@@ -279,7 +278,7 @@ frontend/
 推荐顺序：
 1. `frontend: scaffold vite react workspace`
 2. `frontend: add multi-chapter input form`
-3. `frontend: add job polling and stage status panel`
+3. `frontend: add job polling and in-result progress strip`
 4. `frontend: add yaml result workspace and export actions`
 5. `frontend: refine responsive layout and error states`
 
