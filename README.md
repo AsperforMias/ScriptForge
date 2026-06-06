@@ -19,9 +19,9 @@ Primary real-input regression sample:
 - source text: [`test/fog-harbor-echo.md`](test/fog-harbor-echo.md)
 - input path: switch to blank manual input, then paste the real 3 chapters from that file
 - real run mode: `generation.mode=llm`
-- current observed output shape: `3` scenes, source-grounded character/location extraction, editable YAML draft
+- current observed output shape: a completed result page with editable YAML draft, scene cards, character/location summary, and export actions in the same workspace
 
-Real workspace capture from the current local app, using manual input for the real `《雾港回声》` sample above rather than a short canned preset:
+Real workspace capture from the current local app, using manual input for the real `《雾港回声》` sample above and showing the completed result state rather than a short canned preset:
 
 ![Fog Harbor Workspace From Real Manual Input](docs/images/fog-harbor-workspace.png)
 
@@ -95,9 +95,11 @@ Read in this order before making changes:
 - `frontend/` now runs a Vite + React + TypeScript editorial workspace with real manual multi-chapter input, job polling, YAML result loading, structured summary, and export actions
 - failed jobs can be regenerated from the current frontend form without adding a separate retry API
 - frontend sample presets now cover suspense, workplace, and campus relay source scenarios
+- the quick-start area now uses a 2x2 preset card grid, including an explicit blank-manual-input entry instead of a separate side button
 - the workspace copy is now author-facing; demo narration and walkthrough notes live in `docs/demo-recording-guide.md` instead of the product page
 - the workspace now exposes explicit idle/loading/succeeded/failed copy and remains readable across desktop, tablet, and mobile layouts
 - the result workspace now distinguishes backend-original vs local-edited YAML, supports copy/reset/export feedback, and adds screenplay overview cards from backend JSON
+- the current frontend visual language is fully rounded and color-block driven; most hierarchy is now expressed by container tone and spacing instead of nested borders
 - `generation.mode=llm` now supports `mock` and `openai_compatible` providers behind the same job API
 - the `openai_compatible` path has been validated against DeepSeek-compatible `/chat/completions` and normalizes loose provider YAML into the canonical project schema
 - malformed `openai_compatible` YAML now gets up to 3 provider attempts before the pipeline falls back to deterministic

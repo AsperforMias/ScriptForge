@@ -28,9 +28,9 @@ export function ExportActions({
   onReset,
 }: ExportActionsProps) {
   return (
-    <section className="result-toolbar" aria-label="Result actions">
+    <section className="result-toolbar" aria-label="Result actions" aria-labelledby="result-actions-heading">
       <div className="result-toolbar__job">
-        <span className="section-tag">本次结果</span>
+        <h3 id="result-actions-heading">本次结果</h3>
         <strong>{jobId || "尚未生成"}</strong>
         <span
           className={`result-toolbar__draft-tag ${

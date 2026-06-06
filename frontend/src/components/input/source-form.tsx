@@ -41,23 +41,24 @@ export function SourceForm({ activePresetId, onLoadSample, onResetToBlank }: Sou
             <span className="sample-preset-card__description">{preset.description}</span>
           </button>
         ))}
-      </div>
-
-      <div className="action-row action-row--support">
         <button
-          className="ghost-button ghost-button--compact"
+          className="sample-preset-card sample-preset-card--action"
           disabled={isSubmitting}
           onClick={onResetToBlank}
           type="button"
         >
-          切换为空白手工输入
+          <span className="sample-preset-card__header">
+            <strong>切换为空白手工输入</strong>
+          </span>
+          <span className="sample-preset-card__description">直接清空当前示例内容，开始录入你自己的三章小说文本。</span>
         </button>
-        <p className="inline-note action-row__note">
-          {activePresetLabel
-            ? `当前已载入「${activePresetLabel}」示例。你可以直接覆盖字段，或先切换为空白手工输入再录入自己的 3 章内容。`
-            : "当前是自定义草稿，可直接粘贴自己的 3 章内容并提交生成。"}
-        </p>
       </div>
+
+      <p className="inline-note action-row__note action-row__note--full">
+        {activePresetLabel
+          ? `当前已载入「${activePresetLabel}」示例。你可以直接覆盖字段，或先切换为空白手工输入再录入自己的 3 章内容。`
+          : "当前是自定义草稿，可直接粘贴自己的 3 章内容并提交生成。"}
+      </p>
 
       <div className="field-grid">
         <label className="field">
@@ -116,7 +117,7 @@ export function SourceForm({ activePresetId, onLoadSample, onResetToBlank }: Sou
         />
       </label>
 
-      <div className="chip-row" aria-label="adaptation note examples">
+      <div className="chip-row chip-row--static" aria-label="adaptation note examples">
         <span className="chip">强化冲突</span>
         <span className="chip">保留第一人称压迫感</span>
         <span className="chip">优先可拍摄动作</span>
