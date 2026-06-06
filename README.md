@@ -25,6 +25,8 @@ Real workspace capture from the current local app, using manual input for the re
 
 ![Fog Harbor Workspace From Real Manual Input](docs/images/fog-harbor-workspace.png)
 
+Public internet deployment is not currently treated as a hard requirement for this contest. The latest organizer brief requires a publicly accessible repository, a demo video, and a clear README; deployment style is unrestricted. This repo therefore prioritizes reproducible local startup plus demo clarity first, with public hosting remaining optional.
+
 ## 3-Step Local Run
 
 1. Prepare provider config:
@@ -34,6 +36,7 @@ cp .env.local.example .env.local
 ```
 
 Fill the real provider key in `.env.local`.
+Also fill the concrete model name in `.env.local`. Recommended provider setup for this repo: DeepSeek API via the OpenAI-compatible endpoint.
 
 2. Start the backend:
 
