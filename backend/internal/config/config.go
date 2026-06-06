@@ -45,7 +45,7 @@ func Load() Config {
 		LLMModel:              envString("LLM_MODEL", ""),
 		LLMBaseURL:            envString("LLM_BASE_URL", ""),
 		LLMAPIKey:             envString("LLM_API_KEY", ""),
-		LLMRequestTimeout:     envDuration("LLM_REQUEST_TIMEOUT", 60*time.Second),
+		LLMRequestTimeout:     envDuration("LLM_REQUEST_TIMEOUT", 180*time.Second),
 	}
 }
 

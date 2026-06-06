@@ -79,7 +79,7 @@ func NewOpenAICompatibleGenerator(cfg ProviderConfig) Generator {
 		return NewUnavailableGenerator("openai_compatible provider requires LLM_BASE_URL, LLM_MODEL, and LLM_API_KEY")
 	}
 
-	timeout := 60 * time.Second
+	timeout := 180 * time.Second
 	if parsed, err := time.ParseDuration(cfg.RequestTimeout); err == nil && parsed > 0 {
 		timeout = parsed
 	}

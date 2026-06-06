@@ -1,5 +1,13 @@
 import type { JobStatus } from "../../types/api";
 import type { ScreenplayDocument } from "../../types/screenplay";
+import {
+  formatCharacterRole,
+  formatInteriorExterior,
+  formatLocationDescription,
+  formatSceneTime,
+  formatUserFacingError,
+  formatUserFacingWarning,
+} from "../../lib/format";
 
 interface ScreenplaySummaryProps {
   errorMessage?: string;
@@ -22,7 +30,7 @@ export function ScreenplaySummary({
         return {
           tone: "error",
           title: "结构摘要载入失败",
-          description: errorMessage,
+          description: formatUserFacingError(errorMessage),
         };
       }
 
@@ -65,7 +73,7 @@ export function ScreenplaySummary({
             <h3 id="screenplay-summary-heading">结构摘要</h3>
             <p>先看整体规模，再顺着角色、地点和场景卡片快速浏览这次改编结果。</p>
           </div>
-          <span className="section-tag">Summary</span>
+          <span className="section-tag">概览</span>
         </div>
         <div className={`empty-card empty-card--${stateCopy.tone}`}>
           <strong>{stateCopy.title}</strong>
@@ -76,13 +84,14 @@ export function ScreenplaySummary({
   }
 
   const validationWarnings = screenplay.validation.warnings ?? [];
-  const validationLabel = screenplay.validation.status === "passed" ? "结构通过" : "结构待修复";
+  const validationLabel = screenplay.validation.status === "passed" ? "已通过" : "待修订";
   const reviewFocusItems = [
     "角色名是否完整、稳定，避免碎词或错指。",
-    "scene objective 是否紧贴当前章节证据，而不是跨题材套模板。",
-    "beats 是否像可拍摄片段，而不是被截断的摘要。",
-    "open questions 是否具体、可继续打磨，而不是空泛占位。",
+    "场景目标是否紧贴当前章节证据，而不是套用空泛说法。",
+    "场景片段是否像可拍内容，而不是被截断的章节概述。",
+    "后续悬念是否具体、可继续打磨，而不是笼统占位。",
   ];
+  const locationsById = new Map(screenplay.locations.map((location) => [location.id, location]));
   const summaryStats = [
     {
       label: "章节",
@@ -104,7 +113,7 @@ export function ScreenplaySummary({
       value: validationLabel,
       hint: validationWarnings.length
         ? `${validationWarnings.length} 条提醒，仍需人工复核内容质量`
-        : "仅表示结构校验通过，仍需人工复核内容质量",
+        : "仅表示结构完整，仍需人工复核内容质量",
     },
   ];
 
@@ -115,15 +124,15 @@ export function ScreenplaySummary({
           <h3 id="screenplay-summary-heading">结构摘要</h3>
           <p>这部分帮助你先把握角色、地点和场景结构，再回到 YAML 继续精修这份可继续编辑的剧本初稿。</p>
         </div>
-        <span className="section-tag">Summary</span>
+        <span className="section-tag">概览</span>
       </div>
 
-      <div className="quality-guard" role="note" aria-label="Result quality guidance">
+      <div className="quality-guard" role="note" aria-label="结果复核提示">
         <strong>这是可继续编辑的 YAML 剧本初稿，不是质量已确认的最终剧本。</strong>
         <p>
           {screenplay.validation.status === "passed"
-            ? "当前结果已通过结构 / Schema 校验，但这不代表人物命名、场景目标、beats 或开放问题已经可靠。"
-            : "当前结果连结构校验也未完全通过，需要先结合提醒修订，再继续判断语义质量。"}
+            ? "当前结果已通过结构检查，但这不代表人物命名、场景目标、场景片段或后续悬念已经可靠。"
+            : "当前结果连结构检查也未完全通过，需要先结合提醒修订，再继续判断内容质量。"}
         </p>
         <ul className="notice-list quality-guard__list">
           {reviewFocusItems.map((item) => (
@@ -132,17 +141,17 @@ export function ScreenplaySummary({
         </ul>
         {validationWarnings.length ? (
           <div className="quality-guard__warnings status-notice status-notice--warning">
-            <strong>后端 validation.warnings</strong>
+            <strong>需要重点复核的地方</strong>
             <ul className="notice-list">
               {validationWarnings.map((warning) => (
-                <li key={warning}>{warning}</li>
+                <li key={warning}>{formatUserFacingWarning(warning)}</li>
               ))}
             </ul>
           </div>
         ) : (
           <div className="quality-guard__warnings status-notice status-notice--neutral">
-            <strong>当前没有 validation.warnings</strong>
-            <p>这只表示后端暂未给出额外结构提醒，不代表内容质量、题材贴合度或可拍摄性已经没有问题。</p>
+            <strong>当前没有额外结构提醒</strong>
+            <p>这只表示系统暂未给出额外提醒，不代表内容质量、题材贴合度或可拍摄性已经没有问题。</p>
           </div>
         )}
       </div>
@@ -168,7 +177,7 @@ export function ScreenplaySummary({
               {screenplay.characters.map((character) => (
                 <li key={character.id}>
                   <strong>{character.name}</strong>
-                  <span>{character.role}</span>
+                  <span>{formatCharacterRole(character.role)}</span>
                   {character.description ? <small>{character.description}</small> : null}
                 </li>
               ))}
@@ -188,7 +197,7 @@ export function ScreenplaySummary({
               {screenplay.locations.map((location) => (
                 <li key={location.id}>
                   <strong>{location.name}</strong>
-                  <span>{location.description || "等待补充地点说明"}</span>
+                  <span>{formatLocationDescription(location.description)}</span>
                 </li>
               ))}
             </ul>
@@ -200,20 +209,22 @@ export function ScreenplaySummary({
 
       {screenplay.scenes.length ? (
         <div className="scene-stack">
-          {screenplay.scenes.map((scene) => (
+          {screenplay.scenes.map((scene, index) => (
             <article className="scene-card" key={scene.id}>
               <div className="scene-card__header">
                 <div>
-                  <p className="scene-card__kicker">{scene.id}</p>
+                  <p className="scene-card__kicker">场景 {index + 1}</p>
                   <h4>{scene.title}</h4>
                 </div>
                 <div className="scene-card__chips">
                   <span className="chip">来源章节 {scene.source_chapters.join(", ")}</span>
-                  <span className="chip">节拍 {scene.beats.length}</span>
+                  <span className="chip">片段 {scene.beats.length}</span>
                 </div>
               </div>
               <p className="scene-card__slugline">
-                {scene.slugline.interior_exterior}. {scene.slugline.location_id} / {scene.slugline.time}
+                {formatInteriorExterior(scene.slugline.interior_exterior)} ·{" "}
+                {locationsById.get(scene.slugline.location_id)?.name || "地点待补充"} ·{" "}
+                {formatSceneTime(scene.slugline.time)}
               </p>
               <p>{scene.summary}</p>
               <dl className="scene-card__meta">
@@ -222,7 +233,7 @@ export function ScreenplaySummary({
                   <dd>{scene.objective || "待补充"}</dd>
                 </div>
                 <div>
-                  <dt>开放问题</dt>
+                  <dt>后续悬念</dt>
                   <dd>{scene.notes?.open_questions?.[0] || "暂无"}</dd>
                 </div>
               </dl>

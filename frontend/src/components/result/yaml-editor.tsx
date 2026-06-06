@@ -1,4 +1,5 @@
 import type { JobStatus } from "../../types/api";
+import { formatUserFacingError } from "../../lib/format";
 
 interface YamlEditorProps {
   errorMessage?: string;
@@ -30,7 +31,7 @@ export function YamlEditor({
       return {
         tone: "error",
         title: "YAML 结果载入失败",
-        description: errorMessage,
+        description: formatUserFacingError(errorMessage),
       };
     }
 
@@ -72,9 +73,9 @@ export function YamlEditor({
       <div className="section-heading">
         <div>
           <h3 id="yaml-editor-heading">YAML 剧本初稿</h3>
-          <p>结果区始终以 YAML 为核心，保留结构化正文，方便继续打磨与版本留存。</p>
+          <p>结果区始终保留 YAML 正文，方便继续打磨、复制和导出。</p>
         </div>
-        <span className="section-tag">Monospace</span>
+        <span className="section-tag">可编辑文本</span>
       </div>
       {hasYaml ? (
         <div className="editor-metadata" aria-label="YAML draft metadata">
@@ -87,7 +88,7 @@ export function YamlEditor({
         </div>
       ) : null}
       {!hasYaml ? (
-        <div className={`editor-state editor-state--${stateCopy.tone}`}>
+        <div className={`editor-state editor-state--${stateCopy.tone} editor-state--scroll`}>
           <strong>{stateCopy.title}</strong>
           <p>{stateCopy.description}</p>
         </div>

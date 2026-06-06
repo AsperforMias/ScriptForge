@@ -1,4 +1,11 @@
-import { formatDateTime, formatGenerationMode, formatJobStatus, formatStageName } from "../../lib/format";
+import {
+  formatDateTime,
+  formatGenerationMode,
+  formatJobStatus,
+  formatStageName,
+  formatUserFacingError,
+  formatUserFacingWarning,
+} from "../../lib/format";
 import type { JobStage, JobSummary } from "../../types/api";
 import { StageTimeline } from "./stage-timeline";
 
@@ -25,10 +32,11 @@ export function JobStatusPanel({
   isPolling,
   onRegenerate,
 }: JobStatusPanelProps) {
-  const activeError = job?.error_message || createError || resultError || "";
+  const activeError = formatUserFacingError(job?.error_message || createError || resultError || "");
   const badgeStatus = job?.status ?? (isCreating ? "running" : "queued");
   const hasDeferredStageWriteback =
     job?.status === "running" && job.current_stage === "ingest" && job.progress_percent <= 5;
+  const displayWarnings = job?.warnings.map((warning) => formatUserFacingWarning(warning)) ?? [];
   const summaryCopy = (() => {
     if (isCreating && !job) {
       return {
@@ -59,7 +67,7 @@ export function JobStatusPanel({
         tone: "info",
         title: "AI 正在生成中",
         description:
-          "素材已经提交成功。当前版本会在本轮生成结束后统一回写细分阶段，所以这里长时间停在“素材接收 / 5%”并不代表任务卡住。",
+          "素材已经提交成功。当前主要耗时在 AI 返回，阶段明细会在本轮生成结束后统一补写，所以早期进度停留较久并不代表任务卡住。",
       };
     }
 
@@ -76,7 +84,7 @@ export function JobStatusPanel({
         tone: "success",
         title: "剧本初稿已生成",
         description:
-          "右侧会载入可继续编辑的 YAML 初稿与结构化摘要；请优先复核角色名、场景目标、beats 与开放问题。",
+          "右侧会载入可继续编辑的 YAML 初稿与结构化摘要；请优先复核角色名、场景目标、场景片段与后续悬念。",
       };
     }
 
@@ -133,14 +141,17 @@ export function JobStatusPanel({
             <div className="progress-block">
               <div className="progress-block__meta">
                 <span>整体进度</span>
-                <strong>{job.progress_percent}%</strong>
+                <strong>{hasDeferredStageWriteback ? "AI 返回中" : `${job.progress_percent}%`}</strong>
               </div>
-              <div className="progress-bar" aria-hidden="true">
-                <div className="progress-bar__fill" style={{ width: `${job.progress_percent}%` }} />
+              <div className={`progress-bar ${hasDeferredStageWriteback ? "progress-bar--indeterminate" : ""}`} aria-hidden="true">
+                <div
+                  className={`progress-bar__fill ${hasDeferredStageWriteback ? "progress-bar__fill--indeterminate" : ""}`}
+                  style={hasDeferredStageWriteback ? undefined : { width: `${job.progress_percent}%` }}
+                />
               </div>
               {hasDeferredStageWriteback ? (
                 <p className="inline-note">
-                  当前主要耗时通常在上游 AI 生成。阶段明细会在生成完成后补齐，期间可继续停留在这个进度值。
+                  当前主要耗时通常在上游 AI 回返。阶段明细会在生成完成后补齐，期间停留在早期阶段属于正常现象。
                 </p>
               ) : null}
             </div>
@@ -150,7 +161,7 @@ export function JobStatusPanel({
         ) : null}
 
         {activeError ? (
-          <div className="status-notice status-notice--error">
+          <div className="status-notice status-notice--error status-notice--scroll">
             <strong>异常信息</strong>
             <p>{activeError}</p>
           </div>
@@ -165,11 +176,11 @@ export function JobStatusPanel({
           </div>
         ) : null}
 
-        {job?.warnings?.length ? (
-          <div className="status-notice status-notice--warning">
+        {displayWarnings.length ? (
+          <div className="status-notice status-notice--warning status-notice--scroll">
             <strong>结果提醒</strong>
             <ul className="notice-list">
-              {job.warnings.map((warning) => (
+              {displayWarnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
             </ul>
@@ -202,7 +213,7 @@ export function JobStatusPanel({
             : hasJobId && isPolling && !job
               ? "正在找回最近一次生成记录，成功后会同步更新中间和右侧工作区。"
               : hasDeferredStageWriteback
-                ? "当上游 AI 耗时较长时，当前版本会先保持“素材接收 / 5%”，等本轮生成结束后再统一补写阶段细节。"
+                ? "当上游 AI 耗时较长时，当前版本会先停留在早期阶段，等本轮生成结束后再统一补写阶段细节。"
                 : "如果生成中断，这里会保留停留阶段和错误信息，方便你直接重新生成。"}
         </p>
       </article>

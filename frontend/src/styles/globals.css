@@ -629,7 +629,12 @@ button {
   color: var(--text-secondary);
 }
 
+.notice-list li + li {
+  margin-top: 6px;
+}
+
 .progress-bar {
+  position: relative;
   height: 10px;
   border-radius: 999px;
   background: rgba(214, 201, 179, 0.7);
@@ -641,6 +646,14 @@ button {
   border-radius: inherit;
   background: linear-gradient(90deg, var(--accent-primary), var(--accent-highlight));
   box-shadow: 0 0 16px rgba(184, 139, 59, 0.35);
+}
+
+.progress-bar__fill--indeterminate {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 36%;
+  min-width: 84px;
+  animation: progress-sweep 1.65s ease-in-out infinite;
 }
 
 .timeline {
@@ -787,6 +800,15 @@ button {
   margin-bottom: 12px;
 }
 
+.status-notice--scroll,
+.editor-state--scroll,
+.quality-guard__warnings,
+.result-toolbar__notice {
+  max-height: 12rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
 .editor-metadata {
   display: flex;
   flex-wrap: wrap;
@@ -920,6 +942,20 @@ button {
   color: var(--accent-secondary);
   font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
   font-size: 0.82rem;
+}
+
+@keyframes progress-sweep {
+  0% {
+    transform: translateX(-115%);
+  }
+
+  50% {
+    transform: translateX(95%);
+  }
+
+  100% {
+    transform: translateX(240%);
+  }
 }
 
 .scene-card__chips {
