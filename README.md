@@ -17,12 +17,13 @@ It is not a single chat box. The current deliverable already includes:
 
 Primary real-input regression sample:
 - source text: [`test/fog-harbor-echo.md`](test/fog-harbor-echo.md)
+- input path: switch to blank manual input, then paste the real 3 chapters from that file
 - real run mode: `generation.mode=llm`
 - current observed output shape: `3` scenes, source-grounded character/location extraction, editable YAML draft
 
-Real workspace capture from the current local app:
+Real workspace capture from the current local app, using manual input for the real `《雾港回声》` sample above rather than a short canned preset:
 
-![Fog Harbor Workspace](docs/images/fog-harbor-workspace.png)
+![Fog Harbor Workspace From Real Manual Input](docs/images/fog-harbor-workspace.png)
 
 ## 3-Step Local Run
 
