@@ -215,6 +215,31 @@ func TestRunnerRunSupportsFamilyWordSuspenseRegression(t *testing.T) {
 	}
 }
 
+func TestRunnerRunSupportsGrowthFantasyRegression(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := artifact.New(tmpDir)
+	runner := NewRunner(store, llm.NewUnavailableGenerator("deterministic mode does not use llm"))
+
+	req := growthFantasyCreateJobRequest()
+	result, err := runner.Run(context.Background(), "job_test_runner_growth_fantasy", req)
+	if err != nil {
+		t.Fatalf("unexpected growth-fantasy run error: %v", err)
+	}
+
+	if err := screenplay.Validate(result.Document); err != nil {
+		t.Fatalf("expected valid screenplay document: %v", err)
+	}
+	assertGrowthFantasyDocument(t, result.Document)
+
+	var yamlDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(result.YAMLText), &yamlDoc); err != nil {
+		t.Fatalf("expected yaml output to be parseable: %v", err)
+	}
+	if !reflect.DeepEqual(yamlDoc, result.Document) {
+		t.Fatal("expected yaml_text and in-memory document to describe the same screenplay")
+	}
+}
+
 func mustLoadFixtureRequest(t *testing.T, name string) job.CreateJobRequest {
 	t.Helper()
 
@@ -381,6 +406,22 @@ func familyWordSuspenseCreateJobRequest() job.CreateJobRequest {
 	return req
 }
 
+func growthFantasyCreateJobRequest() job.CreateJobRequest {
+	var req job.CreateJobRequest
+	req.Source.Title = "转生北境"
+	req.Source.Author = "自定义作者"
+	req.Adaptation.Style = "异世界转生 / 贵族成长"
+	req.Adaptation.Audience = "青年向"
+	req.Adaptation.Notes = []string{"先把处境变化写实，再考虑题材扩展"}
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 贵族次女接手北境", Content: "艾琳在伯爵府邸的账房里听完遗产分配，意识到自己这个长期被轻视的次女突然要接手最穷的北境领地。她没有争辩，只先把旧地图和欠税名册摊开，决定今晚就看清领地到底烂到什么程度。"},
+		{Index: 2, Title: "第二章 巡视破败庄园", Content: "第二天清晨，艾琳带着侍女罗莎和见习骑士维恩巡视北境庄园，发现粮仓、围墙和灌渠都比账面更糟。维恩主张先裁掉无用雇工，艾琳却决定先稳住领民和春播，再去查是谁把亏空一路压到王都审计前。"},
+		{Index: 3, Title: "第三章 议事厅定下新秩序", Content: "傍晚，艾琳在破旧议事厅召集管家、农务官和商会代表，准备公布新的税期与修渠顺序。罗莎提醒她，一旦让贵族亲族知道北境还能救活，原本等着看笑话的人就会立刻回来争功。"},
+	}
+	return req
+}
+
 func assertCustomSuspenseDocument(t *testing.T, doc screenplay.Document) {
 	t.Helper()
 
@@ -467,6 +508,52 @@ func assertFamilyWordSuspenseDocument(t *testing.T, doc screenplay.Document) {
 	}
 	if got := doc.Scenes[2].Objective; !containsAnyText(got, "钥匙", "打开", "仓库") {
 		t.Fatalf("expected scene 3 objective to stay on key/warehouse action, got %s", got)
+	}
+}
+
+func assertGrowthFantasyDocument(t *testing.T, doc screenplay.Document) {
+	t.Helper()
+
+	if len(doc.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(doc.Scenes))
+	}
+	if len(doc.Validation.Warnings) == 0 {
+		t.Fatal("expected growth-fantasy regression to surface validation warnings")
+	}
+
+	for _, badName := range []string{"所以", "现在", "更别"} {
+		for _, character := range doc.Characters {
+			if character.Name == badName {
+				t.Fatalf("expected filtered fragment %s to stay out of characters, got %#v", badName, doc.Characters)
+			}
+		}
+	}
+	for _, expectedName := range []string{"艾琳", "罗莎", "维恩"} {
+		found := false
+		for _, character := range doc.Characters {
+			if character.Name == expectedName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected extracted characters to include %s, got %#v", expectedName, doc.Characters)
+		}
+	}
+
+	for idx, scene := range doc.Scenes {
+		if len(scene.Beats) < 3 {
+			t.Fatalf("expected scene %d to have at least 3 beats, got %d", idx+1, len(scene.Beats))
+		}
+		if scene.Beats[0].Content == scene.Summary || strings.Contains(scene.Beats[0].Content, "...") {
+			t.Fatalf("expected scene %d opening beat to stay concrete, got %s", idx+1, scene.Beats[0].Content)
+		}
+		if containsAnyText(scene.Objective, "录音", "匿名", "字条", "门锁", "车站", "寄信人") {
+			t.Fatalf("expected scene %d objective to avoid suspense leakage, got %s", idx+1, scene.Objective)
+		}
+		if containsAnyText(scene.Notes.OpenQuestions[0], "录音", "匿名", "字条", "门锁", "车站", "寄信人") {
+			t.Fatalf("expected scene %d open question to avoid suspense leakage, got %s", idx+1, scene.Notes.OpenQuestions[0])
+		}
 	}
 }
 
