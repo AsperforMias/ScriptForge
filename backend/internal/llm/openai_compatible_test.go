@@ -13,6 +13,7 @@ import (
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/ingest"
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
+	"github.com/AsperforMias/ScriptForge/backend/internal/screenplay"
 	"github.com/AsperforMias/ScriptForge/backend/internal/testutil"
 	"github.com/AsperforMias/ScriptForge/backend/internal/workflow"
 )
@@ -111,6 +112,12 @@ func TestOpenAICompatibleBuildRequestIncludesEvidenceAndReviewGuidance(t *testin
 	if !strings.Contains(payload, "Prefer omission over fabrication") {
 		t.Fatalf("expected anti-fabrication guidance in request payload, got %s", payload)
 	}
+	if !strings.Contains(payload, "quote every non-empty string scalar value with double quotes") {
+		t.Fatalf("expected yaml quoting guidance in request payload, got %s", payload)
+	}
+	if !strings.Contains(payload, "Keep evidence.excerpt to one short sentence or phrase") {
+		t.Fatalf("expected short evidence guidance in request payload, got %s", payload)
+	}
 }
 
 func TestOpenAICompatibleBuildRequestSanitizesFogHarborEchoContext(t *testing.T) {
@@ -158,15 +165,34 @@ func TestOpenAICompatibleBuildRequestSanitizesFogHarborEchoContext(t *testing.T)
 	if contextStart < 0 || contextEnd < 0 {
 		t.Fatalf("expected embedded context json in request payload, got %s", userContent)
 	}
-	contextJSON := userContent[contextStart:contextEnd+1]
+	contextJSON := userContent[contextStart : contextEnd+1]
 	var contextPayload map[string]any
 	if err := json.Unmarshal([]byte(contextJSON), &contextPayload); err != nil {
 		t.Fatalf("unmarshal embedded context json: %v", err)
 	}
 
-	charactersAny, ok := contextPayload["character_candidates"].([]any)
+	if _, exists := contextPayload["character_candidates"]; exists {
+		t.Fatalf("expected top-level character_candidates to be omitted to reduce prompt pollution, got %#v", contextPayload["character_candidates"])
+	}
+	if _, exists := contextPayload["location_candidates"]; exists {
+		t.Fatalf("expected top-level location_candidates to be omitted to reduce prompt pollution, got %#v", contextPayload["location_candidates"])
+	}
+
+	chaptersAny, ok := contextPayload["chapters"].([]any)
+	if !ok || len(chaptersAny) < 3 {
+		t.Fatalf("expected chapters array in request payload, got %#v", contextPayload["chapters"])
+	}
+	firstChapter, ok := chaptersAny[0].(map[string]any)
 	if !ok {
-		t.Fatalf("expected character_candidates array, got %#v", contextPayload["character_candidates"])
+		t.Fatalf("expected first chapter context object, got %#v", chaptersAny[0])
+	}
+	if _, exists := firstChapter["summary"]; exists {
+		t.Fatalf("expected chapter summary to be omitted from provider context, got %#v", firstChapter["summary"])
+	}
+
+	charactersAny, ok := firstChapter["character_candidates"].([]any)
+	if !ok {
+		t.Fatalf("expected chapter-level character_candidates array, got %#v", firstChapter["character_candidates"])
 	}
 	for _, forbidden := range testutil.FogHarborEchoForbiddenCharacterNames() {
 		for _, value := range charactersAny {
@@ -176,9 +202,18 @@ func TestOpenAICompatibleBuildRequestSanitizesFogHarborEchoContext(t *testing.T)
 		}
 	}
 
-	locationsAny, ok := contextPayload["location_candidates"].([]any)
-	if !ok {
-		t.Fatalf("expected location_candidates array, got %#v", contextPayload["location_candidates"])
+	locationsAny := make([]any, 0)
+	for _, chapterAny := range chaptersAny {
+		chapterContext, ok := chapterAny.(map[string]any)
+		if !ok {
+			t.Fatalf("expected chapter context object, got %#v", chapterAny)
+		}
+		if chapterLocations, ok := chapterContext["location_candidates"].([]any); ok {
+			locationsAny = append(locationsAny, chapterLocations...)
+		}
+	}
+	if len(locationsAny) == 0 {
+		t.Fatalf("expected aggregated chapter-level location_candidates array, got %#v", chaptersAny)
 	}
 	for _, value := range locationsAny {
 		if value == "房间" {
@@ -196,6 +231,13 @@ func TestOpenAICompatibleBuildRequestSanitizesFogHarborEchoContext(t *testing.T)
 		}
 		if !found {
 			t.Fatalf("expected request payload to keep source-grounded location fragment %s, got %#v", expected, locationsAny)
+		}
+	}
+	for _, forbiddenFragment := range []string{"回到", "整理", "刚走到", "送来", "见过", "停在"} {
+		for _, value := range locationsAny {
+			if text, ok := value.(string); ok && strings.Contains(text, forbiddenFragment) {
+				t.Fatalf("expected sanitized location candidates to exclude narrative fragment %s, got %#v", forbiddenFragment, locationsAny)
+			}
 		}
 	}
 }
@@ -413,6 +455,13 @@ func TestOpenAICompatibleGeneratorTransformsLooseDeepSeekSchema(t *testing.T) {
 	if len(result.Warnings) == 0 {
 		t.Fatal("expected normalization warning")
 	}
+	validated, err := screenplay.ValidateAndSerialize(result.Document)
+	if err != nil {
+		t.Fatalf("unexpected validation error after loose normalization: %v", err)
+	}
+	if validated.Document.Validation.Status != "failed" {
+		t.Fatalf("expected loose-normalized output to remain validation-failed for honesty, got %s", validated.Document.Validation.Status)
+	}
 }
 
 func TestOpenAICompatibleGeneratorBackfillsMissingLooseSceneFields(t *testing.T) {
@@ -582,6 +631,198 @@ func TestOpenAICompatibleGeneratorRepairsFogHarborEchoCanonicalOutput(t *testing
 	}
 	if lowConfidenceScenes < 2 {
 		t.Fatalf("expected repaired fog harbor output to keep low-confidence review markers, got %#v", result.Document.Scenes)
+	}
+}
+
+func TestOpenAICompatibleGeneratorKeepsCanonicalOutputWithExtraRolesAndBeatAliases(t *testing.T) {
+	input := testutil.FogHarborEchoRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			content := `version: "1.0"
+source:
+  title: "雾港回声"
+  author: "自定义输入作者"
+  language: zh-CN
+  chapter_count: 3
+  chapters:
+    - index: 1
+      title: "第一章 归港的人"
+      summary: "林渡在十字路口报刊亭前回城，苏雯递伞并示警。"
+    - index: 2
+      title: "第二章 旧楼里的纸条"
+      summary: "林渡在市立第三医院得知父亲和地下室的异常线索。"
+    - index: 3
+      title: "第三章 地下室的第二把钥匙"
+      summary: "林渡回到老房子，发现镜室地图和神秘持钥匙者。"
+adaptation:
+  style: "悬疑网剧"
+  audience: "大众向"
+  notes: []
+characters:
+  - id: char_lin_du
+    name: "林渡"
+    role: protagonist
+    description: "主角。"
+  - id: char_worker
+    name: "工装男"
+    role: minor
+    description: "楼梯口出现的男人。"
+locations:
+  - id: loc_street_cross
+    name: "十字路口报刊亭"
+    description: "回城街口。"
+  - id: loc_hospital
+    name: "市立第三医院"
+    description: "医院走廊与病房。"
+  - id: loc_old_house
+    name: "老房子"
+    description: "林渡返家的旧楼。"
+scenes:
+  - id: scene_001
+    title: "夜雨归人"
+    source_chapters: [1]
+    slugline:
+      interior_exterior: EXT
+      location_id: loc_street_cross
+      time: NIGHT
+    summary: "林渡回城并收到苏雯警告。"
+    objective: "建立悬疑基调，引入苏雯的警告。"
+    beats:
+      - type: action
+        content: "林渡站在十字路口报刊亭前。"
+      - type: dialogue
+        character_id: char_lin_du
+        content: "你怎么在这？"
+    notes:
+      adaptation_reason: "保留回城和示警。"
+    evidence:
+      chapter_indexes: [1]
+      excerpt: "林渡站在报刊亭前，苏雯递伞并警告他。"
+      cues: ["报刊亭", "苏雯"]
+    review:
+      confidence: high
+      issues: []
+  - id: scene_002
+    title: "医院纸条"
+    source_chapters: [2]
+    slugline:
+      interior_exterior: INT
+      location_id: loc_hospital
+      time: NIGHT
+    summary: "林渡在医院拿到父亲留下的纸条。"
+    beats:
+      - type: action
+        content: "许言在医院走廊拦住林渡。"
+      - type: dialogue
+        character_id: char_lin_du
+        content: "我爸怎么样？"
+    notes:
+      adaptation_reason: "保留纸条线索。"
+    evidence:
+      chapter_indexes: [2]
+      excerpt: "许言转交纸条。"
+      cues: ["医院", "纸条"]
+    review:
+      confidence: high
+      issues: []
+  - id: scene_003
+    title: "老房子与钥匙"
+    source_chapters: [3]
+    slugline:
+      interior_exterior: INT
+      location_id: loc_old_house
+      time: NIGHT
+    summary: "林渡在老房子发现镜室和神秘来客。"
+    beats:
+      - type: action
+        content: "林渡回到老房子，发现门锁被动过。"
+      - type: memory
+        character_id: char_lin_du
+        content: "门锁被动过。"
+    notes:
+      adaptation_reason: "保留返家调查。"
+    evidence:
+      chapter_indexes: [3]
+      excerpt: "林渡回到老房子，楼下有人持相同钥匙。"
+      cues: ["老房子", "钥匙"]
+    review:
+      confidence: high
+      issues: []
+validation:
+  status: passed
+  warnings: []`
+			payload := `{"choices":[{"message":{"content":` + strconv.Quote(content) + `}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(payload)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	result, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_canonical_extra_roles",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		t.Fatalf("unexpected generator error: %v", err)
+	}
+	if result.Debug == nil || result.Debug.ParseMode != "canonical" {
+		t.Fatalf("expected canonical parse mode, got %#v", result.Debug)
+	}
+	for _, warning := range result.Warnings {
+		if strings.Contains(warning, "normalized from loose openai-compatible yaml") {
+			t.Fatalf("expected canonical output to avoid loose normalization warning, got %#v", result.Warnings)
+		}
+	}
+	foundWorker := false
+	for _, character := range result.Document.Characters {
+		if character.Name == "工装男" {
+			foundWorker = true
+			if character.Role != "supporting" {
+				t.Fatalf("expected minor role to normalize to supporting, got %#v", character)
+			}
+		}
+	}
+	if !foundWorker {
+		t.Fatalf("expected canonical output to keep source-grounded extra-role character, got %#v", result.Document.Characters)
+	}
+	locationNames := []string{}
+	locationByID := map[string]string{}
+	for _, location := range result.Document.Locations {
+		locationNames = append(locationNames, location.Name)
+		locationByID[location.ID] = location.Name
+	}
+	if !containsFragment(locationNames, "医院") || !containsFragment(locationNames, "老房子") {
+		t.Fatalf("expected canonical locations to survive parsing, got %#v", locationNames)
+	}
+	if got := locationByID[result.Document.Scenes[0].Slugline.LocationID]; got != "十字路口报刊亭" {
+		t.Fatalf("expected canonical scene location to keep the specific street kiosk, got %s with locations %#v", got, result.Document.Locations)
+	}
+	if got := result.Document.Scenes[0].Slugline.InteriorExterior; got != "EXT" {
+		t.Fatalf("expected canonical scene int/ext to preserve EXT, got %s", got)
+	}
+	if got := result.Document.Scenes[0].Objective; got != "" {
+		t.Fatalf("expected template objective to be cleared for honesty, got %q", got)
+	}
+	if result.Document.Scenes[2].Beats[1].Type != "action" {
+		t.Fatalf("expected memory beat alias to normalize to action, got %#v", result.Document.Scenes[2].Beats)
 	}
 }
 
