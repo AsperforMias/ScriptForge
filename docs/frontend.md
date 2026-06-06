@@ -162,6 +162,7 @@ frontend/
 - `frontend/` 已按上述结构落下首版骨架
 - 当前已具备可运行的单页工作台、基础样式与真实 API 联调能力
 - 多章节表单、创建 job、2s 轮询、YAML 结果载入、结构化摘要与导出动作都已接入真实后端
+- Chrome 实测已确认“切换为空白手工输入 -> 手工录入《雾港回声》三章 -> 提交 -> 页面自动载入 YAML 初稿”这条主验收路径可直接跑通
 - failed job 现在提供“重新生成当前内容”入口，会基于当前表单重新调用 `POST /api/v1/jobs`
 - 首版输入范围已明确收敛为粘贴 / 手工录入，不再承诺尚未实现的上传入口
 - 前端示例已扩展为可切换的多题材 preset，至少覆盖悬疑、职场与校园运动
@@ -176,6 +177,7 @@ frontend/
 - 结果区现已固定展示“这是可继续编辑的 YAML 剧本初稿”的人工复核提示；即使 `validation.warnings` 为空，也会继续提醒“结构通过 != 内容质量通过”
 - `validation.warnings` 现已与人工复核说明合并展示，重点提醒用户优先检查角色名、objective、beats 与 open questions，避免 `validation.status=passed` 被误读为“结果质量没问题”
 - 页面会在本地保存 `lastJobId` 与 workspace draft，刷新后继续恢复最近一次任务和左侧输入草稿
+- 当前已知限制：由于后端现阶段在整条 `runner.Run(...)` 完成后才统一写回 stage 详情，前端轮询期间可能长时间看到 `当前阶段=素材接收 / 5%`，随后直接跳到完成；这是真实状态写回粒度限制，不是前端伪 loading
 - 录屏讲解顺序、默认演示口径与检查点现已迁移到 `docs/demo-recording-guide.md`，与产品页面解耦
 
 推荐自检路径（2026-06-05）：
@@ -183,11 +185,12 @@ frontend/
 2. 打开页面后，优先执行一次“切换为空白手工输入 -> 录入自己的 3 章内容”的主链路，不要把默认 preset 当成主要验收证据
 3. 以 `generationMode=llm` 作为修正后的主路径提交真实 job；若本地 provider 尚未配置，可临时使用 `deterministic` 做 smoke/debug，但不要再把它当作长期主策略
 4. 任务成功后确认 `Result Workspace` 同时展示后端返回的 YAML 文本、结构化摘要与导出动作
-5. 如需验证 disabled-provider 兜底态，保持后端 `LLM_PROVIDER=disabled`，将表单切到 `generationMode=llm` 提交一次，并确认 job 仍可成功返回、结果区出现明确 fallback warning，且“重新生成当前内容”入口可继续基于当前表单触发新任务
-6. 将视口收窄到平板或手机宽度，确认三工作区按 `Input -> Status -> Result` 纵向阅读，不出现结果区先于状态区的错序
-7. 在成功结果上做一次本地 YAML 修改，确认结果工具条会从“当前为生成初稿”切换到“当前为本地编辑稿”，再测试 `复制当前 YAML` 与 `恢复生成初稿`
-8. 若本地已启动 Chrome / Edge，可直接运行 `npm run smoke:workspace` 验证 sample preset 与非 preset 手工输入两条真实 job 链路，以及 YAML 载入、结构摘要、导出、本地编辑、复制、disabled-provider fallback regenerate、刷新恢复与移动端阅读顺序
-9. 额外执行一次“非 preset 自检”：点击 `切换为空白手工输入`，录入自己的 3 章内容，再走一遍 `create job -> polling -> YAML/result/export`，确认主链路不依赖仓库内置样例
+5. 若中间状态区在执行期间长时间停在 `素材接收 / 5%`，按当前实现视为已知限制；应同时确认任务最终能跳到 `已完成` 并载入 YAML，而不是把它误判成前端轮询失效
+6. 如需验证 disabled-provider 兜底态，保持后端 `LLM_PROVIDER=disabled`，将表单切到 `generationMode=llm` 提交一次，并确认 job 仍可成功返回、结果区出现明确 fallback warning，且“重新生成当前内容”入口可继续基于当前表单触发新任务
+7. 将视口收窄到平板或手机宽度，确认三工作区按 `Input -> Status -> Result` 纵向阅读，不出现结果区先于状态区的错序
+8. 在成功结果上做一次本地 YAML 修改，确认结果工具条会从“当前为生成初稿”切换到“当前为本地编辑稿”，再测试 `复制当前 YAML` 与 `恢复生成初稿`
+9. 若本地已启动 Chrome / Edge，可直接运行 `npm run smoke:workspace` 验证 sample preset 与非 preset 手工输入两条真实 job 链路，以及 YAML 载入、结构摘要、导出、本地编辑、复制、disabled-provider fallback regenerate、刷新恢复与移动端阅读顺序
+10. 额外执行一次“非 preset 自检”：点击 `切换为空白手工输入`，录入自己的 3 章内容，再走一遍 `create job -> polling -> YAML/result/export`，确认主链路不依赖仓库内置样例
 
 本地启动契约（2026-06-05）：
 - 后端默认监听 `:8080`
