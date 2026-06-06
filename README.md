@@ -156,6 +156,11 @@ GOCACHE=/tmp/scriptforge-gocache go test ./...
 GOCACHE=/tmp/scriptforge-gocache go build -o /tmp/scriptforge-api ./cmd/api
 ```
 
+Backend acceptance note:
+- run backend self-checks from `backend/`; the repo root is not a Go module root
+- keep YAML fixture regressions, but do not treat fixtures as the only acceptance target
+- at least one regression should cover a custom Chinese 3-chapter input through the real job pipeline rather than only comparing canned fixtures
+
 Backend smoke-check:
 ```bash
 # deterministic local path

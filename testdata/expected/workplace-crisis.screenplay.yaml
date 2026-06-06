@@ -45,7 +45,7 @@ scenes:
         location_id: loc_chapter_01
         time: NIGHT
       summary: 苏禾深夜留在办公室复核提案，发现明早汇报用的数据被人替换。她意识到项目组里有人提前动了最终版本。
-      objective: 在正式汇报前确认项目风险，并决定是内部止损还是当场摊牌。
+      objective: 确认是谁替换了关键数据，并决定汇报前要先止损还是直接揭穿。
       beats:
         - type: action
           content: 苏禾深夜留在办公室复核提案，发现明早汇报用的数据被人替换。她意识到项目组里有人提前动了最终版本。
@@ -56,7 +56,7 @@ scenes:
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 是谁在关键节点动了项目数据？
+            - 是谁替换了关键数据，真正想掩盖什么？
     - id: scene_002
       title: 第二章 咖啡馆对质
       source_chapters:
@@ -66,18 +66,18 @@ scenes:
         location_id: loc_chapter_02
         time: DAY
       summary: 她约同组同事在咖啡馆见面，对方却反问她是不是想独占客户。苏禾意识到怀疑已经在团队里扩散。
-      objective: 在正式汇报前确认项目风险，并决定是内部止损还是当场摊牌。
+      objective: 弄清团队猜疑是谁挑起的，并判断这次对质能否在汇报前止损。
       beats:
         - type: action
           content: 她约同组同事在咖啡馆见面，对方却反问她是不是想独占客户。苏禾意识到怀疑已经在团队里扩散。
         - type: dialogue
           character_id: char_苏禾
-          content: 如果现在不把问题找出来，明天整个项目都会失控。
+          content: 如果连谁在放消息都不清楚，我们谁都别想安心进会议室。
           emotion: focused
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 是谁在关键节点动了项目数据？
+            - 团队里的怀疑究竟是谁放出来的？
     - id: scene_003
       title: 第三章 会议室摊牌
       source_chapters:
@@ -87,18 +87,18 @@ scenes:
         location_id: loc_chapter_03
         time: MORNING
       summary: 第二天清晨，苏禾带着备份文件走进会议室，决定在正式汇报前把问题摆到台面上。
-      objective: 在正式汇报前确认项目风险，并决定是内部止损还是当场摊牌。
+      objective: 在会议室摊牌前守住证据，让项目风险无法继续被掩盖。
       beats:
         - type: action
           content: 第二天清晨，苏禾带着备份文件走进会议室，决定在正式汇报前把问题摆到台面上。
         - type: dialogue
           character_id: char_苏禾
-          content: 如果现在不把问题找出来，明天整个项目都会失控。
+          content: 证据我已经带来了，今天谁都别想把这件事轻轻带过。
           emotion: focused
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 是谁在关键节点动了项目数据？
+            - 这场会议室摊牌之后，项目还能不能按原计划推进？
 validation:
     status: passed
     warnings: []

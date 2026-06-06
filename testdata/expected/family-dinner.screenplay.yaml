@@ -45,18 +45,18 @@ scenes:
         location_id: loc_chapter_01
         time: DAY
       summary: 程安在医院病房外接到母亲电话，得知父亲坚持出院回家吃团圆饭。她必须在家人与医生建议之间做决定。
-      objective: 在家庭冲突升级前确认真正的照料责任，并推动家人把旧误会说开。
+      objective: 确认父亲坚持回家的代价，并在家人与医生建议之间做出选择。
       beats:
         - type: action
           content: 程安在医院病房外接到母亲电话，得知父亲坚持出院回家吃团圆饭。她必须在家人与医生建议之间做决定。
         - type: dialogue
           character_id: char_程安
-          content: 今晚这顿饭不是为了热闹，是为了把这些年的话说清楚。
+          content: 回不回家吃这顿饭，今晚必须有人把后果说清楚。
           emotion: restrained
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 这顿团圆饭能不能让家人真正把旧误会说开？
+            - 这顿团圆饭值不值得冒着父亲身体再出状况的风险？
     - id: scene_002
       title: 第二章 厨房争执
       source_chapters:
@@ -66,7 +66,7 @@ scenes:
         location_id: loc_chapter_02
         time: NIGHT
       summary: 傍晚，程安回到家里厨房准备晚饭，姐姐却指责她总拿工作当借口，家里的旧账被重新翻出来。
-      objective: 在家庭冲突升级前确认真正的照料责任，并推动家人把旧误会说开。
+      objective: 接住厨房里的旧账与指责，并逼近这场家庭争执真正的症结。
       beats:
         - type: action
           content: 傍晚，程安回到家里厨房准备晚饭，姐姐却指责她总拿工作当借口，家里的旧账被重新翻出来。
@@ -77,7 +77,7 @@ scenes:
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 这顿团圆饭能不能让家人真正把旧误会说开？
+            - 厨房里的这场争执，会不会把多年旧账彻底掀开？
     - id: scene_003
       title: 第三章 客厅和解
       source_chapters:
@@ -87,18 +87,18 @@ scenes:
         location_id: loc_chapter_03
         time: NIGHT
       summary: 夜里，父亲坐在客厅里主动提起多年前的误会，程安终于决定把压在心里的话说出口。
-      objective: 在家庭冲突升级前确认真正的照料责任，并推动家人把旧误会说开。
+      objective: 趁着父亲先开口的时机，把多年误会真正说开。
       beats:
         - type: action
           content: 夜里，父亲坐在客厅里主动提起多年前的误会，程安终于决定把压在心里的话说出口。
         - type: dialogue
           character_id: char_程安
-          content: 今晚这顿饭不是为了热闹，是为了把这些年的话说清楚。
+          content: 既然爸先提了，我也不想再把这些话憋回去。
           emotion: restrained
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 这顿团圆饭能不能让家人真正把旧误会说开？
+            - 这次客厅里的坦白，能不能真的让一家人把误会说开？
 validation:
     status: passed
     warnings: []

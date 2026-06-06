@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -18,8 +19,10 @@ import (
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
 	"github.com/AsperforMias/ScriptForge/backend/internal/llm"
 	"github.com/AsperforMias/ScriptForge/backend/internal/pipeline"
+	"github.com/AsperforMias/ScriptForge/backend/internal/screenplay"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/artifact"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/sqlite"
+	"gopkg.in/yaml.v3"
 )
 
 func TestRouterJobLifecycleWithFixtures(t *testing.T) {
@@ -114,7 +117,7 @@ func TestRouterJobLifecycleWithFixtures(t *testing.T) {
 		t.Fatalf("read expected yaml fixture: %v", err)
 	}
 
-	if strings.TrimSpace(resultEnvelope.Data.YAMLText) != strings.TrimSpace(string(expectedYAML)) {
+	if !yamlDocumentsEqual(resultEnvelope.Data.YAMLText, string(expectedYAML)) {
 		t.Fatalf("unexpected yaml output\nexpected:\n%s\n\ngot:\n%s", string(expectedYAML), resultEnvelope.Data.YAMLText)
 	}
 
@@ -122,6 +125,94 @@ func TestRouterJobLifecycleWithFixtures(t *testing.T) {
 
 	if exportResp.Code != http.StatusOK {
 		t.Fatalf("expected 200 export status, got %d", exportResp.Code)
+	}
+}
+
+func TestRouterJobLifecycleWithCustomChineseInput(t *testing.T) {
+	router, repo, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
+
+	requestBody, err := json.Marshal(customChineseCreateJobRequest())
+	if err != nil {
+		t.Fatalf("marshal custom request: %v", err)
+	}
+
+	createResp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(requestBody))
+	if createResp.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", createResp.Code)
+	}
+
+	var createEnvelope struct {
+		Data struct {
+			Job struct {
+				ID string `json:"id"`
+			} `json:"job"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	jobID := createEnvelope.Data.Job.ID
+	if jobID == "" {
+		t.Fatal("expected job id")
+	}
+
+	waitForSucceededJob(t, repo, jobID)
+
+	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+jobID+"/result", nil)
+	if resultResp.Code != http.StatusOK {
+		t.Fatalf("expected 200 result status, got %d", resultResp.Code)
+	}
+
+	var resultEnvelope struct {
+		Data struct {
+			Screenplay screenplay.Document `json:"screenplay"`
+			YAMLText   string              `json:"yaml_text"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resultResp.Body).Decode(&resultEnvelope); err != nil {
+		t.Fatalf("decode result response: %v", err)
+	}
+	if err := screenplay.Validate(resultEnvelope.Data.Screenplay); err != nil {
+		t.Fatalf("expected valid screenplay from custom request: %v", err)
+	}
+	if len(resultEnvelope.Data.Screenplay.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(resultEnvelope.Data.Screenplay.Scenes))
+	}
+	if resultEnvelope.Data.Screenplay.Characters[0].Name != "主角" {
+		t.Fatalf("expected weak entity fallback protagonist 主角, got %s", resultEnvelope.Data.Screenplay.Characters[0].Name)
+	}
+
+	objectives := map[string]struct{}{}
+	openQuestions := map[string]struct{}{}
+	for idx, location := range resultEnvelope.Data.Screenplay.Locations {
+		if strings.Contains(location.Name, "Chapter ") {
+			t.Fatalf("expected localized location fallback for chapter %d, got %s", idx+1, location.Name)
+		}
+	}
+	for idx, scene := range resultEnvelope.Data.Screenplay.Scenes {
+		if strings.TrimSpace(scene.Objective) == "" {
+			t.Fatalf("expected objective for custom scene %d", idx+1)
+		}
+		objectives[scene.Objective] = struct{}{}
+		if len(scene.Notes.OpenQuestions) == 0 {
+			t.Fatalf("expected open question for custom scene %d", idx+1)
+		}
+		openQuestions[scene.Notes.OpenQuestions[0]] = struct{}{}
+	}
+	if len(objectives) != len(resultEnvelope.Data.Screenplay.Scenes) {
+		t.Fatalf("expected unique objectives, got %d unique for %d scenes", len(objectives), len(resultEnvelope.Data.Screenplay.Scenes))
+	}
+	if len(openQuestions) != len(resultEnvelope.Data.Screenplay.Scenes) {
+		t.Fatalf("expected unique open questions, got %d unique for %d scenes", len(openQuestions), len(resultEnvelope.Data.Screenplay.Scenes))
+	}
+
+	var yamlDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(resultEnvelope.Data.YAMLText), &yamlDoc); err != nil {
+		t.Fatalf("unmarshal yaml text: %v", err)
+	}
+	if !reflect.DeepEqual(yamlDoc, resultEnvelope.Data.Screenplay) {
+		t.Fatalf("expected api screenplay json and yaml_text to describe the same document")
 	}
 }
 
@@ -428,6 +519,29 @@ func newTestHarness(t *testing.T, runner job.Runner) (http.Handler, *sqlite.Stor
 	return router, repo, artifactDir
 }
 
+func waitForSucceededJob(t *testing.T, repo *sqlite.Store, jobID string) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	for {
+		record, err := repo.GetJob(ctx, jobID)
+		if err == nil && record.Status == "succeeded" {
+			return
+		}
+		if err == nil && record.Status == "failed" {
+			t.Fatalf("job failed unexpectedly: %s", record.ErrorMessage)
+		}
+
+		select {
+		case <-ctx.Done():
+			t.Fatal("job did not succeed before timeout")
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+}
+
 type blockingRunner struct {
 	release chan struct{}
 }
@@ -471,4 +585,32 @@ func validMockLLMCreateJobRequest() job.CreateJobRequest {
 		{Index: 3, Title: "Chapter 3", Content: "第二天清晨，她决定顺着线索前往车站。"},
 	}
 	return req
+}
+
+func customChineseCreateJobRequest() job.CreateJobRequest {
+	var req job.CreateJobRequest
+	req.Source.Title = "雾港录音带"
+	req.Source.Author = "自定义作者"
+	req.Adaptation.Style = "悬疑现实短剧"
+	req.Adaptation.Audience = "青年向"
+	req.Adaptation.Notes = []string{"保留迟疑感", "突出线索递进"}
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 录音失真", Content: "暴雨落了一整夜，旧录音里突然多出一段陌生笑声。叙述者不敢立刻重播，只能先把磁带锁进抽屉。"},
+		{Index: 2, Title: "第二章 匿名留言", Content: "第二天下午，留言板上多出一行约见时间，没人承认写过它。叙述者决定先核对录音来源，再去找留下字的人。"},
+		{Index: 3, Title: "第三章 钟楼扑空", Content: "傍晚，叙述者带着磁带赶到老城区的旧钟楼，却发现约见人已经提前离开，只留下一把钥匙。"},
+	}
+	return req
+}
+
+func yamlDocumentsEqual(actualYAML, expectedYAML string) bool {
+	var actualDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(actualYAML), &actualDoc); err != nil {
+		return false
+	}
+	var expectedDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(expectedYAML), &expectedDoc); err != nil {
+		return false
+	}
+	return reflect.DeepEqual(actualDoc, expectedDoc)
 }

@@ -45,7 +45,7 @@ scenes:
         location_id: loc_chapter_01
         time: NIGHT
       summary: 周宁晚上独自在操场加练接力，教练突然通知主力队友可能缺席决赛。她第一次意识到最后一棒会落到自己手里。
-      objective: 在比赛开始前稳住队伍配合，并把临场压力转成可执行的战术。
+      objective: 确认临阵变动会把责任推向谁，并为队伍重排接力节奏。
       beats:
         - type: action
           content: 周宁晚上独自在操场加练接力，教练突然通知主力队友可能缺席决赛。她第一次意识到最后一棒会落到自己手里。
@@ -56,7 +56,7 @@ scenes:
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 队伍能否在比赛开始前重新建立信任？
+            - 主力缺席背后到底发生了什么，最后一棒会落到谁手里？
     - id: scene_002
       title: 第二章 教室争执
       source_chapters:
@@ -66,18 +66,18 @@ scenes:
         location_id: loc_chapter_02
         time: MORNING
       summary: 第二天一早，她在教室里听见替补队友质疑战术安排，队伍差点在比赛前先吵散。周宁只能临时站出来稳住大家。
-      objective: 在比赛开始前稳住队伍配合，并把临场压力转成可执行的战术。
+      objective: 稳住快要失控的队伍情绪，并把争执重新拉回比赛方案。
       beats:
         - type: action
           content: 第二天一早，她在教室里听见替补队友质疑战术安排，队伍差点在比赛前先吵散。周宁只能临时站出来稳住大家。
         - type: dialogue
           character_id: char_周宁
-          content: 就算少一个人，我们也得把这场接力跑完。
+          content: 还没站上跑道就先散掉，我们输的不会只是这场比赛。
           emotion: determined
       notes:
         adaptation_reason: 将章节中的关键发现压缩为单一可拍场景，并保留主角的判断与行动动机。
         open_questions:
-            - 队伍能否在比赛开始前重新建立信任？
+            - 队伍能在起跑前把这场争执真正压住吗？
     - id: scene_003
       title: 第三章 跑道起跑
       source_chapters:
@@ -87,7 +87,7 @@ scenes:
         location_id: loc_chapter_03
         time: MORNING
       summary: 比赛当天清晨，周宁站上跑道，决定不再等待主力归队，而是带着现有阵容把接力跑完。
-      objective: 在比赛开始前稳住队伍配合，并把临场压力转成可执行的战术。
+      objective: 带着现有阵容完成比赛，并把临场压力转成真正的起跑动作。
       beats:
         - type: action
           content: 比赛当天清晨，周宁站上跑道，决定不再等待主力归队，而是带着现有阵容把接力跑完。

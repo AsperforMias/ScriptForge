@@ -58,13 +58,16 @@ func TestBuildScenePlanProducesMeaningfulObjectivesAndQuestions(t *testing.T) {
 		t.Fatalf("expected 3 scenes, got %d", len(plan.Scenes))
 	}
 
-	if got := plan.Scenes[0].Objective; got != "确认房间是否已经失守，并决定主角该撤离还是进入现场。" {
+	if got := plan.Scenes[0].Objective; got != "确认门锁异常是否意味着有人闯入，并判断主角能否立刻进入现场。" {
 		t.Fatalf("unexpected scene 1 objective: %s", got)
 	}
 	if got := plan.Scenes[1].Beats[1].Content; got != "这张字条不是恶作剧，对方知道我今晚会回来。" {
 		t.Fatalf("unexpected scene 2 dialogue: %s", got)
 	}
-	if got := plan.Scenes[2].Notes.OpenQuestions[0]; got != "车站线索会把主角引向谁？" {
+	if got := plan.Scenes[2].Objective; got != "顺着字条和车站线索追查寄信人，把被动防备转成主动调查。" {
+		t.Fatalf("unexpected scene 3 objective: %s", got)
+	}
+	if got := plan.Scenes[2].Notes.OpenQuestions[0]; got != "顺着这条车站线索，主角究竟会找到谁？" {
 		t.Fatalf("unexpected scene 3 open question: %s", got)
 	}
 	if got := plan.Scenes[2].Beats[1].Emotion; got != "determined" {
@@ -78,7 +81,7 @@ func TestBuildScenePlanSupportsWorkplaceScenario(t *testing.T) {
 	entities := ExtractEntities(source)
 
 	plan := BuildScenePlan(source, outline, entities)
-	if got := plan.Scenes[0].Objective; got != "在正式汇报前确认项目风险，并决定是内部止损还是当场摊牌。" {
+	if got := plan.Scenes[0].Objective; got != "确认是谁替换了关键数据，并决定汇报前要先止损还是直接揭穿。" {
 		t.Fatalf("unexpected workplace objective: %s", got)
 	}
 	if got := plan.Scenes[0].Beats[1].Content; got != "如果现在不把问题找出来，明天整个项目都会失控。" {
@@ -87,8 +90,14 @@ func TestBuildScenePlanSupportsWorkplaceScenario(t *testing.T) {
 	if got := plan.Scenes[0].Beats[1].Emotion; got != "focused" {
 		t.Fatalf("unexpected workplace emotion: %s", got)
 	}
-	if got := plan.Scenes[1].Notes.OpenQuestions[0]; got != "是谁在关键节点动了项目数据？" {
+	if got := plan.Scenes[1].Objective; got != "弄清团队猜疑是谁挑起的，并判断这次对质能否在汇报前止损。" {
+		t.Fatalf("unexpected workplace scene 2 objective: %s", got)
+	}
+	if got := plan.Scenes[1].Notes.OpenQuestions[0]; got != "团队里的怀疑究竟是谁放出来的？" {
 		t.Fatalf("unexpected workplace open question: %s", got)
+	}
+	if got := plan.Scenes[2].Objective; got != "在会议室摊牌前守住证据，让项目风险无法继续被掩盖。" {
+		t.Fatalf("unexpected workplace scene 3 objective: %s", got)
 	}
 }
 
@@ -104,7 +113,7 @@ func TestBuildScenePlanSupportsSportsScenario(t *testing.T) {
 	if got := plan.Scenes[1].Slugline.Time; got != "MORNING" {
 		t.Fatalf("unexpected sports scene 2 time: %s", got)
 	}
-	if got := plan.Scenes[2].Objective; got != "在比赛开始前稳住队伍配合，并把临场压力转成可执行的战术。" {
+	if got := plan.Scenes[2].Objective; got != "带着现有阵容完成比赛，并把临场压力转成真正的起跑动作。" {
 		t.Fatalf("unexpected sports objective: %s", got)
 	}
 	if got := plan.Scenes[2].Beats[1].Content; got != "就算少一个人，我们也得把这场接力跑完。" {
@@ -121,13 +130,16 @@ func TestBuildScenePlanSupportsFamilyScenario(t *testing.T) {
 	if got := plan.Scenes[0].Slugline.LocationID; got != "loc_chapter_01" {
 		t.Fatalf("unexpected family scene 1 location id: %s", got)
 	}
-	if got := plan.Scenes[0].Objective; got != "在家庭冲突升级前确认真正的照料责任，并推动家人把旧误会说开。" {
+	if got := plan.Scenes[0].Objective; got != "确认父亲坚持回家的代价，并在家人与医生建议之间做出选择。" {
 		t.Fatalf("unexpected family objective: %s", got)
+	}
+	if got := plan.Scenes[1].Objective; got != "接住厨房里的旧账与指责，并逼近这场家庭争执真正的症结。" {
+		t.Fatalf("unexpected family scene 2 objective: %s", got)
 	}
 	if got := plan.Scenes[1].Beats[1].Content; got != "今晚这顿饭不是为了热闹，是为了把这些年的话说清楚。" {
 		t.Fatalf("unexpected family dialogue: %s", got)
 	}
-	if got := plan.Scenes[2].Notes.OpenQuestions[0]; got != "这顿团圆饭能不能让家人真正把旧误会说开？" {
+	if got := plan.Scenes[2].Notes.OpenQuestions[0]; got != "这次客厅里的坦白，能不能真的让一家人把误会说开？" {
 		t.Fatalf("unexpected family open question: %s", got)
 	}
 }
@@ -144,11 +156,55 @@ func TestBuildScenePlanSupportsComedyScenario(t *testing.T) {
 	if got := plan.Scenes[1].Beats[1].Emotion; got != "awkward" {
 		t.Fatalf("unexpected comedy emotion: %s", got)
 	}
-	if got := plan.Scenes[2].Objective; got != "在误会继续扩大前确认彼此立场，并把尴尬转成可用的合作机会。" {
+	if got := plan.Scenes[0].Objective; got != "先止住夜市里的失控误会，再判断这次撞见会不会变成新的合作。" {
+		t.Fatalf("unexpected comedy scene 1 objective: %s", got)
+	}
+	if got := plan.Scenes[1].Objective; got != "在餐馆里把误会说清楚，并避免朋友起哄继续推高尴尬。" {
+		t.Fatalf("unexpected comedy scene 2 objective: %s", got)
+	}
+	if got := plan.Scenes[2].Objective; got != "把前两章的尴尬转成一次真正能落地的合作试播。" {
 		t.Fatalf("unexpected comedy objective: %s", got)
 	}
-	if got := plan.Scenes[2].Notes.OpenQuestions[0]; got != "这次临时合作会不会把误会变成新的关系起点？" {
+	if got := plan.Scenes[2].Notes.OpenQuestions[0]; got != "这次广场试播能不能把之前的尴尬真的翻篇？" {
 		t.Fatalf("unexpected comedy open question: %s", got)
+	}
+}
+
+func TestBuildScenePlanFallsBackForWeakEntitiesAndSparseSignals(t *testing.T) {
+	source := normalizeSparseCustomSource()
+	outline := BuildOutline(source)
+	entities := ExtractEntities(source)
+	plan := BuildScenePlan(source, outline, entities)
+
+	if entities.Characters[0].Name != "主角" {
+		t.Fatalf("expected weak entity fallback protagonist 主角, got %s", entities.Characters[0].Name)
+	}
+	for idx, location := range entities.Locations {
+		if location.Name == "" {
+			t.Fatalf("expected location name for scene %d", idx+1)
+		}
+		if location.Name == "Chapter 1 Main Location" || location.Name == "Chapter 2 Main Location" || location.Name == "Chapter 3 Main Location" {
+			t.Fatalf("expected localized location fallback, got %s", location.Name)
+		}
+	}
+
+	objectives := map[string]struct{}{}
+	openQuestions := map[string]struct{}{}
+	for idx, scene := range plan.Scenes {
+		if scene.Objective == "" {
+			t.Fatalf("expected objective for scene %d", idx+1)
+		}
+		objectives[scene.Objective] = struct{}{}
+		if len(scene.Notes.OpenQuestions) == 0 {
+			t.Fatalf("expected open question for scene %d", idx+1)
+		}
+		openQuestions[scene.Notes.OpenQuestions[0]] = struct{}{}
+	}
+	if len(objectives) != len(plan.Scenes) {
+		t.Fatalf("expected unique objectives, got %d unique for %d scenes", len(objectives), len(plan.Scenes))
+	}
+	if len(openQuestions) != len(plan.Scenes) {
+		t.Fatalf("expected unique open questions, got %d unique for %d scenes", len(openQuestions), len(plan.Scenes))
 	}
 }
 
@@ -218,6 +274,20 @@ func normalizeComedySource() ingest.NormalizedSource {
 		{Index: 1, Title: "第一章 夜市撞见", Content: "许言在夜市帮朋友看摊时，误把来取设备的摄影师当成竞争对手，当场闹出笑话。"},
 		{Index: 2, Title: "第二章 餐馆圆场", Content: "第二天中午，两人在餐馆碰面试图解释误会，却因为朋友临时起哄把场面越描越乱。"},
 		{Index: 3, Title: "第三章 广场开播", Content: "傍晚，他们决定在广场一起试播，把之前的误会变成一次意外成功的直播。"},
+	}
+	return ingest.Normalize(req)
+}
+
+func normalizeSparseCustomSource() ingest.NormalizedSource {
+	var req job.CreateJobRequest
+	req.Source.Title = "雾港录音带"
+	req.Source.Author = "自定义作者"
+	req.Adaptation.Style = "悬疑现实短剧"
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 录音失真", Content: "暴雨落了一整夜，旧录音里突然多出一段陌生笑声。叙述者不敢立刻重播，只能先把磁带锁进抽屉。"},
+		{Index: 2, Title: "第二章 匿名留言", Content: "第二天下午，留言板上多出一行约见时间，没人承认写过它。叙述者决定先核对录音来源，再去找留下字的人。"},
+		{Index: 3, Title: "第三章 钟楼扑空", Content: "傍晚，叙述者带着磁带赶到老城区的旧钟楼，却发现约见人已经提前离开，只留下一把钥匙。"},
 	}
 	return ingest.Normalize(req)
 }

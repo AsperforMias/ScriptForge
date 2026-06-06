@@ -5,14 +5,15 @@
 更新时间：2026-06-06
 
 当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器，以及前端工作台首版真实联调落地。
-当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / product-facing polish”，但 2026-06-06 的 `main` 自检表明当前重点应先回到“自定义输入验收链路修复 + smoke-check / README / 文案同步 + deterministic 泛化补强”，再继续录屏与 demo 收束。
+当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / product-facing polish”。2026-06-06 的 `main` 自检曾暴露“验收路径过度围绕样例组织”和“deterministic 对非 fixture 输入泛化不足”两类问题；当前分支已先补齐前后端自定义输入验收链路，并把后端自检基线收紧回可信状态。
 
 2026-06-06 自检补充结论：
 - 当前产品链路并未把用户锁死在 fixture/sample preset 上；前端表单与后端 `POST /api/v1/jobs` 均支持用户直接粘贴 / 手工录入自己的 3 章以上小说文本
-- 当前真正的问题不是“不能输自己的内容”，而是“验证路径过度围绕样例组织”：README、frontend smoke script 和部分结果区文案仍与当前 UI 实现存在漂移
-- `npm run build` 可通过，前后端真实联调也可跑通，但 `go test ./...` 与 `npm run smoke:workspace` 在当前 `main` 上都不能作为稳定验收依据
-- deterministic 链路不是空壳，但对非 fixture 的真实用户输入仍有明显泛化风险：当前规则更偏单主角、单地点、单冲突模板，scene objective / open question 也容易在同题材内重复
-- 因此，下一阶段文档与实现都必须把“用户自定义章节输入”提升为主验收路径，而不是把 sample preset 当作默认成功条件
+- 当前真正的问题不是“不能输自己的内容”，而是“验证路径过度围绕样例组织”；本轮已同步修复 README、frontend smoke script、结果区文案与后端回归口径的漂移
+- 前端 `npm run build` 已通过，本地前后端真实联调可跑通；后端 `go test ./...` 现要求以 `backend/` 为执行目录并使用可写 `GOCACHE`，避免把平台缓存权限误判为代码失败
+- deterministic fixture 仍保留，但不再作为唯一验收对象；当前回归已额外覆盖至少一条“非 fixture、自定义中文三章节输入”的 create -> run -> result 基本链路
+- deterministic 链路仍以规则法为主，但本轮已补强真实用户输入下的人名/地点兜底、scene objective 差异化和 open question 去重，降低同题材机械重复
+- 因此，后续验收必须继续把“用户自定义章节输入”作为主路径之一，而不是把 sample preset 或 fixture 当作默认成功条件
 
 已完成：
 - 题目与赛事要求的精简总结

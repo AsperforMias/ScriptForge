@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
 	"github.com/AsperforMias/ScriptForge/backend/internal/llm"
+	"github.com/AsperforMias/ScriptForge/backend/internal/screenplay"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/artifact"
 	"github.com/AsperforMias/ScriptForge/backend/internal/workflow"
+	"gopkg.in/yaml.v3"
 )
 
 func TestRunnerRunProducesArtifactsAndYAML(t *testing.T) {
@@ -98,10 +101,67 @@ func TestRunnerRunMatchesDeterministicFixture(t *testing.T) {
 				t.Fatalf("read expected fixture: %v", err)
 			}
 
-			if strings.TrimSpace(result.YAMLText) != strings.TrimSpace(string(expectedYAML)) {
+			if !yamlDocumentsEqual(result.YAMLText, string(expectedYAML)) {
 				t.Fatalf("unexpected yaml output\nexpected:\n%s\n\ngot:\n%s", string(expectedYAML), result.YAMLText)
 			}
 		})
+	}
+}
+
+func TestRunnerRunSupportsCustomChineseInputRegression(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := artifact.New(tmpDir)
+	runner := NewRunner(store, llm.NewUnavailableGenerator("deterministic mode does not use llm"))
+
+	req := customChineseCreateJobRequest()
+	result, err := runner.Run(context.Background(), "job_test_runner_custom_cn", req)
+	if err != nil {
+		t.Fatalf("unexpected custom run error: %v", err)
+	}
+
+	if err := screenplay.Validate(result.Document); err != nil {
+		t.Fatalf("expected valid screenplay document: %v", err)
+	}
+	if result.Document.Characters[0].Name != "主角" {
+		t.Fatalf("expected weak entity fallback protagonist name 主角, got %s", result.Document.Characters[0].Name)
+	}
+	if len(result.Document.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(result.Document.Scenes))
+	}
+
+	objectives := map[string]struct{}{}
+	openQuestions := map[string]struct{}{}
+	for idx, location := range result.Document.Locations {
+		if strings.Contains(location.Name, "Chapter ") {
+			t.Fatalf("expected localized location fallback for chapter %d, got %s", idx+1, location.Name)
+		}
+		if strings.TrimSpace(location.Name) == "" {
+			t.Fatalf("expected non-empty location for chapter %d", idx+1)
+		}
+	}
+	for idx, scene := range result.Document.Scenes {
+		if strings.TrimSpace(scene.Objective) == "" {
+			t.Fatalf("expected non-empty scene objective for chapter %d", idx+1)
+		}
+		objectives[scene.Objective] = struct{}{}
+		if len(scene.Notes.OpenQuestions) == 0 {
+			t.Fatalf("expected non-empty open questions for scene %d", idx+1)
+		}
+		openQuestions[scene.Notes.OpenQuestions[0]] = struct{}{}
+	}
+	if len(objectives) != len(result.Document.Scenes) {
+		t.Fatalf("expected unique objectives across custom scenes, got %d unique for %d scenes", len(objectives), len(result.Document.Scenes))
+	}
+	if len(openQuestions) != len(result.Document.Scenes) {
+		t.Fatalf("expected unique open questions across custom scenes, got %d unique for %d scenes", len(openQuestions), len(result.Document.Scenes))
+	}
+
+	var yamlDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(result.YAMLText), &yamlDoc); err != nil {
+		t.Fatalf("expected yaml output to be parseable: %v", err)
+	}
+	if !reflect.DeepEqual(yamlDoc, result.Document) {
+		t.Fatal("expected yaml_text and in-memory document to describe the same screenplay")
 	}
 }
 
@@ -221,6 +281,34 @@ func fixtureCreateJobRequest() job.CreateJobRequest {
 		{Index: 3, Title: "第三章 清晨追踪", Content: "第二天清晨，林琪带着字条前往车站，试图顺着纸上的线索找到寄信人。"},
 	}
 	return req
+}
+
+func customChineseCreateJobRequest() job.CreateJobRequest {
+	var req job.CreateJobRequest
+	req.Source.Title = "雾港录音带"
+	req.Source.Author = "自定义作者"
+	req.Adaptation.Style = "悬疑现实短剧"
+	req.Adaptation.Audience = "青年向"
+	req.Adaptation.Notes = []string{"保留迟疑感", "突出线索递进"}
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 录音失真", Content: "暴雨落了一整夜，旧录音里突然多出一段陌生笑声。叙述者不敢立刻重播，只能先把磁带锁进抽屉。"},
+		{Index: 2, Title: "第二章 匿名留言", Content: "第二天下午，留言板上多出一行约见时间，没人承认写过它。叙述者决定先核对录音来源，再去找留下字的人。"},
+		{Index: 3, Title: "第三章 钟楼扑空", Content: "傍晚，叙述者带着磁带赶到老城区的旧钟楼，却发现约见人已经提前离开，只留下一把钥匙。"},
+	}
+	return req
+}
+
+func yamlDocumentsEqual(actualYAML, expectedYAML string) bool {
+	var actualDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(actualYAML), &actualDoc); err != nil {
+		return false
+	}
+	var expectedDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(expectedYAML), &expectedDoc); err != nil {
+		return false
+	}
+	return reflect.DeepEqual(actualDoc, expectedDoc)
 }
 
 type debugGenerator struct{}
