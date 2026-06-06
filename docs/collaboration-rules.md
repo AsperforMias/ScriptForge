@@ -39,9 +39,13 @@
 ## 分支与 PR 规则
 
 推荐分支前缀：
-- `codex/backend/...`
-- `codex/frontend/...`
-- `codex/docs/...`
+- `backend/...`
+- `frontend/...`
+- `docs/...`
+
+分支命名补充：
+- 不使用 `codex/` 前缀，避免把工具来源混进仓库分支语义
+- 分支名应直接表达改动范围或目标，例如 `backend/llm-hardening`、`frontend/workspace-polish`、`docs/pr-rules-align`
 
 PR 规则：
 - 每个 PR 只做一件事
@@ -84,6 +88,7 @@ PR 工作流：
 - 若一个 PR 已合并，后续开发默认从最新 `main` 新开分支
 - 若使用 AI agent 执行该流程，需在最终说明中明确当前 branch、PR 目标和验证结果
 - GitHub 平台上 PR 作者不能批准自己的 PR；若仓库没有第二位 reviewer，可记录该限制并基于自检后合并
+- 若发现本地或远端已有 `codex/...` 旧分支，后续新工作不要继续沿用该命名
 
 ## Commit 规则
 
@@ -144,6 +149,7 @@ AI agent 可以用于：
 - 所有进度更新优先写入 `implementation-progress.md`
 - 不得为了赶工牺牲 PR/commit 可解释性
 - 若 `decision-log.md` 将某项标为 `human-needed`，必须停下询问
+- 后续 agent 新建分支时，不使用 `codex/...` 命名
 - 在沙箱或 CI 场景下做 Go 校验时，优先使用 `GOCACHE=/tmp/scriptforge-gocache`
 - 本地构建校验产物优先输出到 `/tmp/scriptforge-api`，不要在仓库内生成 `backend/api` 这类临时二进制
 - 本地 provider 凭证统一放在 repo-root `.env.local`，不得提交、不得写进 PR 描述、不得出现在评审可见文档中

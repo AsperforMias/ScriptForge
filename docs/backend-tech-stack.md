@@ -142,7 +142,7 @@ backend/
 | `LLM_MODEL` | no | `` | 预留模型名 |
 | `LLM_BASE_URL` | no | `` | 预留 provider base URL |
 | `LLM_API_KEY` | no | `` | 预留 provider API key |
-| `LLM_REQUEST_TIMEOUT` | no | `45s` | 预留 LLM 调用超时 |
+| `LLM_REQUEST_TIMEOUT` | no | `60s` | 预留 LLM 调用超时 |
 
 约束：
 - 所有配置必须在启动时打印结构化摘要日志，但不得输出敏感信息

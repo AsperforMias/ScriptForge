@@ -79,16 +79,16 @@ Frontend real-chain self-check:
 4. Watch the center `Job Status` column until polling moves the job from `queued/running` to `succeeded`.
 5. Confirm the right-side result area loads real backend data: YAML text, structured screenplay summary, and export actions.
 6. Use the export actions to verify both `下载生成初稿 YAML` and `导出 YAML` paths.
-7. Optional failed-path check: switch the form to `generationMode=llm` while the backend runs with `LLM_PROVIDER=disabled`, submit once, confirm the failed stage message appears, then click `重新生成当前内容` to verify the frontend creates a fresh job from the same form state.
+7. Optional fallback-path check: switch the form to `generationMode=llm` while the backend runs with `LLM_PROVIDER=disabled`, submit once, confirm the job still succeeds with explicit fallback warnings, then click `重新生成当前内容` to verify the frontend creates a fresh job from the same form state.
 8. Narrow the viewport to a tablet or mobile width and confirm the workspace collapses into a readable `Input -> Status -> Result` vertical flow.
 9. After a successful result load, modify the YAML once, confirm the toolbar flips from `当前为生成初稿` to `当前为本地编辑稿`, then test `复制当前 YAML` and `恢复生成初稿`.
 10. Run one extra non-preset pass: click `切换为空白手工输入`, enter your own 3 chapters, then repeat `create job -> polling -> YAML/result/export` to confirm the main path does not depend on built-in samples.
 
 Scripted frontend smoke-check:
 - `npm run smoke:workspace` expects the backend on `:8080`, the frontend dev server on `:5173`, and a local Chrome or Edge executable.
-- It verifies two real frontend acceptance paths: a sample preset run and a non-preset manual 3-chapter run, both covering real `POST /api/v1/jobs`, polling, YAML load, structured summary, export, local edit, `复制当前 YAML`, failed-job regenerate, `lastJobId` refresh restore, and mobile `Input -> Status -> Result` panel order.
+- It verifies two real frontend acceptance paths: a sample preset run and a non-preset manual 3-chapter run, both covering real `POST /api/v1/jobs`, polling, YAML load, structured summary, export, local edit, `复制当前 YAML`, disabled-provider fallback regenerate, `lastJobId` refresh restore, and mobile `Input -> Status -> Result` panel order.
 - Do not treat the sample preset path as the main product proof. Real manual 3-chapter input is the primary acceptance path for this project.
-- The failed-job regenerate branch is a hard requirement of this smoke-check and expects the backend to run with `LLM_PROVIDER=disabled`; if the `generationMode=llm` submission succeeds instead, the script fails fast with an explicit configuration error.
+- The disabled-provider regenerate branch is a hard requirement of this smoke-check and expects the backend to run with `LLM_PROVIDER=disabled`; the current product contract is explicit `llm -> deterministic` fallback with warnings rather than a hard failed job.
 - Optional overrides:
   - `FRONTEND_SMOKE_UI_URL`
   - `FRONTEND_SMOKE_BACKEND_HEALTH_URL`

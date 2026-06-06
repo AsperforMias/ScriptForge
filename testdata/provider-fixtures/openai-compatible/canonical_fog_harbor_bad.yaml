@@ -1,0 +1,120 @@
+version: "1.0"
+source:
+  title: "雾港回声"
+  author: "用户提供真实样本"
+  language: zh-CN
+  chapter_count: 3
+  chapters:
+    - index: 1
+      title: "第一章 归港的人"
+      summary: "夜雨把旧城区的路灯泡得发白。 林渡拖着行李箱，站在十字路口那家已经关门三年的报刊亭前，抬头看了一眼招牌。"
+    - index: 2
+      title: "第二章 旧楼里的纸条"
+      summary: "市立第三医院的走廊灯光昏黄，空气里有消毒水和潮湿雨衣混在一起的味道。 林渡刚走到病房门口，就被一个穿白大褂的男人拦住了。"
+    - index: 3
+      title: "第三章 地下室的第二把钥匙"
+      summary: "林渡是在半夜回到老房子的。 这栋楼建于二十多年前，墙面外层早就起了皮，楼道里光线昏暗。"
+adaptation:
+  style: "悬疑网剧"
+  audience: "大众向"
+  notes:
+    - "保留悬疑氛围"
+characters:
+  - id: char_林渡
+    name: "林渡"
+    role: protagonist
+    description: "从章节行动线中推断出的主视角人物。"
+  - id: char_像是
+    name: "像是"
+    role: supporting
+    description: "错误伪角色。"
+  - id: char_没有立刻
+    name: "没有立刻"
+    role: supporting
+    description: "错误伪角色。"
+locations:
+  - id: loc_chapter_01
+    name: "房间"
+    description: "generic fallback"
+  - id: loc_chapter_02
+    name: "房间"
+    description: "generic fallback"
+  - id: loc_chapter_03
+    name: "房间"
+    description: "generic fallback"
+scenes:
+  - id: scene_001
+    title: "第一章 归港的人"
+    source_chapters: [1]
+    slugline:
+      interior_exterior: EXT
+      location_id: loc_chapter_01
+      time: NIGHT
+    summary: "夜雨把旧城区的路灯泡得发白。"
+    objective: "先弄清归港的人背后的问题，再决定要不要继续追查下去。"
+    beats:
+      - type: action
+        content: "夜雨把旧城区的路灯泡得发白。"
+      - type: dialogue
+        character_id: char_林渡
+        content: "先把不是学成归来，也不是衣锦还乡...弄清楚，再谈下一步。"
+        emotion: focused
+    notes:
+      adaptation_reason: "将章节中的关键发现压缩为单一可拍场景。"
+      open_questions:
+        - "能否身后有人喊他，声音很轻，却又带着一点迟疑？"
+    review:
+      confidence: low
+      issues:
+        - "beat adaptation remains low confidence"
+  - id: scene_002
+    title: "第二章 旧楼里的纸条"
+    source_chapters: [2]
+    slugline:
+      interior_exterior: INT
+      location_id: loc_chapter_02
+      time: DAY
+    summary: "市立第三医院的走廊灯光昏黄。"
+    objective: "先弄清匿名留言背后的真实意图，再决定下一步该找谁。"
+    beats:
+      - type: action
+        content: "市立第三医院的走廊灯光昏黄。"
+      - type: dialogue
+        character_id: char_林渡
+        content: "如果这张留言真想把我引过去，我更得先看清它想让我见谁。"
+        emotion: restrained
+    notes:
+      adaptation_reason: "将章节中的关键发现压缩为单一可拍场景。"
+      open_questions:
+        - "匿名留言到底想把主角引到哪里？"
+    review:
+      confidence: low
+      issues:
+        - "beat adaptation remains low confidence"
+  - id: scene_003
+    title: "第三章 地下室的第二把钥匙"
+    source_chapters: [3]
+    slugline:
+      interior_exterior: INT
+      location_id: loc_chapter_03
+      time: NIGHT
+    summary: "林渡是在半夜回到老房子的。"
+    objective: "确认门锁异常是否意味着有人闯入，并判断主角能否立刻进入现场。"
+    beats:
+      - type: action
+        content: "林渡是在半夜回到老房子的。"
+      - type: dialogue
+        character_id: char_林渡
+        content: "门锁被动过，屋里也许还有人。"
+        emotion: tense
+    notes:
+      adaptation_reason: "将章节中的关键发现压缩为单一可拍场景。"
+      open_questions:
+        - "是谁动过门锁，屋里还留下了什么痕迹？"
+    review:
+      confidence: low
+      issues:
+        - "beat adaptation remains low confidence"
+validation:
+  status: "passed"
+  warnings: []

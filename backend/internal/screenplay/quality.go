@@ -153,6 +153,7 @@ func looksLikeObjectivePlaceholder(input string) bool {
 	case strings.Contains(normalized, "drive the chapter conflict into a filmable dramatic action"),
 		strings.Contains(normalized, "推动剧情继续"),
 		strings.Contains(normalized, "建立悬疑氛围"),
+		strings.Contains(normalized, "建立悬疑基调"),
 		strings.Contains(normalized, "先稳住") && strings.Contains(normalized, "下一步"):
 		return true
 	default:

@@ -202,12 +202,12 @@
 如果视频里想额外补一个“失败可恢复”镜头：
 - 切到 `generationMode=llm`
 - 后端保持 `LLM_PROVIDER=disabled`
-- 提交一次，展示失败信息
+- 提交一次，展示结果虽然成功返回，但 `validation.warnings` 明确标记了 `llm -> deterministic fallback`
 - 再点“重新生成当前内容”
 
 这个镜头的作用：
-- 证明失败态不是假提示
-- 证明前端和后端的异常链路是打通的
+- 证明 provider 不可用时不会静默冒充真正的 LLM 结果
+- 证明前端和后端的降级链路是打通的
 
 ## 不建议的录法
 
@@ -229,7 +229,7 @@
 - deterministic 路径能稳定走完
 - 结果区能正常展示 YAML 和结构化摘要
 - 本地编辑、恢复、复制、导出动作可用
-- 如需录失败态，`LLM_PROVIDER=disabled` 时 `llm` 模式确实能稳定失败并给出重试入口
+- 如需录 disabled-provider 镜头，`LLM_PROVIDER=disabled` 时 `llm` 模式会明确回退到 deterministic，并在 warnings 中暴露这次并非真实 LLM 结果
 
 ## 最后一句应该怎么收
 
