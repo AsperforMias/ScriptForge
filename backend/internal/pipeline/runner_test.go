@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -405,6 +406,48 @@ func TestRunnerRunFallsBackWhenLLMProviderIsUnavailable(t *testing.T) {
 	}
 	if result.ProviderDebugPath != "" {
 		t.Fatalf("expected no provider debug artifact on fallback, got %s", result.ProviderDebugPath)
+	}
+}
+
+func TestRunnerRunPersistsProviderDebugSnapshotOnLLMFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := artifact.New(tmpDir)
+	runner := NewRunner(store, errorGenerator{
+		name: "stub-llm",
+		err: llm.NewInvocationErrorWithDebug("stub-llm", errors.New("parse yaml response: malformed output"), &llm.DebugSnapshot{
+			Provider:           "stub-llm",
+			Model:              "demo-model",
+			RawContent:         "version: broken",
+			OriginalRawContent: "version: broken",
+			ParseErrors:        []string{"yaml: line 7: did not find expected key"},
+		}),
+	})
+
+	req := validCreateJobRequest()
+	req.Generation.Mode = "llm"
+
+	result, err := runner.Run(context.Background(), "job_test_runner_llm_fallback_debug", req)
+	if err != nil {
+		t.Fatalf("unexpected llm fallback error: %v", err)
+	}
+	if result.ProviderDebugPath == "" {
+		t.Fatal("expected provider debug artifact on invocation fallback")
+	}
+
+	data, err := os.ReadFile(result.ProviderDebugPath)
+	if err != nil {
+		t.Fatalf("read provider debug artifact: %v", err)
+	}
+
+	var snapshot llm.DebugSnapshot
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		t.Fatalf("unmarshal provider debug artifact: %v", err)
+	}
+	if snapshot.RawContent != "version: broken" {
+		t.Fatalf("expected raw content to persist, got %#v", snapshot)
+	}
+	if len(snapshot.ParseErrors) == 0 {
+		t.Fatalf("expected parse errors to persist, got %#v", snapshot)
 	}
 }
 

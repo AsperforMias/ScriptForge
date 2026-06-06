@@ -104,65 +104,133 @@ func (g *OpenAICompatibleGenerator) Generate(ctx context.Context, req GenerateRe
 		return GenerateResult{}, NewInvocationError(g.Name(), err)
 	}
 
+	messageContent, err := g.requestMessageContent(ctx, requestBody)
+	if err != nil {
+		return GenerateResult{}, err
+	}
+
+	yamlText := extractYAMLResponse(messageContent)
+	debug := &DebugSnapshot{
+		Provider:           g.Name(),
+		Model:              g.model,
+		RawContent:         yamlText,
+		OriginalRawContent: yamlText,
+	}
+
+	document, warnings, parseMode, parseErr := parseGeneratedDocument(yamlText, req)
+	if parseErr == nil {
+		document.Validation.Warnings = append(document.Validation.Warnings, warnings...)
+		document.Validation.Warnings = append(document.Validation.Warnings, "generated via openai_compatible provider")
+		debug.ParseMode = parseMode
+		return GenerateResult{
+			Document: document,
+			Warnings: document.Validation.Warnings,
+			Debug:    debug,
+		}, nil
+	}
+
+	debug.ParseErrors = append(debug.ParseErrors, parseErr.Error())
+	lastYAMLText := yamlText
+	lastParseErr := parseErr
+	for retry := 1; retry <= 2; retry++ {
+		regeneratedYAML, retryErr := g.regenerateValidYAML(ctx, req, lastYAMLText, lastParseErr, retry)
+		if retryErr != nil {
+			debug.ParseErrors = append(debug.ParseErrors, retryErr.Error())
+			return GenerateResult{}, NewInvocationErrorWithDebug(g.Name(), fmt.Errorf("parse yaml response: %w", lastParseErr), debug)
+		}
+		debug.RetryRawContents = append(debug.RetryRawContents, regeneratedYAML)
+		debug.RawContent = regeneratedYAML
+
+		document, warnings, parseMode, parseErr = parseGeneratedDocument(regeneratedYAML, req)
+		if parseErr == nil {
+			document.Validation.Warnings = append(document.Validation.Warnings, warnings...)
+			document.Validation.Warnings = append(document.Validation.Warnings, "generated via openai_compatible provider")
+			document.Validation.Warnings = append(document.Validation.Warnings, fmt.Sprintf("provider output required %d format retry pass(es) before YAML parsing succeeded", retry))
+			debug.ParseMode = parseMode
+			return GenerateResult{
+				Document: document,
+				Warnings: document.Validation.Warnings,
+				Debug:    debug,
+			}, nil
+		}
+
+		debug.ParseErrors = append(debug.ParseErrors, parseErr.Error())
+		lastYAMLText = regeneratedYAML
+		lastParseErr = parseErr
+	}
+
+	return GenerateResult{}, NewInvocationErrorWithDebug(g.Name(), fmt.Errorf("parse yaml response: %w", lastParseErr), debug)
+}
+
+func (g *OpenAICompatibleGenerator) requestMessageContent(ctx context.Context, requestBody []byte) (string, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(g.baseURL, "/")+"/chat/completions", bytes.NewReader(requestBody))
 	if err != nil {
-		return GenerateResult{}, NewInvocationError(g.Name(), err)
+		return "", NewInvocationError(g.Name(), err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+g.apiKey)
 
 	resp, err := g.httpClient.Do(httpReq)
 	if err != nil {
-		return GenerateResult{}, NewInvocationError(g.Name(), err)
+		return "", NewInvocationError(g.Name(), err)
 	}
 	defer resp.Body.Close()
 
 	payload, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return GenerateResult{}, NewInvocationError(g.Name(), err)
+		return "", NewInvocationError(g.Name(), err)
 	}
 
 	if resp.StatusCode >= 300 {
-		return GenerateResult{}, NewInvocationError(g.Name(), fmt.Errorf("status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(payload))))
+		return "", NewInvocationError(g.Name(), fmt.Errorf("status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(payload))))
 	}
 
 	var completion chatCompletionsResponse
 	if err := json.Unmarshal(payload, &completion); err != nil {
-		return GenerateResult{}, NewInvocationError(g.Name(), err)
+		return "", NewInvocationError(g.Name(), err)
 	}
 	if completion.Error != nil {
-		return GenerateResult{}, NewInvocationError(g.Name(), errors.New(completion.Error.Message))
+		return "", NewInvocationError(g.Name(), errors.New(completion.Error.Message))
 	}
 	if len(completion.Choices) == 0 {
-		return GenerateResult{}, NewInvocationError(g.Name(), fmt.Errorf("empty choices"))
+		return "", NewInvocationError(g.Name(), fmt.Errorf("empty choices"))
 	}
 
 	messageContent, err := extractMessageContent(completion.Choices[0].Message.Content)
 	if err != nil {
-		return GenerateResult{}, NewInvocationError(g.Name(), fmt.Errorf("extract message content: %w", err))
+		return "", NewInvocationError(g.Name(), fmt.Errorf("extract message content: %w", err))
 	}
+	return messageContent, nil
+}
 
-	yamlText := extractYAMLResponse(messageContent)
-	document, warnings, parseMode, err := parseGeneratedDocument(yamlText, req)
+func (g *OpenAICompatibleGenerator) regenerateValidYAML(ctx context.Context, req GenerateRequest, previousYAML string, parseErr error, retry int) (string, error) {
+	requestBody, err := g.buildRetryRequest(req, previousYAML, parseErr, retry)
 	if err != nil {
-		return GenerateResult{}, NewInvocationError(g.Name(), fmt.Errorf("parse yaml response: %w", err))
+		return "", err
 	}
-	document.Validation.Warnings = append(document.Validation.Warnings, warnings...)
-	document.Validation.Warnings = append(document.Validation.Warnings, "generated via openai_compatible provider")
-
-	return GenerateResult{
-		Document: document,
-		Warnings: document.Validation.Warnings,
-		Debug: &DebugSnapshot{
-			Provider:   g.Name(),
-			Model:      g.model,
-			ParseMode:  parseMode,
-			RawContent: yamlText,
-		},
-	}, nil
+	messageContent, err := g.requestMessageContent(ctx, requestBody)
+	if err != nil {
+		return "", err
+	}
+	return extractYAMLResponse(messageContent), nil
 }
 
 func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, error) {
+	return g.buildGenerationRequest(req, "", "", 0.2)
+}
+
+func (g *OpenAICompatibleGenerator) buildRetryRequest(req GenerateRequest, previousYAML string, parseErr error, retry int) ([]byte, error) {
+	extraSystem := "Your previous attempt produced malformed YAML. Regenerate the full screenplay YAML from scratch using the same context. Re-decide characters, locations, scenes, sluglines, objectives, beats, notes, evidence, review, and validation together as one coherent document, and return only valid parseable YAML."
+	extraUser := fmt.Sprintf(
+		"Previous attempt %d failed to parse with this error: %s\nReturn the full screenplay YAML again with correct indentation, quoting, list markers, and escaped content. Rebuild the entire YAML document instead of patching one field in isolation. Do not explain the fix.\nPrevious malformed attempt:\n%s",
+		retry,
+		parseErr.Error(),
+		previousYAML,
+	)
+	return g.buildGenerationRequest(req, extraSystem, extraUser, 0)
+}
+
+func (g *OpenAICompatibleGenerator) buildGenerationRequest(req GenerateRequest, extraSystem, extraUser string, temperature float64) ([]byte, error) {
 	contextPayload := buildProviderContext(req)
 
 	contextJSON, err := json.MarshalIndent(contextPayload, "", "  ")
@@ -172,7 +240,7 @@ func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, e
 
 	requestBody := chatCompletionsRequest{
 		Model:       g.model,
-		Temperature: 0.2,
+		Temperature: temperature,
 		Messages: []chatCompletionInput{
 			{
 				Role: "system",
@@ -192,7 +260,8 @@ func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, e
 					"Prefer omission over fabrication when evidence is weak. " +
 					"Do not repeat the same dialogue, beat, objective, or open question across scenes. " +
 					"Use Chinese content values where appropriate, but keep schema keys exactly as requested. " +
-					"Do not include markdown fences or explanations.",
+					"Do not include markdown fences or explanations." +
+					conditionalSuffix(" "+strings.TrimSpace(extraSystem)),
 			},
 			{
 				Role: "user",
@@ -211,12 +280,20 @@ func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, e
 					"Treat scene_count_target and each chapter's suggested_scene_count as the default structural plan; only exceed them when the source text itself shows a clearly separated extra dramatic turn. " +
 					"Bad objective patterns include atmosphere-setting or generic truth-seeking copy such as 建立悬疑氛围, 建立悬疑基调, 制造紧迫感, 引入某人的警告, 了解发生了什么, 弄清楚真相. " +
 					"If a scene detail is uncertain, lower review.confidence and record the issue instead of fabricating a polished answer. " +
-					"Keep evidence.excerpt to one short sentence or phrase, and avoid any unescaped colon-heavy or quote-heavy text copied verbatim from the novel.",
+					"Keep evidence.excerpt to one short sentence or phrase, and avoid any unescaped colon-heavy or quote-heavy text copied verbatim from the novel." +
+					conditionalSuffix("\n"+strings.TrimSpace(extraUser)),
 			},
 		},
 	}
 
 	return json.Marshal(requestBody)
+}
+
+func conditionalSuffix(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	return value
 }
 
 type looseDocument struct {

@@ -148,10 +148,11 @@ func (r *Runner) generateDocument(ctx context.Context, jobID string, req job.Cre
 	})
 	if err != nil {
 		fallbackDocument := workflow.BuildDocument(req, source, outline, entities, plan)
+		providerDebug := llm.DebugFromError(err)
 		warnings := []string{
 			fmt.Sprintf("llm generation via %s failed; fell back to deterministic baseline: %s", r.llmGenerator.Name(), err.Error()),
 		}
-		return fallbackDocument, nil, warnings, nil
+		return fallbackDocument, providerDebug, warnings, nil
 	}
 	if len(result.Warnings) > 0 && len(result.Document.Validation.Warnings) == 0 {
 		result.Document.Validation.Warnings = append(result.Document.Validation.Warnings, result.Warnings...)
