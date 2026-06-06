@@ -105,7 +105,7 @@ Request:
     "notes": ["强化冲突"]
   },
   "generation": {
-    "mode": "deterministic"
+    "mode": "llm"
   }
 }
 ```
@@ -118,6 +118,7 @@ Request constraints:
 - `source.chapters[].content`: required
 - `adaptation.style`: required
 - `generation.mode`: required
+- corrected product direction: prefer `llm` for the main path; `deterministic` remains a supported enum value for fallback / smoke usage
 
 Response `202 Accepted`:
 

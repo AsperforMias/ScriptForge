@@ -56,9 +56,10 @@ job created
 - 为每章生成摘要
 - 抽取章节主冲突
 - 识别跨章节主线
+- 产出后续 scene planning 与 LLM generation 所需的最小证据上下文
 
-deterministic 首版要求：
-- 至少能为每章生成一个简短 summary 占位结果
+说明：
+- 这里的 `outline` 是 grounding 层，不应继续扩展成“大量题材规则驱动的剧情生成器”
 
 ### 3. `entities`
 
@@ -73,9 +74,10 @@ deterministic 首版要求：
 - 抽人物
 - 抽地点
 - 建立人物/地点 ID
+- 输出候选置信度与明显风险，供后续 validation 使用
 
-deterministic 首版要求：
-- 可以从规则或占位逻辑生成最小合法人物和地点集合
+说明：
+- deterministic 抽取可以存在，但目标是“提供 grounding 和 fallback”，不是假装完成稳定的人物理解
 
 ### 4. `scene_planning`
 
@@ -90,7 +92,8 @@ deterministic 首版要求：
 职责：
 - 把章节映射为若干 scene
 - 为每个 scene 建立 `source_chapters`
-- 给出 scene title、summary、objective、slugline 基础信息
+- 给出 scene title、summary、slugline 基础信息
+- 给出供生成阶段使用的 scene-level evidence / review seed
 
 首版最低要求：
 - 至少每章映射到 1 个 scene
@@ -106,12 +109,14 @@ deterministic 首版要求：
 - `ScreenplayDocument`
 
 职责：
-- 为每个 scene 生成 `beats`
+- 以 `llm` 作为主生成器，为每个 scene 生成 `beats`
 - 组装完整 YAML 对象
+- 在证据不足时允许留空或降低置信度，不强迫填满 `objective` / `open_questions` / `dialogue`
 
 首版最低要求：
 - 每个 scene 至少 1 个 `action` beat
 - 若出现 `dialogue` beat，必须带 `character_id`
+- deterministic 仅作为 fallback：当 LLM 不可用或用于离线 smoke 时，允许产出最小合法结构，但不应作为长期质量目标
 
 ### 6. `validation`
 
@@ -165,8 +170,8 @@ type PipelineRunner interface
 - `Validator` 负责结构校验和 YAML 序列化
 
 当前实现约束补充：
-- `deterministic` 仍是首个正式基线
-- `llm` mode 先通过 provider abstraction 接入 `screenplay_generation` 阶段
+- `llm` 是正式主链路
+- `deterministic` 是 fallback / smoke baseline，不再作为后续大规模功能扩展方向
 - 在真实供应商未接入前，允许 `mock` provider 用于本地链路验证
 
 ## 并发与执行模型

@@ -39,19 +39,19 @@
 1. 输入不是一句 prompt，而是 `3 章以上小说`
 2. 输出不是一段普通文本，而是可编辑的 `YAML 剧本初稿`
 3. 生成不是黑盒同步返回，而是有真实阶段状态的 job pipeline
-4. 系统不是只靠模型“聊天”，而是有 deterministic 基线、Schema 校验和 provider 兼容层
+4. 系统不是只靠模型“聊天”，而是有 scene planning、Schema 校验、normalize / validation 和 provider 兼容层
 
 ## 推荐录制版本
 
 首推：
 - 样例：`职场`
-- 模式：`deterministic`
+- 模式：`llm`
 
 原因：
 - 内容容易理解
 - 人物冲突和时间压力清楚
 - 比悬疑更适合第一次讲产品价值
-- deterministic 路径更稳定，最适合录首版主视频
+- 更符合修正后的主产品方向：真实输入通过 LLM 生成结构化 YAML 初稿
 
 备选样例：
 - `悬疑`
@@ -60,11 +60,11 @@
   适合强调群像、成长和节奏感
 
 不建议首条主视频就用：
-- `llm` 模式
+- `deterministic` 模式作为主路径
 
 原因：
-- 更容易受到 provider 波动影响
-- 首条视频应该先保稳定，再讲扩展能力
+- 会把项目误讲成“规则链路主导”
+- 会继续放大当前已经确认的方向偏差：把 deterministic 误当成核心产品能力
 
 ## 推荐视频结构
 
@@ -170,7 +170,7 @@
 
 建议讲法：
 
-“当前主视频用 deterministic 路径做稳定演示，但后端已经支持 openai-compatible 的真实 provider 接入，并做了兼容返回归一化和失败回归。也就是说，这个系统不是只能跑规则链路，而是已经具备接真实模型的工程能力。”
+“当前主视频直接用 `llm` 主链路演示真实的结构化改编能力；同时后端保留 deterministic fallback、Schema 校验和 provider 兼容层，所以它不是一个纯聊天壳，也不是一个只能靠规则拼接的 demo。” 
 
 ## 录制时必须讲出来的后端亮点
 
@@ -179,10 +179,11 @@
 1. 后端是任务化 API，不是同步生成接口
 2. 后端 pipeline 是多阶段的
 3. 输出是 YAML-first，不是普通大段文本
-4. deterministic 是稳定基线，不依赖实时模型也能产出合法结果
-5. `openai_compatible` 是扩展层，不把项目绑死到某一家 provider
-6. 结果经过 Schema 校验
-7. job 结果和 artifact 有持久化，不是一次性内存 demo
+4. `llm` 是主生成链路，但结果仍经过规划、归一化和校验
+5. deterministic 是 fallback / smoke baseline，不是主叙事
+6. `openai_compatible` 不把项目绑死到某一家 provider
+7. 结果经过 Schema 校验
+8. job 结果和 artifact 有持久化，不是一次性内存 demo
 
 ## 建议录制顺序
 
@@ -190,11 +191,11 @@
 
 推荐：
 - `职场`
-- `deterministic`
+- `llm`
 
 作用：
-- 最稳定
 - 最能完整讲清主链路
+- 最符合修正后的产品定位
 
 ### 备选补充镜头
 
