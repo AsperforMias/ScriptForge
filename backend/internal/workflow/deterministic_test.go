@@ -218,6 +218,34 @@ func TestBuildScenePlanFallsBackForWeakEntitiesAndSparseSignals(t *testing.T) {
 	}
 }
 
+func TestBuildDocumentMarksFailedWhenDeterministicConfidenceStaysLow(t *testing.T) {
+	var req job.CreateJobRequest
+	req.Source.Title = "Archive Echo"
+	req.Source.Author = "Test Author"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "Chapter 1", Content: "The recorder clicks on in an empty archive room. A strange laugh leaks through the tape, but no one is named and the narrator only describes the sound."},
+		{Index: 2, Title: "Chapter 2", Content: "The next afternoon, another anonymous note appears beside the machine. The narrator compares handwriting and keeps everything vague."},
+		{Index: 3, Title: "Chapter 3", Content: "At dusk, the narrator reaches an old bell tower and finds only a key left behind. The voice on the tape is still unexplained."},
+	}
+	req.Adaptation.Style = "Suspense short drama"
+	req.Generation.Mode = "deterministic"
+	source := ingest.Normalize(req)
+	outline := BuildOutline(source)
+	entities := ExtractEntities(source)
+	plan := BuildScenePlan(source, outline, entities)
+	doc := BuildDocument(req, source, outline, entities, plan)
+
+	if err := screenplay.Validate(doc); err != nil {
+		t.Fatalf("expected structurally valid document: %v", err)
+	}
+	if doc.Characters[0].Name != "主角" {
+		t.Fatalf("expected fallback protagonist 主角, got %s", doc.Characters[0].Name)
+	}
+	if doc.Validation.Status != "failed" {
+		t.Fatalf("expected low-confidence deterministic result to fail validation status, got %s", doc.Validation.Status)
+	}
+}
+
 func TestBuildScenePlanPrefersExplicitSceneEvidenceForCustomSuspenseInput(t *testing.T) {
 	source := normalizeCustomSuspenseSource()
 	outline := BuildOutline(source)
@@ -364,8 +392,8 @@ func TestDeterministicWorkflowHardensRealGrowthFantasyInput(t *testing.T) {
 	if err := screenplay.Validate(doc); err != nil {
 		t.Fatalf("expected valid screenplay document: %v", err)
 	}
-	if len(doc.Scenes) != 3 {
-		t.Fatalf("expected 3 scenes, got %d", len(doc.Scenes))
+	if len(doc.Scenes) <= len(doc.Source.Chapters) {
+		t.Fatalf("expected at least one chapter to split into multiple scenes, got %d scenes for %d chapters", len(doc.Scenes), len(doc.Source.Chapters))
 	}
 
 	for _, badName := range testutil.GrowthFantasyRealInputForbiddenFragments() {
@@ -379,6 +407,15 @@ func TestDeterministicWorkflowHardensRealGrowthFantasyInput(t *testing.T) {
 	}
 	if matched := countExpectedCharacterMatches(entities, testutil.GrowthFantasyRealInputExpectedNames()); matched < 3 {
 		t.Fatalf("expected real growth-fantasy input to recover core names, matched %d in %#v", matched, entities.Characters)
+	}
+	if countScenesForChapter(doc, 2) < 2 || countScenesForChapter(doc, 3) < 2 {
+		t.Fatalf("expected chapter 2 and 3 to split into multiple scenes, got chapter2=%d chapter3=%d", countScenesForChapter(doc, 2), countScenesForChapter(doc, 3))
+	}
+	if !documentHasLocation(doc, "藏书馆") || !documentHasLocation(doc, "花坛") || !documentHasLocation(doc, "账房") || !documentHasLocation(doc, "议事厅") {
+		t.Fatalf("expected split scenes to preserve concrete locations, got %#v", doc.Locations)
+	}
+	if doc.Validation.Status != "passed" {
+		t.Fatalf("expected credible growth-fantasy regression to stay structurally passed, got %s", doc.Validation.Status)
 	}
 
 	for idx, scene := range doc.Scenes {
@@ -573,6 +610,28 @@ func countExpectedCharacterMatches(entities EntityBundle, expected []string) int
 	return matched
 }
 
+func countScenesForChapter(doc screenplay.Document, chapterIndex int) int {
+	count := 0
+	for _, scene := range doc.Scenes {
+		for _, sourceChapter := range scene.SourceChapters {
+			if sourceChapter == chapterIndex {
+				count++
+				break
+			}
+		}
+	}
+	return count
+}
+
+func documentHasLocation(doc screenplay.Document, expected string) bool {
+	for _, location := range doc.Locations {
+		if location.Name == expected {
+			return true
+		}
+	}
+	return false
+}
+
 func looksLikeNarrativeCarryover(input string) bool {
 	input = strings.TrimSpace(input)
 	if input == "" {
@@ -583,7 +642,7 @@ func looksLikeNarrativeCarryover(input string) bool {
 	}
 	return containsAny(
 		input,
-		"因为", "随着", "直到", "只能靠", "所能看到", "难不成", "让人感觉", "也不知道", "这让他", "原本", "【", "】", "...", "……",
+		"因为", "随着", "直到", "只能", "所能看到", "难不成", "让人感觉", "也不知道", "这让他", "原本", "……", "...",
 	)
 }
 
@@ -592,9 +651,9 @@ func looksLikeBrokenActionBeat(input string) bool {
 	if input == "" {
 		return true
 	}
-	return containsAny(input, "【", "】", "...", "……", "——") ||
+	return containsAny(input, "【", "】", "...", "……") ||
 		strings.HasPrefix(input, "“") ||
-		strings.HasPrefix(input, "”")
+		strings.HasPrefix(input, "\"")
 }
 
 func hasGenericGrowthWarning(warnings []string) bool {

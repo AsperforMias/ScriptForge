@@ -53,6 +53,8 @@ type Scene struct {
 	Objective      string     `json:"objective,omitempty" yaml:"objective,omitempty"`
 	Beats          []Beat     `json:"beats" yaml:"beats"`
 	Notes          SceneNotes `json:"notes,omitempty" yaml:"notes,omitempty"`
+	Evidence       *Evidence  `json:"evidence,omitempty" yaml:"evidence,omitempty"`
+	Review         *Review    `json:"review,omitempty" yaml:"review,omitempty"`
 }
 
 type Slugline struct {
@@ -71,6 +73,17 @@ type Beat struct {
 type SceneNotes struct {
 	AdaptationReason string   `json:"adaptation_reason,omitempty" yaml:"adaptation_reason,omitempty"`
 	OpenQuestions    []string `json:"open_questions,omitempty" yaml:"open_questions,omitempty"`
+}
+
+type Evidence struct {
+	ChapterIndexes []int    `json:"chapter_indexes,omitempty" yaml:"chapter_indexes,omitempty"`
+	Excerpt        string   `json:"excerpt,omitempty" yaml:"excerpt,omitempty"`
+	Cues           []string `json:"cues,omitempty" yaml:"cues,omitempty"`
+}
+
+type Review struct {
+	Confidence string   `json:"confidence,omitempty" yaml:"confidence,omitempty"`
+	Issues     []string `json:"issues,omitempty" yaml:"issues,omitempty"`
 }
 
 type Validation struct {

@@ -72,6 +72,45 @@ func TestOpenAICompatibleGeneratorParsesYAMLResponse(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatibleBuildRequestIncludesEvidenceAndReviewGuidance(t *testing.T) {
+	input := validOpenAICompatibleCreateJobRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+
+	body, err := generator.buildRequest(GenerateRequest{
+		JobID:    "job_openai_guidance",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		t.Fatalf("unexpected build request error: %v", err)
+	}
+
+	payload := string(body)
+	if !strings.Contains(payload, "evidence") {
+		t.Fatalf("expected evidence guidance in request payload, got %s", payload)
+	}
+	if !strings.Contains(payload, "review") {
+		t.Fatalf("expected review guidance in request payload, got %s", payload)
+	}
+	if !strings.Contains(payload, "Prefer omission over fabrication") {
+		t.Fatalf("expected anti-fabrication guidance in request payload, got %s", payload)
+	}
+}
+
 func TestOpenAICompatibleGeneratorNormalizesVersionAndFences(t *testing.T) {
 	input := validOpenAICompatibleCreateJobRequest()
 	source := ingest.Normalize(input)
