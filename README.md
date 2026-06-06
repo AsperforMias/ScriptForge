@@ -56,7 +56,7 @@ Then open `http://127.0.0.1:5173`, switch to blank manual input if needed, paste
 
 - The output contract is structured YAML, not an untraceable free-form answer.
 - The backend is a staged Go pipeline with job persistence, validation, export, and provider debug artifacts.
-- The frontend is intentionally lightweight, but the full user path is already runnable: input -> status -> YAML -> edit -> export.
+- The frontend is intentionally lightweight, but the full user path is already runnable: input -> progress -> YAML -> edit -> export.
 - The repo is document-first, with scope, decisions, progress, API contract, pipeline contract, and demo guidance all checked into `docs/`.
 
 ## Key Links
@@ -100,6 +100,8 @@ Read in this order before making changes:
 - the result workspace now distinguishes backend-original vs local-edited YAML, supports copy/reset/export feedback, and adds screenplay overview cards from backend JSON
 - `generation.mode=llm` now supports `mock` and `openai_compatible` providers behind the same job API
 - the `openai_compatible` path has been validated against DeepSeek-compatible `/chat/completions` and normalizes loose provider YAML into the canonical project schema
+- malformed `openai_compatible` YAML now gets up to 3 provider attempts before the pipeline falls back to deterministic
+- fallback runs now preserve provider debug artifacts so malformed upstream output can be inspected after the job completes
 - fixture-backed integration tests cover create, status, result, export, invalid input, not-ready, and llm mock behavior
 
 ## Frontend Smoke-Check
@@ -130,18 +132,18 @@ npm run smoke:workspace
 1. Start the backend on `http://127.0.0.1:8080` and the frontend on `http://127.0.0.1:5173`.
 2. Open the workspace; the recommended `职场` sample is loaded only for quick start, but the primary acceptance path is still `切换为空白手工输入` and pasting your own 3 chapters.
 3. Keep `generationMode=llm` as the corrected target default for the main path; if local provider credentials are unavailable, use `deterministic` only as a temporary fallback for smoke/debug instead of treating it as the long-term main strategy.
-4. Watch the center `Job Status` column until polling moves the job from `queued/running` to `succeeded`.
-5. Confirm the right-side result area loads real backend data: YAML text, structured screenplay summary, and export actions.
+4. Watch the progress strip at the top of the result workspace until polling moves the job from `queued/running` to `succeeded`.
+5. Confirm the right-side result area loads real backend data: progress state, YAML text, structured screenplay summary, and export actions.
 6. Use the export actions to verify both `下载生成初稿 YAML` and `导出 YAML` paths.
 7. Optional fallback-path check: switch the form to `generationMode=llm` while the backend runs with `LLM_PROVIDER=disabled`, submit once, confirm the job still succeeds with explicit fallback warnings, then click `重新生成当前内容` to verify the frontend creates a fresh job from the same form state.
-8. Narrow the viewport to a tablet or mobile width and confirm the workspace collapses into a readable `Input -> Status -> Result` vertical flow.
+8. Narrow the viewport to a tablet or mobile width and confirm the workspace collapses into a readable `Input -> Result` vertical flow, with generation progress kept inside the result area.
 9. After a successful result load, modify the YAML once, confirm the toolbar flips from `当前为生成初稿` to `当前为本地编辑稿`, then test `复制当前 YAML` and `恢复生成初稿`.
 10. Run one extra non-preset pass: click `切换为空白手工输入`, enter your own 3 chapters, then repeat `create job -> polling -> YAML/result/export` to confirm the main path does not depend on built-in samples.
 
 ## Scripted Frontend Smoke-Check
 
 - `npm run smoke:workspace` expects the backend on `:8080`, the frontend dev server on `:5173`, and a local Chrome or Edge executable.
-- It verifies two real frontend acceptance paths: a sample preset run and a non-preset manual 3-chapter run, both covering real `POST /api/v1/jobs`, polling, YAML load, structured summary, export, local edit, `复制当前 YAML`, disabled-provider fallback regenerate, `lastJobId` refresh restore, and mobile `Input -> Status -> Result` panel order.
+- It verifies two real frontend acceptance paths: a sample preset run and a non-preset manual 3-chapter run, both covering real `POST /api/v1/jobs`, polling, YAML load, structured summary, export, local edit, `复制当前 YAML`, disabled-provider fallback regenerate, `lastJobId` refresh restore, and mobile `Input -> Result` panel order.
 - Do not treat the sample preset path as the main product proof. Real manual 3-chapter input is the primary acceptance path for this project.
 - The disabled-provider regenerate branch is a hard requirement of this smoke-check and expects the backend to run with `LLM_PROVIDER=disabled`; the current product contract is explicit `llm -> deterministic` fallback with warnings rather than a hard failed job.
 - Optional overrides:

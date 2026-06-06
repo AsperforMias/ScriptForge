@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-更新时间：2026-06-06
+更新时间：2026-06-07
 
 当前分支对齐目标（`docs/mvp-scope-realignment`）：
 - 先修正文档基线，再继续实现
@@ -29,6 +29,8 @@
 - 《雾港回声》真实输入已可回到 canonical parse，不再依赖 deterministic fallback 才能出结果
 - 伪角色、整章 `房间` 级地点误判、scene_001 的 `INT/EXT` 回退等早期硬伤已明显缓解
 - 当前前端实测已确认“切换为空白手工输入 -> 录入《雾港回声》三章 -> 提交生成 -> 自动载入 YAML 初稿”这条主验收路径可以直接跑通
+- provider 返回 malformed YAML 时，主链路现在会先要求 `llm` 基于错误反馈最多重试到第 3 次，再决定是否回退 deterministic
+- fallback 路径现在会保留 provider 原始输出、重试报错与解析失败信息，便于定位“为什么这次不是实际 LLM 成果”
 
 这些结论说明：
 - 主链路与文档方向的纠偏已基本完成
@@ -88,6 +90,8 @@
 - 模板化 objective 清理已补入 `建立悬疑基调` 一类新句式；最新真实回归里，scene_001 的模板 objective 已被诚实清空为空值，而不是带着套话通过 validation
 - 最新真实回归里，scene_001 已能稳定保持 `EXT`，并且不再因为本地 repair 阶段错误回退为 `INT`
 - Chrome 前端实测已确认“切换为空白手工输入 -> 录入《雾港回声》三章 -> 提交生成 -> 页面自动载入 YAML 初稿”这条真实用户路径可以直接跑通
+- `openai_compatible` 已补入 malformed-YAML 三次容错链路：首次输出若无法解析，会把格式错误反馈给 provider 并继续重试，第三次仍失败才回退 deterministic
+- fallback 调试产物现已补齐，便于复盘 provider 原始响应、每次重试失败点与最终回退原因
 
 ## 尚未完成
 
@@ -137,7 +141,7 @@
 
 阶段 4：方向纠偏与可信度收敛
 - 状态：进行中
-- 当前 blocker：真实三章节输入已可稳定跑通 canonical parse，scene_001 模板 objective 与 `INT/EXT` 回退问题已明显缓解；但上游 LLM 耗时仍有波动，且当前任务状态在执行期间要到整条 `runner.Run(...)` 结束后才统一写回，前端/轮询观感仍可能长时间停在 `ingest`；另外 scene 切分数量波动仍未稳定收敛
+- 当前 blocker：真实三章节输入已可稳定跑通 canonical parse，scene_001 模板 objective 与 `INT/EXT` 回退问题已明显缓解；但上游 LLM 耗时仍有波动，当前任务阶段写回粒度仍偏粗，scene 切分数量波动也仍未稳定收敛
 
 ## 协作提醒
 
