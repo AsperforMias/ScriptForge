@@ -15,10 +15,10 @@
 对齐情况：`pass`
 
 证据：
-- [`final-solution.md`](/Users/asperformias/Code/github/ScriptForge/docs/final-solution.md) 将其列为 MVP 必做
-- [`api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md) 要求 `source.chapters.length >= 3`
-- [`backend-pipeline.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-pipeline.md) 在 `ingest` 阶段强制校验
-- [`yaml-schema.md`](/Users/asperformias/Code/github/ScriptForge/docs/yaml-schema.md) 要求 `chapter_count >= 3`
+- [`final-solution.md`](final-solution.md) 将其列为 MVP 必做
+- [`api-contract.md`](api-contract.md) 要求 `source.chapters.length >= 3`
+- [`backend-pipeline.md`](backend-pipeline.md) 在 `ingest` 阶段强制校验
+- [`yaml-schema.md`](yaml-schema.md) 要求 `chapter_count >= 3`
 
 ### 要求 2：自动转换为结构化剧本 YAML
 
@@ -34,7 +34,7 @@
 对齐情况：`pass`
 
 证据：
-- [`frontend.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend.md) 明确要求 YAML 文本编辑与导出
+- [`frontend.md`](frontend.md) 明确要求 YAML 文本编辑与导出
 - Schema 设计强调“程序校验 + 人工编辑”的平衡
 
 ### 要求 4：额外提供 YAML Schema 文档，并说明设计原因
@@ -42,7 +42,7 @@
 对齐情况：`pass`
 
 证据：
-- [`yaml-schema.md`](/Users/asperformias/Code/github/ScriptForge/docs/yaml-schema.md) 已给出字段定义、约束和设计原因
+- [`yaml-schema.md`](yaml-schema.md) 已给出字段定义、约束和设计原因
 
 ## 对评审维度的竞争力核对
 

@@ -4,7 +4,7 @@
 
 前端首版的职责不是做复杂编辑器，而是把“输入小说 -> 触发生成 -> 查看结果 -> 编辑 YAML -> 导出”这条路径打通，并且让评委一眼看懂产品价值。
 
-视觉与版式方向不在本文件重复定义，统一以 [`frontend-visual-direction.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend-visual-direction.md) 为准。
+视觉与版式方向不在本文件重复定义，统一以 [`frontend-visual-direction.md`](frontend-visual-direction.md) 为准。
 
 ## 前端必须覆盖的功能
 
@@ -296,7 +296,7 @@ frontend/
 - `GET /api/v1/jobs/:id/result`
 - `GET /api/v1/jobs/:id/export`
 
-详细字段以 [`api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md) 为准。
+详细字段以 [`api-contract.md`](api-contract.md) 为准。
 
 前端不要再假设同步 `POST /api/v1/generate` 版本为最终形态。
 如需临时同步接口，只能作为后端内部联调辅助，不应覆盖任务化接口方案。

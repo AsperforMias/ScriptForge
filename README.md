@@ -2,23 +2,23 @@
 
 AI-powered Novel-to-Screenplay Workspace.
 
-This repository is being initialized for a 72-hour training-camp project. The implementation baseline is document-first: product scope, architecture decisions, progress tracking, PR rules, and handoff context live under [`docs/`](/Users/asperformias/Code/github/ScriptForge/docs/README.md).
+This repository is being initialized for a 72-hour training-camp project. The implementation baseline is document-first: product scope, architecture decisions, progress tracking, PR rules, and handoff context live under [`docs/`](docs/README.md).
 
 Key links:
 - [YAML Schema and design rationale](docs/yaml-schema.md)
 - [Frontend demo recording guide](docs/demo-recording-guide.md)
 
 Read in this order before making changes:
-1. [`docs/final-solution.md`](/Users/asperformias/Code/github/ScriptForge/docs/final-solution.md)
-2. [`docs/implementation-progress.md`](/Users/asperformias/Code/github/ScriptForge/docs/implementation-progress.md)
-3. [`docs/backend-architecture.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-architecture.md)
-4. [`docs/backend-tech-stack.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-tech-stack.md)
-5. [`docs/api-contract.md`](/Users/asperformias/Code/github/ScriptForge/docs/api-contract.md)
-6. [`docs/backend-pipeline.md`](/Users/asperformias/Code/github/ScriptForge/docs/backend-pipeline.md)
-7. [`docs/frontend.md`](/Users/asperformias/Code/github/ScriptForge/docs/frontend.md)
-8. [`docs/yaml-schema.md`](/Users/asperformias/Code/github/ScriptForge/docs/yaml-schema.md)
-9. [`docs/architecture-self-check.md`](/Users/asperformias/Code/github/ScriptForge/docs/architecture-self-check.md)
-10. [`docs/collaboration-rules.md`](/Users/asperformias/Code/github/ScriptForge/docs/collaboration-rules.md)
+1. [`docs/final-solution.md`](docs/final-solution.md)
+2. [`docs/implementation-progress.md`](docs/implementation-progress.md)
+3. [`docs/backend-architecture.md`](docs/backend-architecture.md)
+4. [`docs/backend-tech-stack.md`](docs/backend-tech-stack.md)
+5. [`docs/api-contract.md`](docs/api-contract.md)
+6. [`docs/backend-pipeline.md`](docs/backend-pipeline.md)
+7. [`docs/frontend.md`](docs/frontend.md)
+8. [`docs/yaml-schema.md`](docs/yaml-schema.md)
+9. [`docs/architecture-self-check.md`](docs/architecture-self-check.md)
+10. [`docs/collaboration-rules.md`](docs/collaboration-rules.md)
 
 Current state:
 - Documentation baseline: ready and executable
@@ -181,18 +181,18 @@ scripts/run_backend_smoke.sh deterministic comedy
 ```
 
 Example fixture inputs:
-- [`testdata/novels/night-rain-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/night-rain-request.json)
-- [`testdata/novels/workplace-crisis-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/workplace-crisis-request.json)
-- [`testdata/novels/campus-relay-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/campus-relay-request.json)
-- [`testdata/novels/family-dinner-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/family-dinner-request.json)
-- [`testdata/novels/comedy-live-mixup-request.json`](/Users/asperformias/Code/github/ScriptForge/testdata/novels/comedy-live-mixup-request.json)
+- [`testdata/novels/night-rain-request.json`](testdata/novels/night-rain-request.json)
+- [`testdata/novels/workplace-crisis-request.json`](testdata/novels/workplace-crisis-request.json)
+- [`testdata/novels/campus-relay-request.json`](testdata/novels/campus-relay-request.json)
+- [`testdata/novels/family-dinner-request.json`](testdata/novels/family-dinner-request.json)
+- [`testdata/novels/comedy-live-mixup-request.json`](testdata/novels/comedy-live-mixup-request.json)
 
 Example expected outputs:
-- [`testdata/expected/night-rain.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/night-rain.screenplay.yaml)
-- [`testdata/expected/workplace-crisis.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/workplace-crisis.screenplay.yaml)
-- [`testdata/expected/campus-relay.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/campus-relay.screenplay.yaml)
-- [`testdata/expected/family-dinner.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/family-dinner.screenplay.yaml)
-- [`testdata/expected/comedy-live-mixup.screenplay.yaml`](/Users/asperformias/Code/github/ScriptForge/testdata/expected/comedy-live-mixup.screenplay.yaml)
+- [`testdata/expected/night-rain.screenplay.yaml`](testdata/expected/night-rain.screenplay.yaml)
+- [`testdata/expected/workplace-crisis.screenplay.yaml`](testdata/expected/workplace-crisis.screenplay.yaml)
+- [`testdata/expected/campus-relay.screenplay.yaml`](testdata/expected/campus-relay.screenplay.yaml)
+- [`testdata/expected/family-dinner.screenplay.yaml`](testdata/expected/family-dinner.screenplay.yaml)
+- [`testdata/expected/comedy-live-mixup.screenplay.yaml`](testdata/expected/comedy-live-mixup.screenplay.yaml)
 
 Initial repository layout:
 ```text
@@ -205,4 +205,4 @@ testdata/
 deploy/
 ```
 
-Use [`docs/README.md`](/Users/asperformias/Code/github/ScriptForge/docs/README.md) as the main handoff and intake index.
+Use [`docs/README.md`](docs/README.md) as the main handoff and intake index.
