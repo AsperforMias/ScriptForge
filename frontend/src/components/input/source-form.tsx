@@ -4,22 +4,25 @@ import { workspaceSamplePresets, type WorkspaceFormValues, type WorkspaceSampleP
 interface SourceFormProps {
   activePresetId: WorkspaceSamplePresetId | null;
   onLoadSample: (presetId: WorkspaceSamplePresetId) => void;
+  onResetToBlank: () => void;
 }
 
-export function SourceForm({ activePresetId, onLoadSample }: SourceFormProps) {
+export function SourceForm({ activePresetId, onLoadSample, onResetToBlank }: SourceFormProps) {
   const {
     register,
     formState: { errors, isSubmitting },
   } = useFormContext<WorkspaceFormValues>();
+  const activePresetLabel =
+    workspaceSamplePresets.find((preset) => preset.id === activePresetId)?.label ?? null;
 
   return (
     <section className="panel-section" aria-labelledby="source-form-heading">
       <div className="section-heading">
         <div>
           <h3 id="source-form-heading">作品与改编设定</h3>
-          <p>填写小说信息、改编方向和创作限制，系统会据此整理出可继续打磨的剧本初稿。</p>
+          <p>默认会载入一组推荐示例帮助你快速起稿，但你可以随时覆盖字段，或切到空白草稿直接录入自己的章节内容。</p>
         </div>
-        <span className="section-tag">题材示例</span>
+        <span className="section-tag">快速起稿</span>
       </div>
 
       <div className="sample-preset-list" aria-label="sample presets">
@@ -40,6 +43,22 @@ export function SourceForm({ activePresetId, onLoadSample }: SourceFormProps) {
         ))}
       </div>
 
+      <div className="action-row">
+        <button
+          className="ghost-button ghost-button--compact"
+          disabled={isSubmitting}
+          onClick={onResetToBlank}
+          type="button"
+        >
+          切换为空白手工输入
+        </button>
+        <p className="inline-note">
+          {activePresetLabel
+            ? `当前已载入「${activePresetLabel}」示例。你可以直接覆盖字段，或先切换为空白手工输入再录入自己的 3 章内容。`
+            : "当前是自定义草稿，可直接粘贴自己的 3 章内容并提交生成。"}
+        </p>
+      </div>
+
       <div className="field-grid">
         <label className="field">
           <span>作品标题</span>
@@ -53,7 +72,7 @@ export function SourceForm({ activePresetId, onLoadSample }: SourceFormProps) {
         </label>
         <label className="field">
           <span>作者或来源备注</span>
-          <input className="text-input" type="text" placeholder="例如：示例作者 / 连载草稿" {...register("author")} />
+          <input className="text-input" type="text" placeholder="例如：你的笔名 / 连载草稿" {...register("author")} />
         </label>
       </div>
 
