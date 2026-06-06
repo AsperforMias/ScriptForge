@@ -8,9 +8,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
+	"slices"
+	"sort"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
+	"github.com/AsperforMias/ScriptForge/backend/internal/job"
 	"github.com/AsperforMias/ScriptForge/backend/internal/screenplay"
 	"gopkg.in/yaml.v3"
 )
@@ -43,6 +49,26 @@ type chatCompletionsResponse struct {
 		Message string `json:"message"`
 	} `json:"error,omitempty"`
 }
+
+type providerChapterContext struct {
+	Index               int      `json:"index"`
+	Title               string   `json:"title"`
+	Content             string   `json:"content"`
+	Summary             string   `json:"summary,omitempty"`
+	EvidenceExcerpt     string   `json:"evidence_excerpt,omitempty"`
+	CharacterCandidates []string `json:"character_candidates,omitempty"`
+	LocationCandidates  []string `json:"location_candidates,omitempty"`
+	KeyLines            []string `json:"key_lines,omitempty"`
+}
+
+var (
+	quotedLinePattern        = regexp.MustCompile(`“([^”]{1,30})”`)
+	boldLinePattern          = regexp.MustCompile(`\*\*([^*]{1,30})\*\*`)
+	explicitLocationPattern  = regexp.MustCompile(`[\p{Han}A-Za-z0-9]{0,12}(?:报刊亭|医院|病房|地下室|老房子|楼道|客厅|楼梯口|走廊|车站|茶馆|操场|教室|会议室|公寓|房间|花坛|藏书馆|议事厅|账房|庄园|公国|码头|仓库|跑道|便利店|十字路口|楼梯口|门口)`)
+	chapterPrefixPattern     = regexp.MustCompile(`^第[一二三四五六七八九十百0-9]+章\s*`)
+	genericLocationNames     = []string{"房间", "地点", "现场", "室内", "室外", "家里", "屋里"}
+	suspiciousCharacterNames = []string{"像是", "没有立刻", "不是", "什么", "这里", "那里"}
+)
 
 func NewOpenAICompatibleGenerator(cfg ProviderConfig) Generator {
 	baseURL := strings.TrimSpace(cfg.BaseURL)
@@ -136,17 +162,7 @@ func (g *OpenAICompatibleGenerator) Generate(ctx context.Context, req GenerateRe
 }
 
 func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, error) {
-	contextPayload := map[string]any{
-		"source":   req.Source,
-		"outline":  req.Outline,
-		"entities": req.Entities,
-		"plan":     req.Plan,
-		"target": map[string]any{
-			"style":    req.Input.Adaptation.Style,
-			"audience": req.Input.Adaptation.Audience,
-			"notes":    req.Input.Adaptation.Notes,
-		},
-	}
+	contextPayload := buildProviderContext(req)
 
 	contextJSON, err := json.MarshalIndent(contextPayload, "", "  ")
 	if err != nil {
@@ -162,6 +178,8 @@ func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, e
 				Content: "You adapt Chinese novels into structured screenplay YAML. " +
 					"Return only valid YAML that matches this exact root schema: version, source, adaptation, characters, locations, scenes, validation. " +
 					"Do not invent alternative top-level keys such as metadata. " +
+					"The provided character_candidates, location_candidates, summaries, and scene hints are only low-trust grounding hints; always prefer the raw chapter text when they conflict. " +
+					"Ignore suspicious candidate names or generic locations if the chapter text does not support them. " +
 					"Every scene must include slugline.interior_exterior, slugline.location_id, slugline.time, summary, beats, evidence, and review. " +
 					"objective and notes.open_questions are optional: leave them empty or omit them when the source evidence is insufficient. " +
 					"All scenes must reference a valid location_id declared in locations. " +
@@ -173,7 +191,7 @@ func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, e
 			},
 			{
 				Role: "user",
-				Content: "Generate a screenplay YAML document from this structured context:\n" +
+				Content: "Generate a screenplay YAML document from this structured context. Use chapter text as the primary source of truth; use candidates and hints only when they are explicitly supported by the chapter text:\n" +
 					string(contextJSON) +
 					"\nFollow this skeleton exactly:\n" +
 					"version: \"1.0\"\n" +
@@ -631,6 +649,7 @@ func lookupPlannedLocation(req GenerateRequest, chapterIndex, fallbackIndex int)
 }
 
 func enrichGeneratedDocument(doc screenplay.Document, req GenerateRequest) screenplay.Document {
+	doc = repairGeneratedDocument(doc, req)
 	for idx := range doc.Scenes {
 		scene := &doc.Scenes[idx]
 		chapterIndex := firstSceneChapter(scene.SourceChapters, idx, req)
@@ -650,29 +669,67 @@ func enrichGeneratedDocument(doc screenplay.Document, req GenerateRequest) scree
 }
 
 func buildProviderSceneEvidence(req GenerateRequest, chapterIndex, fallbackIndex int) *screenplay.Evidence {
-	excerpt := lookupChapterSummary(req, chapterIndex, "")
-	if excerpt == "" && fallbackIndex < len(req.Input.Source.Chapters) {
-		excerpt = req.Input.Source.Chapters[fallbackIndex].Title
+	chapter := lookupInputChapter(req, chapterIndex, fallbackIndex)
+	excerpt := truncateRunes(normalizeWhitespace(chapter.Content), 220)
+	if excerpt == "" {
+		excerpt = lookupChapterSummary(req, chapterIndex, "")
+	}
+	if excerpt == "" {
+		excerpt = chapter.Title
 	}
 
-	cues := []string{}
-	if fallbackIndex < len(req.Plan.Scenes) {
-		plannedScene := req.Plan.Scenes[fallbackIndex]
-		if strings.TrimSpace(plannedScene.Title) != "" {
-			cues = append(cues, plannedScene.Title)
-		}
-		if strings.TrimSpace(plannedScene.Summary) != "" {
-			cues = append(cues, plannedScene.Summary)
-		}
-	}
-	if cue := lookupChapterTitle(req, chapterIndex, fallbackIndex); strings.TrimSpace(cue) != "" {
-		cues = append(cues, cue)
-	}
+	cues := []string{sanitizeChapterTitle(chapter.Title)}
+	cues = append(cues, extractKeyLines(chapter.Content)...)
+	cues = append(cues, extractExplicitLocationCandidates(chapter.Content)...)
+	cues = append(cues, extractSupportedCharacterNames(req, chapter.Content)...)
 
 	return &screenplay.Evidence{
 		ChapterIndexes: []int{chapterIndex},
 		Excerpt:        excerpt,
 		Cues:           uniqueNonEmptyStrings(cues),
+	}
+}
+
+func buildProviderContext(req GenerateRequest) map[string]any {
+	sourceText := normalizeWhitespace(joinChapterContents(req.Input.Source.Chapters))
+	globalCharacters := buildProviderCharacterCandidates(req, sourceText)
+	globalLocations := buildProviderLocationCandidates(req)
+	chapters := make([]providerChapterContext, 0, len(req.Input.Source.Chapters))
+
+	for idx, chapter := range req.Input.Source.Chapters {
+		chapterContent := normalizeWhitespace(chapter.Content)
+		summary := ""
+		if idx < len(req.Outline.Chapters) {
+			summary = req.Outline.Chapters[idx].Summary
+		}
+
+		chapters = append(chapters, providerChapterContext{
+			Index:               chapter.Index,
+			Title:               chapter.Title,
+			Content:             chapterContent,
+			Summary:             summary,
+			EvidenceExcerpt:     truncateRunes(chapterContent, 220),
+			CharacterCandidates: extractSupportedCharacterNames(req, chapter.Content),
+			LocationCandidates:  extractExplicitLocationCandidates(chapter.Content),
+			KeyLines:            extractKeyLines(chapter.Content),
+		})
+	}
+
+	return map[string]any{
+		"source": map[string]any{
+			"title":         req.Input.Source.Title,
+			"author":        req.Input.Source.Author,
+			"language":      req.Source.Language,
+			"chapter_count": len(req.Input.Source.Chapters),
+		},
+		"adaptation": map[string]any{
+			"style":    req.Input.Adaptation.Style,
+			"audience": req.Input.Adaptation.Audience,
+			"notes":    req.Input.Adaptation.Notes,
+		},
+		"character_candidates": globalCharacters,
+		"location_candidates":  globalLocations,
+		"chapters":             chapters,
 	}
 }
 
@@ -798,4 +855,435 @@ func uniqueNonEmptyStrings(values []string) []string {
 		result = append(result, trimmed)
 	}
 	return result
+}
+
+func repairGeneratedDocument(doc screenplay.Document, req GenerateRequest) screenplay.Document {
+	preferredCharacters := buildPreferredCharacters(req)
+	doc.Characters = sanitizeGeneratedCharacters(doc.Characters, preferredCharacters, req)
+	validCharacterIDs := make(map[string]struct{}, len(doc.Characters))
+	for _, character := range doc.Characters {
+		validCharacterIDs[character.ID] = struct{}{}
+	}
+
+	locationByID := make(map[string]screenplay.Location, len(doc.Locations))
+	for _, location := range doc.Locations {
+		locationByID[location.ID] = location
+	}
+	usedLocations := map[string]screenplay.Location{}
+	fallbackCharacterID := ""
+	if len(doc.Characters) > 0 {
+		fallbackCharacterID = doc.Characters[0].ID
+	}
+
+	for idx := range doc.Scenes {
+		scene := &doc.Scenes[idx]
+		chapterIndex := firstSceneChapter(scene.SourceChapters, idx, req)
+		chapter := lookupInputChapter(req, chapterIndex, idx)
+		chapterText := sanitizeChapterTitle(chapter.Title) + " " + normalizeWhitespace(chapter.Content)
+		scene.Objective = sanitizeSceneObjective(scene.Objective, chapterText, scene.Review)
+		scene.Notes.OpenQuestions = sanitizeOpenQuestions(scene.Notes.OpenQuestions, chapterText, scene.Review)
+
+		for beatIdx := range scene.Beats {
+			beat := &scene.Beats[beatIdx]
+			if beat.Type == "dialogue" {
+				if _, ok := validCharacterIDs[beat.CharacterID]; !ok {
+					beat.CharacterID = fallbackCharacterID
+				}
+			}
+		}
+
+		repairedLocation := chooseSceneLocation(scene, chapter, locationByID[scene.Slugline.LocationID], idx)
+		scene.Slugline.LocationID = repairedLocation.ID
+		scene.Slugline.InteriorExterior = inferLooseInteriorExterior(repairedLocation.Name)
+		if strings.TrimSpace(scene.Slugline.Time) == "" {
+			scene.Slugline.Time = normalizeLooseTime(chapter.Content)
+		}
+		usedLocations[repairedLocation.ID] = repairedLocation
+	}
+
+	doc.Locations = orderedUsedLocations(doc.Scenes, usedLocations)
+	return doc
+}
+
+func buildPreferredCharacters(req GenerateRequest) []screenplay.Character {
+	sourceText := normalizeWhitespace(joinChapterContents(req.Input.Source.Chapters))
+	characters := make([]screenplay.Character, 0, len(req.Entities.Characters))
+	for _, character := range req.Entities.Characters {
+		if !isSupportedCharacterName(character.Name, sourceText) {
+			continue
+		}
+		characters = append(characters, character)
+	}
+	if len(characters) == 0 {
+		for idx, name := range extractSupportedCharacterNames(req, sourceText) {
+			role := "supporting"
+			if idx == 0 {
+				role = "protagonist"
+			}
+			characters = append(characters, screenplay.Character{
+				ID:          "char_" + looseSlug(name),
+				Name:        name,
+				Role:        role,
+				Description: "Character grounded directly from the source chapters.",
+			})
+		}
+	}
+	return characters
+}
+
+func sanitizeGeneratedCharacters(generated, preferred []screenplay.Character, req GenerateRequest) []screenplay.Character {
+	sourceText := normalizeWhitespace(joinChapterContents(req.Input.Source.Chapters))
+	result := make([]screenplay.Character, 0, len(generated)+len(preferred))
+	seenNames := map[string]struct{}{}
+
+	appendIfSupported := func(character screenplay.Character) {
+		name := strings.TrimSpace(character.Name)
+		if !isSupportedCharacterName(name, sourceText) {
+			return
+		}
+		if _, ok := seenNames[name]; ok {
+			return
+		}
+		if strings.TrimSpace(character.ID) == "" {
+			character.ID = "char_" + looseSlug(name)
+		}
+		if strings.TrimSpace(character.Role) == "" {
+			character.Role = "supporting"
+		}
+		seenNames[name] = struct{}{}
+		result = append(result, character)
+	}
+
+	for _, character := range generated {
+		appendIfSupported(character)
+	}
+	for _, character := range preferred {
+		appendIfSupported(character)
+	}
+	if len(result) == 0 {
+		for _, fallback := range append(append([]screenplay.Character{}, preferred...), generated...) {
+			if strings.TrimSpace(fallback.Name) == "" {
+				continue
+			}
+			if strings.TrimSpace(fallback.ID) == "" {
+				fallback.ID = "char_" + looseSlug(fallback.Name)
+			}
+			if strings.TrimSpace(fallback.Role) == "" {
+				fallback.Role = "supporting"
+			}
+			if len(result) == 0 {
+				fallback.Role = "protagonist"
+			}
+			result = append(result, fallback)
+			if len(result) >= 2 {
+				break
+			}
+		}
+	}
+	return result
+}
+
+func chooseSceneLocation(scene *screenplay.Scene, chapter job.ChapterBody, current screenplay.Location, sceneIndex int) screenplay.Location {
+	candidates := extractExplicitLocationCandidates(chapter.Content)
+	if current.ID != "" && isSupportedLocationName(current.Name) && strings.Contains(normalizeWhitespace(chapter.Content), strings.TrimSpace(current.Name)) {
+		return current
+	}
+
+	bestCandidate := ""
+	bestScore := -1
+	sceneText := normalizeWhitespace(scene.Summary)
+	if scene.Evidence != nil {
+		sceneText = strings.TrimSpace(sceneText + " " + scene.Evidence.Excerpt + " " + strings.Join(scene.Evidence.Cues, " "))
+	}
+	for _, candidate := range candidates {
+		if isGenericLocationName(candidate) {
+			continue
+		}
+		score := locationCandidateScore(candidate)
+		if strings.Contains(sceneText, candidate) || hasMeaningfulSourceOverlap(candidate, sceneText) {
+			score += 25
+		}
+		if score > bestScore {
+			bestScore = score
+			bestCandidate = candidate
+		}
+	}
+	if bestCandidate != "" {
+		return screenplay.Location{
+			ID:          "loc_" + looseSlug(bestCandidate),
+			Name:        bestCandidate,
+			Description: "Location grounded directly from the source chapter.",
+		}
+	}
+
+	if current.ID != "" && strings.TrimSpace(current.Name) != "" {
+		return current
+	}
+
+	fallbackName := fmt.Sprintf("chapter_%02d_location", sceneIndex+1)
+	if len(candidates) > 0 {
+		fallbackName = candidates[0]
+	}
+	return screenplay.Location{
+		ID:          "loc_" + looseSlug(fallbackName),
+		Name:        fallbackName,
+		Description: "Location fallback derived from the source chapter.",
+	}
+}
+
+func sanitizeSceneObjective(objective, chapterText string, review *screenplay.Review) string {
+	objective = strings.TrimSpace(objective)
+	if objective == "" {
+		return ""
+	}
+	if looksLikeLLMTemplateText(objective) {
+		return ""
+	}
+	if isLowConfidenceReview(review) && !hasMeaningfulSourceOverlap(objective, chapterText) {
+		return ""
+	}
+	return objective
+}
+
+func sanitizeOpenQuestions(questions []string, chapterText string, review *screenplay.Review) []string {
+	result := make([]string, 0, len(questions))
+	for _, question := range questions {
+		trimmed := strings.TrimSpace(question)
+		if trimmed == "" {
+			continue
+		}
+		if looksLikeLLMTemplateText(trimmed) {
+			continue
+		}
+		if isLowConfidenceReview(review) && !hasMeaningfulSourceOverlap(trimmed, chapterText) {
+			continue
+		}
+		result = append(result, trimmed)
+	}
+	return uniqueNonEmptyStrings(result)
+}
+
+func buildProviderCharacterCandidates(req GenerateRequest, sourceText string) []string {
+	names := extractSupportedCharacterNames(req, sourceText)
+	return uniqueNonEmptyStrings(names)
+}
+
+func buildProviderLocationCandidates(req GenerateRequest) []string {
+	locations := []string{}
+	for _, chapter := range req.Input.Source.Chapters {
+		locations = append(locations, extractExplicitLocationCandidates(chapter.Content)...)
+	}
+	return uniqueNonEmptyStrings(locations)
+}
+
+func extractSupportedCharacterNames(req GenerateRequest, sourceText string) []string {
+	names := []string{}
+	for _, character := range req.Entities.Characters {
+		if isSupportedCharacterName(character.Name, sourceText) {
+			names = append(names, character.Name)
+		}
+	}
+	return uniqueNonEmptyStrings(names)
+}
+
+func extractExplicitLocationCandidates(content string) []string {
+	matches := explicitLocationPattern.FindAllString(normalizeWhitespace(content), -1)
+	filtered := make([]string, 0, len(matches))
+	for _, match := range matches {
+		location := normalizeLocationCandidate(match)
+		if !isSupportedLocationName(location) {
+			continue
+		}
+		filtered = append(filtered, location)
+	}
+	filtered = uniqueNonEmptyStrings(filtered)
+	sort.SliceStable(filtered, func(i, j int) bool {
+		return locationCandidateScore(filtered[i]) > locationCandidateScore(filtered[j])
+	})
+	return filtered
+}
+
+func extractKeyLines(content string) []string {
+	lines := []string{}
+	for _, match := range quotedLinePattern.FindAllStringSubmatch(content, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		lines = append(lines, truncateRunes(strings.TrimSpace(match[1]), 40))
+	}
+	for _, match := range boldLinePattern.FindAllStringSubmatch(content, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		lines = append(lines, strings.TrimSpace(match[1]))
+	}
+	return uniqueNonEmptyStrings(lines)
+}
+
+func hasMeaningfulSourceOverlap(text, sourceText string) bool {
+	textRunes := []rune(normalizeWhitespace(text))
+	sourceText = normalizeWhitespace(sourceText)
+	for n := 4; n >= 2; n-- {
+		for idx := 0; idx+n <= len(textRunes); idx++ {
+			fragment := strings.TrimSpace(string(textRunes[idx : idx+n]))
+			if utf8.RuneCountInString(fragment) < 2 || isCommonChineseFragment(fragment) {
+				continue
+			}
+			if strings.Contains(sourceText, fragment) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isCommonChineseFragment(fragment string) bool {
+	common := []string{"先弄", "弄清", "再决定", "决定", "下一步", "接下来", "问题", "主角", "到底", "哪里", "什么", "是否", "能否", "继续", "追查", "真实", "意图"}
+	return slices.Contains(common, fragment)
+}
+
+func looksLikeLLMTemplateText(text string) bool {
+	normalized := normalizeWhitespace(text)
+	return containsAny(normalized, "先弄清", "再决定", "下一步", "继续追查下去", "真实意图", "匿名留言", "接下来会发生什么")
+}
+
+func isLowConfidenceReview(review *screenplay.Review) bool {
+	return review != nil && strings.TrimSpace(strings.ToLower(review.Confidence)) == "low"
+}
+
+func isSupportedCharacterName(name, sourceText string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" || !strings.Contains(sourceText, name) {
+		return false
+	}
+	if slices.Contains(suspiciousCharacterNames, name) {
+		return false
+	}
+	runes := []rune(name)
+	if len(runes) < 2 || len(runes) > 6 {
+		return false
+	}
+	for _, r := range runes {
+		if !unicode.Is(unicode.Han, r) {
+			return false
+		}
+	}
+	return true
+}
+
+func isSupportedLocationName(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return false
+	}
+	if len([]rune(name)) < 2 {
+		return false
+	}
+	return true
+}
+
+func isGenericLocationName(name string) bool {
+	return slices.Contains(genericLocationNames, strings.TrimSpace(name))
+}
+
+func normalizeLocationCandidate(input string) string {
+	input = strings.TrimSpace(input)
+	suffixes := []string{"报刊亭", "报亭", "医院", "病房", "地下室", "老房子", "楼道", "客厅", "楼梯口", "走廊", "车站", "茶馆", "操场", "教室", "会议室", "公寓", "花坛", "藏书馆", "议事厅", "账房", "庄园", "公国", "码头", "仓库", "跑道", "便利店", "十字路口", "门口"}
+	for _, suffix := range suffixes {
+		if idx := strings.Index(input, suffix); idx >= 0 {
+			start := idx
+			for start > 0 {
+				r, size := utf8.DecodeLastRuneInString(input[:start])
+				if r == utf8.RuneError || unicode.IsSpace(r) || strings.ContainsRune("，。！？、“”‘’（）()：:；;,.!?*", r) {
+					break
+				}
+				if idx-start >= 12 {
+					break
+				}
+				start -= size
+			}
+			input = strings.TrimSpace(input[start : idx+len(suffix)])
+			break
+		}
+	}
+	trimPrefixes := []string{"站在", "走到", "回到", "来到", "先去", "别信", "刚走到", "看到", "看见", "回头看", "在", "到"}
+	for _, prefix := range trimPrefixes {
+		input = strings.TrimPrefix(input, prefix)
+	}
+	if idx := strings.LastIndex(input, "的"); idx >= 0 && idx < len(input)-len("的") {
+		input = input[idx+len("的"):]
+	}
+	return strings.TrimSpace(input)
+}
+
+func locationCandidateScore(name string) int {
+	score := utf8.RuneCountInString(name)
+	if isGenericLocationName(name) {
+		score -= 10
+	}
+	switch {
+	case containsAny(name, "报刊亭", "报亭", "医院", "老房子", "地下室", "病房", "客厅", "楼道"):
+		score += 20
+	case containsAny(name, "十字路口", "便利店", "楼梯口", "走廊"):
+		score += 10
+	}
+	return score
+}
+
+func orderedUsedLocations(scenes []screenplay.Scene, locations map[string]screenplay.Location) []screenplay.Location {
+	result := make([]screenplay.Location, 0, len(locations))
+	seen := map[string]struct{}{}
+	for _, scene := range scenes {
+		location, ok := locations[scene.Slugline.LocationID]
+		if !ok {
+			continue
+		}
+		if _, exists := seen[location.ID]; exists {
+			continue
+		}
+		seen[location.ID] = struct{}{}
+		result = append(result, location)
+	}
+	return result
+}
+
+func lookupInputChapter(req GenerateRequest, chapterIndex, fallbackIndex int) job.ChapterBody {
+	for _, chapter := range req.Input.Source.Chapters {
+		if chapter.Index == chapterIndex {
+			return chapter
+		}
+	}
+	if fallbackIndex >= 0 && fallbackIndex < len(req.Input.Source.Chapters) {
+		return req.Input.Source.Chapters[fallbackIndex]
+	}
+	return job.ChapterBody{Index: chapterIndex}
+}
+
+func joinChapterContents(chapters []job.ChapterBody) string {
+	parts := make([]string, 0, len(chapters))
+	for _, chapter := range chapters {
+		parts = append(parts, chapter.Title)
+		parts = append(parts, chapter.Content)
+	}
+	return strings.Join(parts, "\n")
+}
+
+func sanitizeChapterTitle(title string) string {
+	title = strings.TrimSpace(title)
+	return chapterPrefixPattern.ReplaceAllString(title, "")
+}
+
+func normalizeWhitespace(input string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(input)), " ")
+}
+
+func truncateRunes(input string, limit int) string {
+	if limit <= 0 {
+		return ""
+	}
+	runes := []rune(strings.TrimSpace(input))
+	if len(runes) <= limit {
+		return string(runes)
+	}
+	return strings.TrimSpace(string(runes[:limit])) + "..."
 }

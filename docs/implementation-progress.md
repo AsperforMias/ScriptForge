@@ -18,12 +18,14 @@
 
 通过真实自定义输入（例如《雾港回声》这类三章节悬疑文本）已经确认：
 - 自定义输入链路本身是通的，前后端并未把用户锁死在 sample preset 或 fixture 上
-- 但默认 `generation.mode=deterministic` 产物仍存在明显错误：
+- 真实 `llm` 主链路已经可运行，但在当前 Prompt / Pipeline 设计下，输出质量仍会继承上游 grounding 的错误先验
+- 当 provider 不可用时，`generation.mode=llm` 已会显式回退到 deterministic，并通过 warning 暴露这次不是实际 LLM 结果
+- 当前最严重的真实质量问题仍是：
   - 人物抽取会把叙述碎片误当角色名
   - 地点抽取会被局部词触发，出现整章地点误判
   - scene objective / dialogue / open_questions 仍有强模板痕迹
   - action beat 更像“截断摘要”而不是可拍场景片段
-  - validation 仍可能在明显语义不足时返回 `passed`
+  - 虽然 validation 已更诚实，但生成主链路仍未稳定达到“可信的初步可编辑 YAML 初稿”门槛
 
 这些问题说明：
 - 当前最需要纠正的是产品主链路与文档方向
@@ -53,14 +55,17 @@
 - `openai_compatible` loose YAML 归一化
 - scene-level `evidence` / `review` schema hardening
 - validation 最小内容审计补入，减少“结构通过掩盖明显模板化结果”
+- `generation.mode` 默认值已切到 `llm`
+- backend 现已自动读取 repo-root `.env.local`，`cd backend && go run ./cmd/api` 可直接启用本地 LLM 配置
+- 前端现已恢复 `lastJobId` 与 workspace draft，刷新后左侧输入与右侧结果保持一致
 
 ## 尚未完成
 
-### P0：主链路纠偏
+### P0：主链路质量纠偏
 
-- 把默认生成模式从 `deterministic` 切到 `llm`
-- 把 README、demo、自检、smoke 的主叙事改成 `llm-first`
-- 保留 deterministic，但降级为 fallback / smoke baseline
+- 收紧 `openai_compatible` 输入上下文，避免把 deterministic 伪角色、错地点、模板 objective 继续灌给 LLM
+- 把真实中文三章节样本纳入主回归集，而不是只在 fixture 上看起来稳定
+- 保留 deterministic，但仅作为 fallback / smoke baseline
 
 ### P1：真实输入可信度
 
@@ -74,24 +79,16 @@
 - 继续提高 validation 对人物碎片、地点误判、模板化 scene 文案的拦截能力
 - 在明显语义质量不足时，不再返回 `passed`
 
-### P1：前端真实输入连续性
-
-- 当前页面会恢复 `lastJobId`，但输入表单仍可能回落到默认 sample preset
-- 这会干扰调试、复盘和演示，必须补全“结果恢复时同步恢复输入草稿”的文档与实现约束
-
 ## 下一步优先级
 
 优先级 1：
-- 完成文档纠偏，统一所有核心文档对主链路的定义
-- 把 `GENERATION_MODE_DEFAULT`、README 自检步骤、demo 叙事改到 `llm-first`
+- 完成 `openai_compatible` Prompt / context 去污染，减少 LLM 继承 deterministic 错误先验
 
 优先级 2：
-- 调整实现，使 `llm` 成为默认主链路
-- deterministic 只保留最小合法结构与 fallback 责任
+- 把真实《雾港回声》样本接成主回归集，围绕角色 / 地点 / objective / open_questions 质量收敛
 
 优先级 3：
-- 用真实中文三章节输入建立新的主验收集
-- fixture 继续保留，但不再作为“主成功证据”
+- 继续提高 validation 对伪角色、地点误判、模板化 scene 文案的拦截能力
 
 ## 里程碑状态
 
@@ -109,7 +106,7 @@
 
 阶段 4：方向纠偏与可信度收敛
 - 状态：进行中
-- 当前 blocker：主生成路线与文档叙事不一致
+- 当前 blocker：真实三章节输入下，LLM 主链路仍被错误 grounding 先验污染
 
 ## 协作提醒
 

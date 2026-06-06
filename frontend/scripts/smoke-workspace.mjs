@@ -334,25 +334,19 @@ async function runManualInputPath(page) {
 }
 
 async function runFailedRegeneratePath(page) {
-  logStep("triggering an llm failed-job path and verifying regenerate from the current form state");
+  logStep("triggering a disabled-provider fallback path and verifying regenerate from the current form state");
   const previousSucceededJobId = await getRememberedJobId(page);
   const expectedSuccessMarker = `title: ${manualDraft.title}`;
 
   await page.getByLabel("生成方式").selectOption("llm");
   await page.getByRole("button", { name: generateButtonLabel }).click();
   await waitForFreshRun(page);
-  await waitForJobStatus(page, ["处理中", "失败", "已完成"]);
-  const llmOutcome = await waitForFailedJobOrUnexpectedSuccess(page, expectedSuccessMarker);
+  await waitForJobStatus(page, ["处理中", "已完成"]);
+  await waitForResultWorkspace(page, expectedSuccessMarker);
 
-  if (llmOutcome !== "failed") {
-    throw new Error(
-      "failed-job regenerate smoke requires backend LLM_PROVIDER=disabled; current generationMode=llm submission succeeded instead of failing",
-    );
-  }
-
-  const failedJobId = await getRememberedJobId(page);
-  if (!failedJobId || failedJobId === previousSucceededJobId) {
-    throw new Error("failed llm path did not create a fresh failed job id");
+  const fallbackJobId = await getRememberedJobId(page);
+  if (!fallbackJobId || fallbackJobId === previousSucceededJobId) {
+    throw new Error("disabled-provider llm path did not create a fresh fallback job id");
   }
 
   await page.getByLabel("生成方式").selectOption("deterministic");
@@ -362,12 +356,12 @@ async function runFailedRegeneratePath(page) {
   await waitForResultWorkspace(page, expectedSuccessMarker);
 
   const regeneratedJobId = await getRememberedJobId(page);
-  if (!regeneratedJobId || regeneratedJobId === failedJobId) {
-    throw new Error("regenerate did not replace the failed job with a new deterministic success job");
+  if (!regeneratedJobId || regeneratedJobId === fallbackJobId) {
+    throw new Error("regenerate did not replace the fallback job with a new deterministic success job");
   }
 
   return {
-    failedJobId,
+    failedJobId: fallbackJobId,
     regeneratedJobId,
   };
 }

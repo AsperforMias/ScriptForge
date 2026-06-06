@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/ingest"
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
+	"github.com/AsperforMias/ScriptForge/backend/internal/testutil"
 	"github.com/AsperforMias/ScriptForge/backend/internal/workflow"
 )
 
@@ -108,6 +110,93 @@ func TestOpenAICompatibleBuildRequestIncludesEvidenceAndReviewGuidance(t *testin
 	}
 	if !strings.Contains(payload, "Prefer omission over fabrication") {
 		t.Fatalf("expected anti-fabrication guidance in request payload, got %s", payload)
+	}
+}
+
+func TestOpenAICompatibleBuildRequestSanitizesFogHarborEchoContext(t *testing.T) {
+	input := testutil.FogHarborEchoRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+
+	body, err := generator.buildRequest(GenerateRequest{
+		JobID:    "job_openai_fog_harbor_context",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		t.Fatalf("unexpected build request error: %v", err)
+	}
+
+	var requestPayload struct {
+		Messages []struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(body, &requestPayload); err != nil {
+		t.Fatalf("unmarshal request payload: %v", err)
+	}
+	if len(requestPayload.Messages) < 2 {
+		t.Fatalf("expected user message in request payload, got %#v", requestPayload.Messages)
+	}
+	userContent := requestPayload.Messages[1].Content
+	contextStart := strings.Index(userContent, "{")
+	contextEnd := strings.LastIndex(userContent, "}\nFollow this skeleton exactly:")
+	if contextStart < 0 || contextEnd < 0 {
+		t.Fatalf("expected embedded context json in request payload, got %s", userContent)
+	}
+	contextJSON := userContent[contextStart:contextEnd+1]
+	var contextPayload map[string]any
+	if err := json.Unmarshal([]byte(contextJSON), &contextPayload); err != nil {
+		t.Fatalf("unmarshal embedded context json: %v", err)
+	}
+
+	charactersAny, ok := contextPayload["character_candidates"].([]any)
+	if !ok {
+		t.Fatalf("expected character_candidates array, got %#v", contextPayload["character_candidates"])
+	}
+	for _, forbidden := range testutil.FogHarborEchoForbiddenCharacterNames() {
+		for _, value := range charactersAny {
+			if value == forbidden {
+				t.Fatalf("expected sanitized character candidates to exclude %s, got %#v", forbidden, charactersAny)
+			}
+		}
+	}
+
+	locationsAny, ok := contextPayload["location_candidates"].([]any)
+	if !ok {
+		t.Fatalf("expected location_candidates array, got %#v", contextPayload["location_candidates"])
+	}
+	for _, value := range locationsAny {
+		if value == "房间" {
+			t.Fatalf("expected sanitized location candidates to exclude generic room fallback, got %#v", locationsAny)
+		}
+	}
+
+	for _, expected := range testutil.FogHarborEchoExpectedLocationFragments() {
+		found := false
+		for _, value := range locationsAny {
+			if text, ok := value.(string); ok && strings.Contains(text, expected) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected request payload to keep source-grounded location fragment %s, got %#v", expected, locationsAny)
+		}
 	}
 }
 
@@ -422,6 +511,80 @@ func TestOpenAICompatibleGeneratorFallsBackToPlannedCharactersAndMetadata(t *tes
 	}
 }
 
+func TestOpenAICompatibleGeneratorRepairsFogHarborEchoCanonicalOutput(t *testing.T) {
+	input := testutil.FogHarborEchoRequest()
+	source := ingest.Normalize(input)
+	outline := workflow.BuildOutline(source)
+	entities := workflow.ExtractEntities(source)
+	plan := workflow.BuildScenePlan(source, outline, entities)
+
+	generator := NewOpenAICompatibleGenerator(ProviderConfig{
+		Provider:       "openai_compatible",
+		BaseURL:        "https://example.com/v1",
+		Model:          "demo-model",
+		APIKey:         "demo-key",
+		RequestTimeout: "5s",
+	}).(*OpenAICompatibleGenerator)
+	generator.httpClient = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return fixtureResponse(t, "canonical_fog_harbor_bad.yaml"), nil
+		}),
+	}
+
+	result, err := generator.Generate(context.Background(), GenerateRequest{
+		JobID:    "job_openai_fog_harbor_repair",
+		Input:    input,
+		Source:   source,
+		Outline:  outline,
+		Entities: entities,
+		Plan:     plan,
+	})
+	if err != nil {
+		t.Fatalf("unexpected generator error: %v", err)
+	}
+
+	for _, forbidden := range testutil.FogHarborEchoForbiddenCharacterNames() {
+		for _, character := range result.Document.Characters {
+			if character.Name == forbidden {
+				t.Fatalf("expected repaired characters to exclude %s, got %#v", forbidden, result.Document.Characters)
+			}
+		}
+	}
+	for _, forbiddenFragment := range testutil.FogHarborEchoForbiddenObjectiveFragments() {
+		for _, scene := range result.Document.Scenes {
+			if strings.Contains(scene.Objective, forbiddenFragment) {
+				t.Fatalf("expected repaired objectives to exclude %s, got %#v", forbiddenFragment, result.Document.Scenes)
+			}
+			for _, question := range scene.Notes.OpenQuestions {
+				if strings.Contains(question, forbiddenFragment) {
+					t.Fatalf("expected repaired open questions to exclude %s, got %#v", forbiddenFragment, result.Document.Scenes)
+				}
+			}
+		}
+	}
+	locationNames := []string{}
+	for _, location := range result.Document.Locations {
+		locationNames = append(locationNames, location.Name)
+	}
+	if len(locationNames) == 0 {
+		t.Fatal("expected repaired locations")
+	}
+	for _, expected := range testutil.FogHarborEchoExpectedLocationFragments() {
+		if !containsFragment(locationNames, expected) {
+			t.Fatalf("expected repaired locations to include fragment %s, got %#v", expected, locationNames)
+		}
+	}
+	lowConfidenceScenes := 0
+	for _, scene := range result.Document.Scenes {
+		if scene.Review != nil && scene.Review.Confidence == "low" {
+			lowConfidenceScenes++
+		}
+	}
+	if lowConfidenceScenes < 2 {
+		t.Fatalf("expected repaired fog harbor output to keep low-confidence review markers, got %#v", result.Document.Scenes)
+	}
+}
+
 func TestOpenAICompatibleGeneratorRejectsLooseSchemaWithoutScenes(t *testing.T) {
 	input := validOpenAICompatibleCreateJobRequest()
 	source := ingest.Normalize(input)
@@ -599,6 +762,15 @@ func providerFixture(t *testing.T, name string) string {
 		t.Fatalf("read provider fixture %s: %v", name, err)
 	}
 	return string(data)
+}
+
+func containsFragment(values []string, fragment string) bool {
+	for _, value := range values {
+		if strings.Contains(value, fragment) {
+			return true
+		}
+	}
+	return false
 }
 
 func validOpenAICompatibleCreateJobRequest() job.CreateJobRequest {
