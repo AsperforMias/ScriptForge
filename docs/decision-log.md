@@ -53,11 +53,12 @@
 ### D-007 首版生成策略
 
 - 状态：`locked`
-- 决策：先实现 deterministic/rule-based 生成链路，再接真实 LLM
+- 决策：首版主生成链路必须是 `llm-first`，deterministic 仅保留为 fallback / mock / smoke baseline
 - 原因：
-- 避免模型供应商未定导致主链路阻塞
-- 先保证“合法 YAML 输出”可演示
-- 为回归测试保留稳定基线
+- 赛题要的是“小说 -> 可编辑 YAML 初稿”，不是“跨题材规则改编引擎”
+- 继续把 deterministic 扩成主生成器，会在 72h 范围内快速演化成高成本、低泛化的模板系统
+- LLM 更适合承担长文本抽取与结构化改写；规则层应聚焦 grounding、normalize、validate 和 fallback
+- deterministic 仍保留有价值：可做离线 smoke、失败演示和最小结构回退，但不应主导产品叙事
 
 ### D-008 Go HTTP 路由与中间件
 
@@ -129,6 +130,15 @@
 - 赛题要求是“输入不少于 3 个章节的小说文本”，而不是“只能运行仓库自带样例”
 - 若只对 fixture / preset 友好，会削弱作品在真实输入下的可信度，也不利于评委快速判断系统是否真的可用
 - 后续 smoke-check、README 自检步骤与前后端文案都必须围绕这一验收路径保持一致
+
+### D-017 文档优先纠偏
+
+- 状态：`locked`
+- 决策：当实现已经明显偏向“规则引擎化”而偏离赛题目标时，必须先修正文档基线，再继续写代码
+- 原因：
+- 本仓以 `docs/` 为最高优先级项目上下文
+- 若不先修正文档，后续 human/agent session 会继续沿错误方向补 deterministic 规则、fixture 和 demo 文案
+- 这类偏题会直接消耗比赛时长，却不提升“小说 -> 可编辑 YAML 初稿”的核心完成度
 
 ### D-014 公网部署
 

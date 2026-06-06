@@ -22,12 +22,13 @@ Read in this order before making changes:
 
 Current state:
 - Documentation baseline: ready and executable
-- Backend implementation: deterministic pipeline and `llm` provider path are both runnable
+- Backend implementation: job API, YAML export path, and `llm` provider path are runnable
 - Goal: keep future human/agent sessions aligned to the same scope and judging constraints
+- Important correction: the intended product direction is now `llm-first`; `deterministic` remains available only as fallback / smoke baseline and should not keep expanding as the main generation strategy
 
 Current runnable ability:
 - `backend/` exposes `POST /api/v1/jobs`
-- background deterministic pipeline persists job status and YAML artifacts
+- background job pipeline persists job status and YAML artifacts
 - `GET /api/v1/jobs/:id`, `GET /api/v1/jobs/:id/result`, and `GET /api/v1/jobs/:id/export` are available
 - `frontend/` now runs a Vite + React + TypeScript editorial workspace with real manual multi-chapter input, job polling, YAML result loading, structured summary, and export actions
 - failed jobs can be regenerated from the current frontend form without adding a separate retry API
@@ -73,8 +74,8 @@ Demo walkthrough note:
 
 Frontend real-chain self-check:
 1. Start the backend on `http://127.0.0.1:8080` and the frontend on `http://127.0.0.1:5173`.
-2. Open the workspace; the recommended `职场` sample is already loaded for quick start, but you can also click `切换为空白手工输入` and paste your own 3 chapters directly.
-3. Keep `generationMode=deterministic`, then click the primary submit action to create a real job through `POST /api/v1/jobs`.
+2. Open the workspace; the recommended `职场` sample is loaded only for quick start, but the primary acceptance path is still `切换为空白手工输入` and pasting your own 3 chapters.
+3. Keep `generationMode=llm` as the corrected target default for the main path; if local provider credentials are unavailable, use `deterministic` only as a temporary fallback for smoke/debug instead of treating it as the long-term main strategy.
 4. Watch the center `Job Status` column until polling moves the job from `queued/running` to `succeeded`.
 5. Confirm the right-side result area loads real backend data: YAML text, structured screenplay summary, and export actions.
 6. Use the export actions to verify both `下载生成初稿 YAML` and `导出 YAML` paths.
@@ -86,6 +87,7 @@ Frontend real-chain self-check:
 Scripted frontend smoke-check:
 - `npm run smoke:workspace` expects the backend on `:8080`, the frontend dev server on `:5173`, and a local Chrome or Edge executable.
 - It verifies two real frontend acceptance paths: a sample preset run and a non-preset manual 3-chapter run, both covering real `POST /api/v1/jobs`, polling, YAML load, structured summary, export, local edit, `复制当前 YAML`, failed-job regenerate, `lastJobId` refresh restore, and mobile `Input -> Status -> Result` panel order.
+- Do not treat the sample preset path as the main product proof. Real manual 3-chapter input is the primary acceptance path for this project.
 - The failed-job regenerate branch is a hard requirement of this smoke-check and expects the backend to run with `LLM_PROVIDER=disabled`; if the `generationMode=llm` submission succeeds instead, the script fails fast with an explicit configuration error.
 - Optional overrides:
   - `FRONTEND_SMOKE_UI_URL`
@@ -145,10 +147,10 @@ OpenAI-compatible provider note:
 - the current backend path remains YAML-first because the project output contract is YAML, even though DeepSeek also documents JSON Output support
 
 Current backend focus:
-- extend regression coverage for real-world loose YAML variants returned by `openai_compatible` providers
-- continue polishing provider prompt/normalization quality while keeping the current YAML-first output contract
-- provider fixture coverage now includes fenced YAML with explanatory preface, `message.content` text-part arrays, and loose YAML that relies on planned metadata/entity fallback
-- failure regressions now explicitly cover `job_not_found`, `job_not_ready`, and export-not-ready behavior across service, HTTP, and SQLite store layers
+- correct the project back to an `llm-first` generation direction
+- keep deterministic only as fallback / smoke baseline instead of growing it into a rule-heavy adaptation engine
+- continue polishing provider prompt, normalization, and validation honesty while keeping the YAML-first output contract
+- keep real manual Chinese 3-chapter inputs as the main acceptance target, with fixtures only as regression support
 
 Backend self-check:
 ```bash
@@ -161,6 +163,7 @@ Backend acceptance note:
 - run backend self-checks from `backend/`; the repo root is not a Go module root
 - keep YAML fixture regressions, but do not treat fixtures as the only acceptance target
 - at least one regression should cover a custom Chinese 3-chapter input through the real job pipeline rather than only comparing canned fixtures
+- if a custom real input produces structurally valid but semantically weak YAML, treat that as a product blocker rather than a tolerable fixture gap
 
 Backend smoke-check:
 ```bash

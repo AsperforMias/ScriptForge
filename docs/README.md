@@ -20,9 +20,10 @@ Recommended read order:
 15. [`collaboration-rules.md`](/Users/asperformias/Code/github/ScriptForge/docs/collaboration-rules.md): PR, commit, branch, pairing, and agent operating rules
 
 Current runnable ability:
-- The backend job API and deterministic pipeline are runnable locally.
+- The backend job API and YAML result pipeline are runnable locally.
 - `generation.mode=llm` supports both `mock` and `openai_compatible` provider paths.
 - The `openai_compatible` path has been validated against a DeepSeek-compatible endpoint and now normalizes loose provider YAML into the canonical screenplay schema.
+- Corrected project direction: `llm` is the intended main generation path; `deterministic` should be treated as fallback / smoke baseline instead of the long-term primary generator.
 
 Startup and deployment:
 - Local-first delivery is the default target.
@@ -38,6 +39,7 @@ Self-check entry before coding:
 4. Confirm API, pipeline, and tech-stack changes match `api-contract.md`, `backend-pipeline.md`, and `backend-tech-stack.md`.
 5. Confirm your change is a single-purpose PR according to `collaboration-rules.md`.
 6. If the change affects screenplay output, validate against `yaml-schema.md`.
+7. If your change keeps expanding deterministic template logic, stop and verify that it still matches the corrected `llm-first` product direction.
 
 Agent session rules:
 - Treat these docs as higher-priority project context than unstated assumptions.

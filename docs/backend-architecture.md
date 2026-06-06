@@ -42,7 +42,7 @@ backend/
   internal/httpx/           handlers, middleware, response helpers
   internal/job/             job service, job state machine
   internal/ingest/          chapter validation and normalization
-  internal/workflow/        outline/entities/scene planning rules
+  internal/workflow/        outline/entities/scene planning grounding and fallback
   internal/pipeline/        pipeline orchestration
   internal/screenplay/      YAML domain models and validation
   internal/storage/         SQLite + file artifact repositories
@@ -124,14 +124,15 @@ SQLite 存：
 - `deterministic`
 - `llm`
 
-默认开发顺序：
-1. 先做 `deterministic`
-2. 再挂 `llm`
+修正后的主次关系：
+1. `llm` 是主生成链路
+2. `deterministic` 仅保留为 fallback / mock / smoke baseline
 
 理由：
-- 先把结构化合同跑通
-- 先具备稳定回归样例
-- 降低供应商和网络依赖对交付节奏的影响
+- 赛题目标是“多章节小说 -> 可编辑 YAML 初稿”，不是构建可泛化的规则改编器
+- 继续深挖 deterministic 会迅速演化成题材模板库，投入大、泛化差、且容易在真实输入下失真
+- LLM 更适合承担长文本抽取和剧本化改写；规则层更适合承担 grounding、normalize、validate 与降级
+- deterministic 仍然有工程价值，但它的价值在“兜底与演示稳定性”，不在“主叙事”
 
 ## 为什么这套后端有竞争力
 
@@ -140,7 +141,7 @@ SQLite 存：
 - 有阶段化 pipeline，而不是单函数黑盒
 - 有 YAML Schema 校验闭环
 - 有 Go 中间件和结构化日志，能体现服务端工程素养
-- 有 deterministic 基线，降低 demo 风险
+- 有 LLM 主链路 + deterministic 兜底层，既保留工程可控性，也避免把项目做成规则引擎
 - 有 SQLite + artifact 持久化，便于回放、调试和展示
 
 ## 明确不做

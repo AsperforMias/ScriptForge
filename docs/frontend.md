@@ -176,12 +176,13 @@ frontend/
 - 结果区现已固定展示“这是可继续编辑的 YAML 剧本初稿”的人工复核提示；即使 `validation.warnings` 为空，也会继续提醒“结构通过 != 内容质量通过”
 - `validation.warnings` 现已与人工复核说明合并展示，重点提醒用户优先检查角色名、objective、beats 与 open questions，避免 `validation.status=passed` 被误读为“结果质量没问题”
 - 页面会在本地保存 `lastJobId`，刷新后继续查询最近一次任务
+- 当前已确认的产品缺口：页面虽然会恢复 `lastJobId` 对应结果，但输入区草稿仍可能回落到默认 preset；后续实现必须补齐“自定义输入草稿恢复”，避免真实调试和 demo 复盘时出现结果与左侧输入不一致
 - 录屏讲解顺序、默认演示口径与检查点现已迁移到 `docs/demo-recording-guide.md`，与产品页面解耦
 
 推荐自检路径（2026-06-05）：
 1. 启动后端 `:8080` 与前端 `:5173`
-2. 打开页面后可直接沿用默认载入的 `职场` 样例；如需切换题材，再改选 `悬疑` / `校园运动`
-3. 以 `generationMode=deterministic` 提交真实 job，观察 `Job Status` 区的 2s 轮询与阶段变化
+2. 打开页面后，优先执行一次“切换为空白手工输入 -> 录入自己的 3 章内容”的主链路，不要把默认 preset 当成主要验收证据
+3. 以 `generationMode=llm` 作为修正后的主路径提交真实 job；若本地 provider 尚未配置，可临时使用 `deterministic` 做 smoke/debug，但不要再把它当作长期主策略
 4. 任务成功后确认 `Result Workspace` 同时展示后端返回的 YAML 文本、结构化摘要与导出动作
 5. 如需验证失败态，保持后端 `LLM_PROVIDER=disabled`，将表单切到 `generationMode=llm` 提交一次，并确认失败信息与“重新生成当前内容”入口可用
 6. 将视口收窄到平板或手机宽度，确认三工作区按 `Input -> Status -> Result` 纵向阅读，不出现结果区先于状态区的错序

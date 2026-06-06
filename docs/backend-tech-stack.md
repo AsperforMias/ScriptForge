@@ -137,7 +137,7 @@ backend/
 | `REQUEST_BODY_LIMIT_BYTES` | no | `4194304` | 请求体大小限制，默认 4MB |
 | `JOB_MAX_CONCURRENCY` | no | `2` | 同时运行 job 数 |
 | `CORS_ALLOW_ORIGIN` | no | `*` | 本地联调用 |
-| `GENERATION_MODE_DEFAULT` | no | `deterministic` | 默认生成模式 |
+| `GENERATION_MODE_DEFAULT` | no | `llm` | 默认生成模式 |
 | `LLM_PROVIDER` | no | `disabled` | LLM provider selector，首版支持 `disabled` / `mock` / `openai_compatible` |
 | `LLM_MODEL` | no | `` | 预留模型名 |
 | `LLM_BASE_URL` | no | `` | 预留 provider base URL |
@@ -165,6 +165,7 @@ backend/
 说明：
 - 以上模型选择仅用于低成本功能链路验证
 - 最终 demo 模型可在不改后端接口的前提下切换
+- 若当前代码仍默认 `deterministic`，应视为待修复的实现漂移，而不是新的产品方向
 
 ## SQLite Schema
 
@@ -324,7 +325,7 @@ tmp/
 - `POST /jobs` 成功创建任务
 - `GET /jobs/{id}` 返回阶段状态
 - `GET /jobs/{id}/result` 在未完成时返回 `409`
-- deterministic 模式可生成合法 YAML
+- deterministic 模式可生成最小合法 YAML，但它的定位是 fallback / smoke baseline，而不是主质量链路
 - HTTP 测试优先直接走 `ServeHTTP`，避免依赖本地监听端口
 
 ### Fixture Requirements

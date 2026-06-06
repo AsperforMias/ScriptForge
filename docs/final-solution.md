@@ -8,6 +8,11 @@
 - 支持作者查看、编辑、导出 YAML
 - 明确展示后端生成管线、结构化设计能力和团队协作工程质量
 
+当前修正后的目标边界：
+- 主价值是“把长文本小说变成可继续编辑的 YAML 初稿”
+- 不是在 72 小时内做一个跨题材、规则驱动、可泛化的小说改编引擎
+- 优先保证“稀疏但可信”的结构化结果，而不是把每个字段都填满
+
 ## 产品边界
 
 本项目要解决的问题：
@@ -25,7 +30,7 @@
 MVP 必做：
 - 小说文本输入：首版支持粘贴或手工录入 3 章以上文本
 - 基础元信息：作品名、章节标题、改编风格等
-- 后端生成管线：章节解析、人物/场景抽取、剧情拆解、场景级剧本生成、YAML 组装、Schema 校验
+- 后端生成管线：章节解析、证据整理、人物/场景抽取、场景规划、YAML 组装、Schema 校验
 - 任务化处理：创建任务、查询状态、获取结果、导出 YAML
 - 结果展示：前端查看 YAML 与结构化摘要
 - 结果编辑：允许对 YAML 文本进行人工修改
@@ -54,11 +59,11 @@ frontend (teammate-owned UI)
         -> middleware chain
         -> in-process job runner
         -> ingest / normalize
-        -> outline extraction
-        -> character & location extraction
+        -> outline / evidence extraction
+        -> character & location grounding
         -> scene planning
-        -> screenplay YAML generation
-        -> schema validation
+        -> llm screenplay generation
+        -> normalization / validation
         -> artifact persistence
 ```
 
@@ -70,6 +75,8 @@ frontend (teammate-owned UI)
 - 生成结果以 YAML 为核心产物，避免只保留不可追踪的自然语言输出
 - Go 中间件栈显式暴露请求 ID、恢复、超时、结构化日志、体积限制和 CORS，体现服务端工程能力
 - 管线按阶段拆分，便于展示工程能力、测试边界和后续扩展
+- LLM 应作为主生成器；deterministic 仅保留为 fallback、mock 或 smoke baseline，不再作为长期主链路方向
+- 规则层的职责是“约束、补全、校验、降级”，不是持续扩展为题材模板库
 
 ## 模块职责
 
@@ -96,6 +103,8 @@ frontend (teammate-owned UI)
 - Prompt 构造
 - 模型调用抽象
 - 响应解析和容错
+- 基于场景规划结果生成 YAML 初稿
+- 在证据不足时优先留空或降级，而不是补满字段
 
 `backend/internal/storage`
 - 任务元数据、输入文本、生成产物持久化
@@ -103,8 +112,9 @@ frontend (teammate-owned UI)
 - SQLite 和文件系统访问封装
 
 `backend/internal/workflow`
-- 章节到场景的业务规则
-- 人物、地点、冲突、转场等结构化编排策略
+- 章节到场景的轻量规划与证据整理
+- 人物、地点、场景边界的 grounding / fallback
+- 不负责演化成大规模 deterministic 剧情生成器
 
 `backend/internal/httpx`
 - 请求解码与响应编码
@@ -138,6 +148,7 @@ frontend (teammate-owned UI)
 - 能稳定产出合法 YAML
 - YAML 足够结构化，便于继续编辑和程序消费
 - 生成结果能体现章节到场景的清晰映射
+- 当证据不足时，结果能诚实暴露不确定性，而不是靠模板把字段填满
 
 工程成功：
 - 目录结构清晰
@@ -150,6 +161,7 @@ frontend (teammate-owned UI)
 - 能说明为何选择该 YAML Schema
 - 能展示后端设计不是“单接口包办一切”
 - 能展示 Go 服务中的中间件、任务状态、结构化日志和校验链路
+- 能明确说明当前是“可继续编辑的 YAML 初稿”，而不是误导评委相信已经做成稳定的自动改编器
 
 ## 文档优先原则
 
