@@ -27,6 +27,8 @@ export function JobStatusPanel({
 }: JobStatusPanelProps) {
   const activeError = job?.error_message || createError || resultError || "";
   const badgeStatus = job?.status ?? (isCreating ? "running" : "queued");
+  const hasDeferredStageWriteback =
+    job?.status === "running" && job.current_stage === "ingest" && job.progress_percent <= 5;
   const summaryCopy = (() => {
     if (isCreating && !job) {
       return {
@@ -49,6 +51,15 @@ export function JobStatusPanel({
         tone: "neutral",
         title: "等待开始生成",
         description: "完成左侧素材填写后点击生成，这里会开始显示本次改编进度。",
+      };
+    }
+
+    if (hasDeferredStageWriteback) {
+      return {
+        tone: "info",
+        title: "AI 正在生成中",
+        description:
+          "素材已经提交成功。当前版本会在本轮生成结束后统一回写细分阶段，所以这里长时间停在“素材接收 / 5%”并不代表任务卡住。",
       };
     }
 
@@ -127,6 +138,11 @@ export function JobStatusPanel({
               <div className="progress-bar" aria-hidden="true">
                 <div className="progress-bar__fill" style={{ width: `${job.progress_percent}%` }} />
               </div>
+              {hasDeferredStageWriteback ? (
+                <p className="inline-note">
+                  当前主要耗时通常在上游 AI 生成。阶段明细会在生成完成后补齐，期间可继续停留在这个进度值。
+                </p>
+              ) : null}
             </div>
 
             <p className="inline-note">最近更新：{formatDateTime(job.updated_at)}</p>
@@ -169,7 +185,7 @@ export function JobStatusPanel({
           </div>
           <span className="section-tag">自动更新</span>
         </div>
-        <StageTimeline stages={stages} />
+        <StageTimeline deferredStageWriteback={hasDeferredStageWriteback} stages={stages} />
       </article>
 
       <article className="status-card">
@@ -185,7 +201,9 @@ export function JobStatusPanel({
             ? "系统正在接收这次生成请求，稍后会自动切换到进度更新。"
             : hasJobId && isPolling && !job
               ? "正在找回最近一次生成记录，成功后会同步更新中间和右侧工作区。"
-              : "如果生成中断，这里会保留停留阶段和错误信息，方便你直接重新生成。"}
+              : hasDeferredStageWriteback
+                ? "当上游 AI 耗时较长时，当前版本会先保持“素材接收 / 5%”，等本轮生成结束后再统一补写阶段细节。"
+                : "如果生成中断，这里会保留停留阶段和错误信息，方便你直接重新生成。"}
         </p>
       </article>
     </section>
