@@ -55,6 +55,7 @@ type providerChapterContext struct {
 	Title               string   `json:"title"`
 	Content             string   `json:"content"`
 	EvidenceExcerpt     string   `json:"evidence_excerpt,omitempty"`
+	SuggestedSceneCount int      `json:"suggested_scene_count,omitempty"`
 	CharacterCandidates []string `json:"character_candidates,omitempty"`
 	LocationCandidates  []string `json:"location_candidates,omitempty"`
 	KeyLines            []string `json:"key_lines,omitempty"`
@@ -179,11 +180,13 @@ func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, e
 					"Return only valid YAML that matches this exact root schema: version, source, adaptation, characters, locations, scenes, validation. " +
 					"Do not invent alternative top-level keys such as metadata. " +
 					"The provided character_candidates, location_candidates, and key lines are only low-trust grounding hints; always prefer the raw chapter text when they conflict. " +
+					"Keep the total scene count close to the provided scene_count_target, and default to the chapter-level suggested_scene_count unless the raw chapter text clearly contains a separate second dramatic turn that needs its own shootable scene. " +
 					"To keep YAML parseable, quote every non-empty string scalar value with double quotes. " +
 					"Keep evidence excerpts short and plain; avoid multiline prose blocks, markdown markers, or decorative punctuation inside YAML values. " +
 					"Ignore suspicious candidate names or generic locations if the chapter text does not support them. " +
 					"Every scene must include slugline.interior_exterior, slugline.location_id, slugline.time, summary, beats, evidence, and review. " +
 					"objective and notes.open_questions are optional: leave them empty or omit them when the source evidence is insufficient. " +
+					"An objective must be an immediate scene task, not atmosphere-setting or broad truth-seeking copy. " +
 					"All scenes must reference a valid location_id declared in locations. " +
 					"Do not invent characters, locations, dialogue, objectives, or open questions that are not grounded in the provided context. " +
 					"Prefer omission over fabrication when evidence is weak. " +
@@ -205,6 +208,8 @@ func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, e
 					"    evidence:\n      chapter_indexes: [1]\n      excerpt: ...\n      cues:\n        - ...\n    review:\n      confidence: medium\n      issues:\n        - ...\n" +
 					"validation:\n  status: passed\n  warnings: []\n" +
 					"Ensure source.chapter_count matches the input, every scene references valid chapter indexes, and dialogue beats reference valid character_id values. " +
+					"Treat scene_count_target and each chapter's suggested_scene_count as the default structural plan; only exceed them when the source text itself shows a clearly separated extra dramatic turn. " +
+					"Bad objective patterns include atmosphere-setting or generic truth-seeking copy such as 建立悬疑氛围, 建立悬疑基调, 制造紧迫感, 引入某人的警告, 了解发生了什么, 弄清楚真相. " +
 					"If a scene detail is uncertain, lower review.confidence and record the issue instead of fabricating a polished answer. " +
 					"Keep evidence.excerpt to one short sentence or phrase, and avoid any unescaped colon-heavy or quote-heavy text copied verbatim from the novel.",
 			},
@@ -663,6 +668,8 @@ func lookupPlannedLocation(req GenerateRequest, chapterIndex, fallbackIndex int)
 
 func enrichGeneratedDocument(doc screenplay.Document, req GenerateRequest) screenplay.Document {
 	doc = repairGeneratedDocument(doc, req)
+	doc = compressGeneratedScenes(doc, req)
+	doc = repairGeneratedDocument(doc, req)
 	for idx := range doc.Scenes {
 		scene := &doc.Scenes[idx]
 		chapterIndex := firstSceneChapter(scene.SourceChapters, idx, req)
@@ -705,6 +712,7 @@ func buildProviderSceneEvidence(req GenerateRequest, chapterIndex, fallbackIndex
 
 func buildProviderContext(req GenerateRequest) map[string]any {
 	chapters := make([]providerChapterContext, 0, len(req.Input.Source.Chapters))
+	suggestedSceneCountByChapter := plannedSceneCountByChapter(req)
 
 	for _, chapter := range req.Input.Source.Chapters {
 		chapterContent := normalizeWhitespace(chapter.Content)
@@ -713,6 +721,7 @@ func buildProviderContext(req GenerateRequest) map[string]any {
 			Title:               chapter.Title,
 			Content:             chapterContent,
 			EvidenceExcerpt:     truncateRunes(chapterContent, 220),
+			SuggestedSceneCount: suggestedSceneCountByChapter[chapter.Index],
 			CharacterCandidates: extractSupportedCharacterNames(req, chapter.Content),
 			LocationCandidates:  extractExplicitLocationCandidates(chapter.Content),
 			KeyLines:            extractKeyLines(chapter.Content),
@@ -731,8 +740,28 @@ func buildProviderContext(req GenerateRequest) map[string]any {
 			"audience": req.Input.Adaptation.Audience,
 			"notes":    req.Input.Adaptation.Notes,
 		},
-		"chapters": chapters,
+		"scene_count_target": len(req.Plan.Scenes),
+		"chapters":           chapters,
 	}
+}
+
+func plannedSceneCountByChapter(req GenerateRequest) map[int]int {
+	counts := make(map[int]int, len(req.Input.Source.Chapters))
+	for _, chapter := range req.Input.Source.Chapters {
+		counts[chapter.Index] = 1
+	}
+	for _, scene := range req.Plan.Scenes {
+		chapterIndex := firstSceneChapter(scene.SourceChapters, 0, req)
+		counts[chapterIndex]++
+	}
+	for chapterIndex, count := range counts {
+		if count <= 1 {
+			counts[chapterIndex] = 1
+			continue
+		}
+		counts[chapterIndex] = count - 1
+	}
+	return counts
 }
 
 func firstSceneChapter(sourceChapters []int, fallbackIndex int, req GenerateRequest) int {
@@ -1154,13 +1183,198 @@ func looksLikeLLMTemplateText(text string) bool {
 	if containsAny(normalized, "先弄清", "再决定", "下一步", "继续追查下去", "真实意图", "匿名留言", "接下来会发生什么") {
 		return true
 	}
-	if containsAny(normalized, "建立悬疑氛围", "建立悬疑基调", "制造紧迫感", "推动剧情继续") {
+	if containsAny(normalized, "建立悬疑氛围", "建立悬疑基调", "制造紧迫感", "推动剧情继续", "引入苏雯的警告", "引入警告", "了解发生了什么", "弄清楚真相") {
 		return true
 	}
 	if strings.Contains(normalized, "展示") && containsAny(normalized, "归来动机", "异常态度", "人物状态") {
 		return true
 	}
 	return false
+}
+
+func compressGeneratedScenes(doc screenplay.Document, req GenerateRequest) screenplay.Document {
+	plannedCounts := plannedSceneCountByChapter(req)
+	if len(plannedCounts) == 0 || len(doc.Scenes) == 0 {
+		return doc
+	}
+
+	docCounts := map[int]int{}
+	for idx, scene := range doc.Scenes {
+		chapterIndex := firstSceneChapter(scene.SourceChapters, idx, req)
+		docCounts[chapterIndex]++
+	}
+
+	needsCompression := false
+	for chapterIndex, actualCount := range docCounts {
+		if actualCount > 1 && plannedCounts[chapterIndex] <= 1 {
+			needsCompression = true
+			break
+		}
+	}
+	if !needsCompression {
+		return doc
+	}
+
+	grouped := make(map[int][]screenplay.Scene, len(req.Input.Source.Chapters))
+	extras := make([]screenplay.Scene, 0)
+	for idx, scene := range doc.Scenes {
+		chapterIndex := firstSceneChapter(scene.SourceChapters, idx, req)
+		if _, ok := plannedCounts[chapterIndex]; !ok {
+			extras = append(extras, scene)
+			continue
+		}
+		grouped[chapterIndex] = append(grouped[chapterIndex], scene)
+	}
+
+	compressed := make([]screenplay.Scene, 0, len(req.Input.Source.Chapters)+len(extras))
+	for _, chapter := range req.Input.Source.Chapters {
+		chapterScenes := grouped[chapter.Index]
+		if len(chapterScenes) == 0 {
+			continue
+		}
+		if plannedCounts[chapter.Index] > 1 || len(chapterScenes) == 1 {
+			compressed = append(compressed, chapterScenes...)
+			continue
+		}
+		compressed = append(compressed, mergeScenesForChapter(chapterScenes, chapter, req))
+	}
+	compressed = append(compressed, extras...)
+
+	for idx := range compressed {
+		compressed[idx].ID = fmt.Sprintf("scene_%03d", idx+1)
+	}
+	doc.Scenes = compressed
+	doc.Locations = orderedUsedLocations(doc.Scenes, locationsByID(doc.Locations))
+	return doc
+}
+
+func mergeScenesForChapter(scenes []screenplay.Scene, chapter job.ChapterBody, req GenerateRequest) screenplay.Scene {
+	base := scenes[0]
+	chapterText := sanitizeChapterTitle(chapter.Title) + " " + normalizeWhitespace(chapter.Content)
+	merged := base
+	merged.SourceChapters = []int{chapter.Index}
+	merged.Summary = firstNonEmpty(base.Summary, truncateRunes(normalizeWhitespace(chapter.Content), 140), chapter.Title)
+	merged.Objective = chooseMergedObjective(scenes, chapterText)
+	merged.Beats = mergeSceneBeats(scenes)
+	if len(merged.Beats) == 0 {
+		merged.Beats = []screenplay.Beat{{Type: "action", Content: merged.Summary}}
+	}
+	merged.Notes.OpenQuestions = mergeOpenQuestionsForChapter(scenes, chapterText)
+	merged.Evidence = mergeSceneEvidence(scenes, chapter.Index, chapter.Content, req)
+	merged.Review = mergeChapterReview(scenes)
+	return merged
+}
+
+func chooseMergedObjective(scenes []screenplay.Scene, chapterText string) string {
+	for _, scene := range scenes {
+		objective := strings.TrimSpace(scene.Objective)
+		if objective == "" || looksLikeLLMTemplateText(objective) {
+			continue
+		}
+		if hasMeaningfulSourceOverlap(objective, chapterText) {
+			return objective
+		}
+	}
+	return ""
+}
+
+func mergeSceneBeats(scenes []screenplay.Scene) []screenplay.Beat {
+	seen := map[string]struct{}{}
+	beats := make([]screenplay.Beat, 0, 6)
+	for _, scene := range scenes {
+		for _, beat := range scene.Beats {
+			content := strings.TrimSpace(beat.Content)
+			if content == "" {
+				continue
+			}
+			key := strings.ToLower(strings.TrimSpace(beat.Type)) + "|" + normalizeWhitespace(content)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			beats = append(beats, beat)
+			if len(beats) >= 5 {
+				return beats
+			}
+		}
+	}
+	return beats
+}
+
+func mergeOpenQuestionsForChapter(scenes []screenplay.Scene, chapterText string) []string {
+	result := make([]string, 0, 2)
+	seen := map[string]struct{}{}
+	for _, scene := range scenes {
+		for _, question := range scene.Notes.OpenQuestions {
+			trimmed := strings.TrimSpace(question)
+			if trimmed == "" || looksLikeLLMTemplateText(trimmed) || !hasMeaningfulSourceOverlap(trimmed, chapterText) {
+				continue
+			}
+			if _, ok := seen[trimmed]; ok {
+				continue
+			}
+			seen[trimmed] = struct{}{}
+			result = append(result, trimmed)
+			if len(result) >= 2 {
+				return result
+			}
+		}
+	}
+	return result
+}
+
+func mergeSceneEvidence(scenes []screenplay.Scene, chapterIndex int, chapterContent string, req GenerateRequest) *screenplay.Evidence {
+	merged := &screenplay.Evidence{
+		ChapterIndexes: []int{chapterIndex},
+		Cues:           []string{},
+	}
+	for _, scene := range scenes {
+		if scene.Evidence == nil {
+			continue
+		}
+		if merged.Excerpt == "" && strings.TrimSpace(scene.Evidence.Excerpt) != "" {
+			merged.Excerpt = strings.TrimSpace(scene.Evidence.Excerpt)
+		}
+		merged.Cues = append(merged.Cues, scene.Evidence.Cues...)
+	}
+	if merged.Excerpt == "" {
+		fallback := buildProviderSceneEvidence(req, chapterIndex, 0)
+		if fallback != nil {
+			merged.Excerpt = fallback.Excerpt
+			merged.Cues = append(merged.Cues, fallback.Cues...)
+		}
+	}
+	if merged.Excerpt == "" {
+		merged.Excerpt = truncateRunes(normalizeWhitespace(chapterContent), 220)
+	}
+	merged.Cues = uniqueNonEmptyStrings(merged.Cues)
+	return merged
+}
+
+func mergeChapterReview(scenes []screenplay.Scene) *screenplay.Review {
+	issues := []string{"multiple provider scenes for one chapter were merged to keep a stable editable draft; review scene boundaries manually."}
+	confidence := "medium"
+	for _, scene := range scenes {
+		if scene.Review == nil {
+			continue
+		}
+		issues = append(issues, scene.Review.Issues...)
+		if scene.Review.Confidence == "low" {
+			confidence = "low"
+		}
+	}
+	return &screenplay.Review{
+		Confidence: confidence,
+		Issues:     uniqueNonEmptyStrings(issues),
+	}
+}
+
+func locationsByID(locations []screenplay.Location) map[string]screenplay.Location {
+	result := make(map[string]screenplay.Location, len(locations))
+	for _, location := range locations {
+		result[location.ID] = location
+	}
+	return result
 }
 
 func normalizeGeneratedCharacterRole(input string, idx int) string {
