@@ -112,6 +112,8 @@ cp .env.local.example .env.local
 set -a && source .env.local && set +a
 ```
 
+`backend/internal/config` now auto-discovers a repo-root `.env.local` when you run `cd backend && go run ./cmd/api`, so the manual `source` step is optional for local backend-only runs and still useful when you want the same variables in your current shell session.
+
 Backend quick start with a local external provider:
 ```bash
 cd backend
