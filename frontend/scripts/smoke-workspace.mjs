@@ -179,9 +179,34 @@ async function waitForFreshRun(page) {
   });
 }
 
-async function waitForFailedJob(page) {
-  await waitForJobStatus(page, ["失败"]);
-  await page.getByRole("button", { name: regenerateButtonLabel }).waitFor();
+async function waitForFailedJobOrUnexpectedSuccess(page, expectedMarker) {
+  const outcomeHandle = await page.waitForFunction(
+    ({ marker, regenerateLabel }) => {
+      const badge = document.querySelector(".status-badge");
+      const statusText = badge?.textContent ?? "";
+      const editor = document.querySelector(".yaml-editor");
+      const hasRegenerateButton = Array.from(document.querySelectorAll("button")).some((button) =>
+        button.textContent?.includes(regenerateLabel),
+      );
+
+      if (statusText.includes("失败") && hasRegenerateButton) {
+        return "failed";
+      }
+
+      if (
+        statusText.includes("已完成") &&
+        editor instanceof HTMLTextAreaElement &&
+        editor.value.includes(marker)
+      ) {
+        return "completed";
+      }
+
+      return null;
+    },
+    { marker: expectedMarker, regenerateLabel: regenerateButtonLabel },
+  );
+
+  return outcomeHandle.jsonValue();
 }
 
 async function verifyDownload(page, buttonLabel, expectedFileSuffix) {
@@ -310,12 +335,19 @@ async function runManualInputPath(page) {
 async function runFailedRegeneratePath(page) {
   logStep("triggering an llm failed-job path and verifying regenerate from the current form state");
   const previousSucceededJobId = await getRememberedJobId(page);
+  const expectedSuccessMarker = `title: ${manualDraft.title}`;
 
   await page.getByLabel("生成方式").selectOption("llm");
   await page.getByRole("button", { name: generateButtonLabel }).click();
   await waitForFreshRun(page);
   await waitForJobStatus(page, ["处理中", "失败", "已完成"]);
-  await waitForFailedJob(page);
+  const llmOutcome = await waitForFailedJobOrUnexpectedSuccess(page, expectedSuccessMarker);
+
+  if (llmOutcome !== "failed") {
+    throw new Error(
+      "failed-job regenerate smoke requires backend LLM_PROVIDER=disabled; current generationMode=llm submission succeeded instead of failing",
+    );
+  }
 
   const failedJobId = await getRememberedJobId(page);
   if (!failedJobId || failedJobId === previousSucceededJobId) {
@@ -326,7 +358,7 @@ async function runFailedRegeneratePath(page) {
   await page.getByRole("button", { name: regenerateButtonLabel }).click();
   await waitForFreshRun(page);
   await waitForJobStatus(page, ["处理中", "已完成"]);
-  await waitForResultWorkspace(page, `title: ${manualDraft.title}`);
+  await waitForResultWorkspace(page, expectedSuccessMarker);
 
   const regeneratedJobId = await getRememberedJobId(page);
   if (!regeneratedJobId || regeneratedJobId === failedJobId) {

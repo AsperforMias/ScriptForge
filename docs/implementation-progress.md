@@ -71,7 +71,7 @@
 - 前端状态文案已补齐到 idle / loading / succeeded / failed 四类真实链路，不再把空态、失败态和结果载入态混成同一套提示
 - 响应式布局已细化为桌面三栏、平板双列过渡、移动端 `Input -> Status -> Result` 纵向堆叠，便于现场演示和手机查看
 - `frontend/scripts/smoke-workspace.mjs` 与 `npm run smoke:workspace` 已补齐，可用本机 Chrome/Edge 自动验证 sample -> create job -> polling -> YAML load -> local edit -> reset
-- 当前前端 smoke 已补到：sample preset、非 preset 手工输入、failed-job regenerate、`复制当前 YAML`、移动端阅读顺序，以及 `lastJobId` 刷新后恢复查询
+- 当前前端 smoke 已补到：sample preset、非 preset 手工输入、failed-job regenerate、`复制当前 YAML`、移动端阅读顺序，以及 `lastJobId` 刷新后恢复查询；failed-job 分支现已显式要求 `LLM_PROVIDER=disabled`，若环境里 LLM job 直接成功则脚本会 fail-fast，而不是卡死在等待重试按钮
 - 结果区现已区分“后端原稿”与“本地编辑稿”，并为复制、恢复、导出动作补齐可见反馈，不再只有静态按钮
 - 结构化摘要现已补充 overview 层与 validation warning 展示，继续保持只读取后端 `screenplay` JSON 而不在前端解析 YAML
 - 结果区已以 YAML 文本为核心，支持恢复后端原始结果、下载后端原始 YAML、导出当前编辑文本
