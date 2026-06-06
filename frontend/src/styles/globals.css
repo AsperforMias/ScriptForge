@@ -756,6 +756,14 @@ button {
   background: rgba(47, 93, 98, 0.08);
 }
 
+.result-toolbar__caption {
+  max-width: 30rem;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
 .result-toolbar__actions {
   display: flex;
   gap: 10px;
@@ -807,6 +815,35 @@ button {
   color: var(--accent-secondary);
   border-color: rgba(47, 93, 98, 0.24);
   background: rgba(47, 93, 98, 0.08);
+}
+
+.quality-guard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid rgba(160, 106, 28, 0.24);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(160, 106, 28, 0.08), transparent 34%),
+    rgba(255, 252, 246, 0.96);
+}
+
+.quality-guard p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.quality-guard__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quality-guard__warnings {
+  padding: 12px 14px;
 }
 
 .summary-overview {

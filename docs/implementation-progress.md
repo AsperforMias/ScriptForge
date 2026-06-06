@@ -19,6 +19,7 @@
 - 最新 `main` 在“异世界转生 / 贵族成长”类自定义中文三章节输入上的网页实测表明：当前主要短板仍在后端生成质量，而不是前端链路或任务化 API；生成结果虽然能通过 schema 级校验，但仍可能出现人物抽取碎词化、题材模板串用、scene objective / dialogue 空泛占位，以及 `validation.status=passed` 但语义质量不足的问题
 - 上述问题不能简单归因于 DeepSeek `v4-flash` 模型本身。若问题出现在 `generation.mode=deterministic`，则根因首先是后端 deterministic 规则与 fallback 仍未覆盖该题材；若问题出现在 `generation.mode=llm(openai_compatible)`，则应视为“provider 质量 + 后端归一化/兜底策略”共同导致，不能只把责任外推给模型
 - 因此，当前项目已经满足“可运行、可演示、YAML-first、任务化 pipeline 明确”的赛事 MVP 方向，但还不应自称为完整产品；更准确的表述是“比赛导向的可演示 MVP，主链路已成型，但任意自定义输入下的语义稳定性仍需继续 hardening”
+- 针对这一风险，前端结果区口径已进一步收紧：不再把 `validation.status=passed` 单独表达成“质量通过”，而是明确写成“结构通过 / 可继续编辑的 YAML 剧本初稿”，并把人工复核重点收束到角色名、objective、beats 与 open questions
 
 已完成：
 - 题目与赛事要求的精简总结
@@ -79,6 +80,7 @@
 - 当前前端 smoke 已补到：sample preset、非 preset 手工输入、failed-job regenerate、`复制当前 YAML`、移动端阅读顺序，以及 `lastJobId` 刷新后恢复查询；failed-job 分支现已显式要求 `LLM_PROVIDER=disabled`，若环境里 LLM job 直接成功则脚本会 fail-fast，而不是卡死在等待重试按钮
 - 结果区现已区分“后端原稿”与“本地编辑稿”，并为复制、恢复、导出动作补齐可见反馈，不再只有静态按钮
 - 结构化摘要现已补充 overview 层与 validation warning 展示，继续保持只读取后端 `screenplay` JSON 而不在前端解析 YAML
+- 结果区现已补入固定的可信度表达收敛：`validation.status=passed` 只呈现为“结构通过”，并始终搭配“可继续编辑的 YAML 剧本初稿”说明与人工复核提示，避免评委把 schema-pass 误解为内容质量稳定
 - 结果区已以 YAML 文本为核心，支持恢复后端原始结果、下载后端原始 YAML、导出当前编辑文本
 - 结构化摘要区已切换为直接读取后端返回的 `screenplay` JSON，不再依赖静态 demo 数据
 - 本地 `backend@8080 + frontend@5173` 已完成 deterministic 与 `llm(openai_compatible)` 两条真实 UI 链路联调

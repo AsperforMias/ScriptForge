@@ -75,6 +75,10 @@
 - 前端不复制后端业务规则
 - “至少 3 章”可以前后端都校验，但后端是最终裁定方
 - YAML 是否合法以后端 Schema 校验结果为准
+- `validation.status=passed` 只表示结果通过当前结构 / Schema 校验，不代表人物命名、scene objective、beats、open questions 或整体语义质量已经可靠
+- 结果区必须把输出明确表达为“可继续编辑的 YAML 剧本初稿”，而不是“质量已通过的最终剧本”
+- `validation.warnings` 必须高可见展示；即使 warnings 为空，前端也不能暗示“内容质量没问题”
+- 结果区必须引导用户优先复核：角色名、objective、beats、open questions
 
 ## 对前端实现的建议
 
@@ -168,7 +172,9 @@ frontend/
 - 响应式断点已细化为桌面三栏、平板双列过渡、移动端纵向堆叠，保持 `Input -> Status -> Result` 的阅读顺序
 - `frontend/scripts/smoke-workspace.mjs` 与 `npm run smoke:workspace` 已就位，可自动验证 sample preset 主链路、非 preset 手工 3 章链路、failed-job regenerate、`复制当前 YAML`、`lastJobId` 刷新恢复，以及移动端 `Input -> Status -> Result` 阅读顺序；其中 failed-job 分支要求后端以 `LLM_PROVIDER=disabled` 启动，脚本若发现 LLM job 成功会直接 fail-fast
 - 结果区现已统一使用“当前为生成初稿 / 当前为本地编辑稿 / 恢复生成初稿 / 下载生成初稿 YAML / 复制当前 YAML / 导出 YAML”这套文案，并为复制、恢复、导出动作提供真实反馈提示
-- 结构化摘要现已补充 overview 层，优先展示章节 / 场景 / 角色 / 校验状态，再展开角色、地点与 scene 卡片
+- 结构化摘要现已补充 overview 层，优先展示章节 / 场景 / 角色 / 结构校验状态，再展开角色、地点与 scene 卡片
+- 结果区现已固定展示“这是可继续编辑的 YAML 剧本初稿”的人工复核提示；即使 `validation.warnings` 为空，也会继续提醒“结构通过 != 内容质量通过”
+- `validation.warnings` 现已与人工复核说明合并展示，重点提醒用户优先检查角色名、objective、beats 与 open questions，避免 `validation.status=passed` 被误读为“结果质量没问题”
 - 页面会在本地保存 `lastJobId`，刷新后继续查询最近一次任务
 - 录屏讲解顺序、默认演示口径与检查点现已迁移到 `docs/demo-recording-guide.md`，与产品页面解耦
 
@@ -263,6 +269,7 @@ frontend/
   - 导出当前文本
 
 结构化摘要视图可直接读取后端返回的 `screenplay` JSON，而不是前端自行解析 YAML。
+但前端必须持续提示：当前结果是“可继续编辑的 YAML 剧本初稿”；即使结构校验通过，也仍需人工复核角色名、scene objective、beats 与 open questions。
 
 ## 前端 PR 拆分建议
 
