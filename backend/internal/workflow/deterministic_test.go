@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/ingest"
@@ -296,6 +297,59 @@ func TestDeterministicWorkflowKeepsSuspenseEvidenceAheadOfFamilyKeywords(t *test
 	}
 }
 
+func TestDeterministicWorkflowHardensCustomGrowthFantasyInput(t *testing.T) {
+	source := normalizeGrowthFantasySource()
+	outline := BuildOutline(source)
+	entities := ExtractEntities(source)
+	plan := BuildScenePlan(source, outline, entities)
+	var req job.CreateJobRequest
+	req.Source.Title = source.Title
+	req.Source.Author = source.Author
+	req.Adaptation.Style = "异世界转生 / 贵族成长"
+	req.Adaptation.Audience = "青年向"
+	req.Generation.Mode = "deterministic"
+	doc := BuildDocument(req, source, outline, entities, plan)
+
+	for _, badName := range []string{"所以", "现在", "更别"} {
+		if characterNamesContain(entities, badName) {
+			t.Fatalf("expected filtered fragment %s to stay out of characters, got %#v", badName, entities.Characters)
+		}
+	}
+	for _, expectedName := range []string{"艾琳", "罗莎", "维恩"} {
+		if !characterNamesContain(entities, expectedName) {
+			t.Fatalf("expected extracted characters to include %s, got %#v", expectedName, entities.Characters)
+		}
+	}
+
+	if len(plan.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(plan.Scenes))
+	}
+	for idx, scene := range plan.Scenes {
+		if len(scene.Beats) < 3 {
+			t.Fatalf("expected 3 beats for scene %d, got %d", idx+1, len(scene.Beats))
+		}
+		if scene.Beats[0].Content == scene.Summary || strings.Contains(scene.Beats[0].Content, "...") {
+			t.Fatalf("expected scene %d opening beat to be a concrete action beat, got %s", idx+1, scene.Beats[0].Content)
+		}
+		if containsAny(scene.Objective, "录音", "匿名", "字条", "门锁", "车站", "寄信人") {
+			t.Fatalf("expected scene %d objective to avoid suspense leakage, got %s", idx+1, scene.Objective)
+		}
+		if containsAny(scene.Beats[len(scene.Beats)-1].Content, "录音", "匿名", "字条", "门锁", "车站", "寄信人") {
+			t.Fatalf("expected scene %d dialogue to avoid suspense leakage, got %s", idx+1, scene.Beats[len(scene.Beats)-1].Content)
+		}
+		if len(scene.Notes.OpenQuestions) == 0 {
+			t.Fatalf("expected open question for scene %d", idx+1)
+		}
+		if containsAny(scene.Notes.OpenQuestions[0], "录音", "匿名", "字条", "门锁", "车站", "寄信人") {
+			t.Fatalf("expected scene %d open question to avoid suspense leakage, got %s", idx+1, scene.Notes.OpenQuestions[0])
+		}
+	}
+
+	if len(doc.Validation.Warnings) == 0 {
+		t.Fatal("expected growth-fantasy input to surface validation warnings")
+	}
+}
+
 func normalizeFixtureSource() ingest.NormalizedSource {
 	var req job.CreateJobRequest
 	req.Source.Title = "夜雨疑云"
@@ -404,6 +458,20 @@ func normalizeFamilyWordSuspenseSource() ingest.NormalizedSource {
 		{Index: 1, Title: "第一章 客厅回放", Content: "闻溪回到父亲留下的家里，在旧客厅收拾遗物时听见随身听里多出一段陌生口哨。郑岚在里屋催她先吃饭，但闻溪只想先把录音倒回去，确认那段声音究竟录自哪一天。"},
 		{Index: 2, Title: "第二章 楼道纸灰", Content: "第二天傍晚，闻溪在自家楼道发现烧过的纸灰和一张写着仓库编号的便签。老秦说父亲生前把备用钥匙交给过一个陌生快递员，闻溪决定先去核对编号，再查钥匙落到了谁手里。"},
 		{Index: 3, Title: "第三章 仓库试锁", Content: "夜里，闻溪赶到江边旧仓库，用找到的钥匙去试开侧门。门内传来的拖拽声让她意识到，有人正赶在她之前转移父亲留下的箱子。"},
+	}
+	return ingest.Normalize(req)
+}
+
+func normalizeGrowthFantasySource() ingest.NormalizedSource {
+	var req job.CreateJobRequest
+	req.Source.Title = "转生北境"
+	req.Source.Author = "自定义作者"
+	req.Adaptation.Style = "异世界转生 / 贵族成长"
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 贵族次女接手北境", Content: "艾琳在伯爵府邸的账房里听完遗产分配，意识到自己这个长期被轻视的次女突然要接手最穷的北境领地。她没有争辩，只先把旧地图和欠税名册摊开，决定今晚就看清领地到底烂到什么程度。"},
+		{Index: 2, Title: "第二章 巡视破败庄园", Content: "第二天清晨，艾琳带着侍女罗莎和见习骑士维恩巡视北境庄园，发现粮仓、围墙和灌渠都比账面更糟。维恩主张先裁掉无用雇工，艾琳却决定先稳住领民和春播，再去查是谁把亏空一路压到王都审计前。"},
+		{Index: 3, Title: "第三章 议事厅定下新秩序", Content: "傍晚，艾琳在破旧议事厅召集管家、农务官和商会代表，准备公布新的税期与修渠顺序。罗莎提醒她，一旦让贵族亲族知道北境还能救活，原本等着看笑话的人就会立刻回来争功。"},
 	}
 	return ingest.Normalize(req)
 }
