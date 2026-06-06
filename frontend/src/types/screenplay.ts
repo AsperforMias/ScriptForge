@@ -47,6 +47,15 @@ export interface ScreenplayScene {
     adaptation_reason?: string;
     open_questions?: string[];
   };
+  evidence?: {
+    chapter_indexes?: number[];
+    excerpt?: string;
+    cues?: string[];
+  };
+  review?: {
+    confidence?: "high" | "medium" | "low";
+    issues?: string[];
+  };
 }
 
 export interface ScreenplayDocument {

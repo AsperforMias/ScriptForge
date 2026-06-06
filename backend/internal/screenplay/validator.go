@@ -12,6 +12,7 @@ var (
 	validRoles     = []string{"protagonist", "supporting", "antagonist", "narrator", "other"}
 	validBeatTypes = []string{"action", "dialogue", "transition", "note"}
 	validIntExt    = []string{"INT", "EXT", "INT/EXT"}
+	validReview    = []string{"high", "medium", "low"}
 )
 
 type ValidatedDocument struct {
@@ -31,6 +32,7 @@ func ValidateAndSerialize(doc Document) (ValidatedDocument, error) {
 	if doc.Validation.Warnings == nil {
 		doc.Validation.Warnings = []string{}
 	}
+	doc = applyQualityAudit(doc)
 
 	payload, err := yaml.Marshal(doc)
 	if err != nil {
@@ -196,6 +198,12 @@ func validateScenes(scenes []Scene, source Source, characters []Character, locat
 		if strings.TrimSpace(scene.Summary) == "" {
 			return fmt.Errorf("scene.summary is required")
 		}
+		if err := validateEvidence(scene.Evidence, validChapters); err != nil {
+			return err
+		}
+		if err := validateReview(scene.Review); err != nil {
+			return err
+		}
 		if len(scene.Beats) == 0 {
 			return fmt.Errorf("scene.beats must not be empty")
 		}
@@ -215,6 +223,28 @@ func validateScenes(scenes []Scene, source Source, characters []Character, locat
 		}
 	}
 
+	return nil
+}
+
+func validateEvidence(evidence *Evidence, validChapters map[int]struct{}) error {
+	if evidence == nil {
+		return nil
+	}
+	for _, chapterIndex := range evidence.ChapterIndexes {
+		if _, ok := validChapters[chapterIndex]; !ok {
+			return fmt.Errorf("scene.evidence.chapter_indexes contains undefined chapter index")
+		}
+	}
+	return nil
+}
+
+func validateReview(review *Review) error {
+	if review == nil || strings.TrimSpace(review.Confidence) == "" {
+		return nil
+	}
+	if !slices.Contains(validReview, review.Confidence) {
+		return fmt.Errorf("scene.review.confidence must be one of %v", validReview)
+	}
 	return nil
 }
 

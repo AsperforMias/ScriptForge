@@ -9,6 +9,7 @@
 - 能清晰体现“章节 -> 场景 -> 剧本片段”的生成链路
 
 因此 Schema 采用“元信息 + 索引表 + 场景列表”的形式，而不是纯自由文本。
+同时，为了避免模型在证据不足时硬填 `objective`、`open_questions`、`dialogue`，当前 hardening 版本额外引入了可选的 `evidence` 与 `review` 层：前者回答“这场戏依据哪段章节证据成立”，后者回答“这场戏当前有多可信、哪些点需要人工复核”。
 
 ## 顶层结构
 
@@ -179,6 +180,16 @@ scenes:
       adaptation_reason: "将原文内心描写转化为可拍摄动作与短对白。"
       open_questions:
         - "门锁异常是否需要在下一场直接揭示原因？"
+    evidence:
+      chapter_indexes: [1]
+      excerpt: "林琪回到旧公寓，察觉门锁被动过。"
+      cues:
+        - "门锁异常"
+        - "深夜回家"
+    review:
+      confidence: "medium"
+      issues:
+        - "location 仍需人工复核"
 ```
 
 约束建议：
@@ -202,6 +213,16 @@ scenes:
 - `beats[].character_id`：当 `type=dialogue` 时必填，且必须引用已定义的 `characters[].id`
 - `notes.adaptation_reason`：可选，字符串
 - `notes.open_questions`：可选，字符串数组
+- `evidence.chapter_indexes`：可选，整数数组；若出现，其值必须存在于 `source.chapters[].index`
+- `evidence.excerpt`：可选，字符串；建议放短证据摘录或高度贴近原文的摘要句，不要求长引用
+- `evidence.cues`：可选，字符串数组；建议放本 scene 的关键证据线索词
+- `review.confidence`：可选，枚举 `high` `medium` `low`
+- `review.issues`：可选，字符串数组；用于记录“角色识别不稳 / objective 模板化 / 地点低置信度 / beat 重复”等待人工复核问题
+
+MVP hardening 规则：
+- `objective` 与 `notes.open_questions` 不再被视为“必须填满”的字段；证据不足时可以留空或省略
+- `evidence` 与 `review` 不是工业级 provenance 系统，而是首版最小证据绑定与人工复核锚点
+- 首版不强制每个 beat 逐条绑定证据，避免 Schema 过重；先把追溯粒度控制在 scene 级别
 
 ### `validation`
 
@@ -221,6 +242,10 @@ validation:
 规范要求：
 - `status`：必填，枚举 `passed` `failed`
 - `warnings`：必填，字符串数组
+
+说明：
+- `passed` 只表示“当前通过结构校验，且未触发明显的内容级高风险规则”，不等于“语义质量已经可靠”
+- 若 scene 出现明显重复、模板化占位、低置信度堆积等问题，后端应把具体风险写入 `warnings`，必要时降为 `failed`
 
 ## 为什么这样设计
 
@@ -246,6 +271,15 @@ validation:
 
 当前设计在“结构清晰”和“编辑友好”之间取平衡。
 
+### 2.1 用 `evidence` 和 `review` 把“结构完整”与“内容可信”拆开
+
+过去只有 `validation.status` 和 `warnings`，会让结果出现“字段齐全、YAML 合法，但人物 / 地点 / objective 明显不稳”时仍然看起来像通过。
+
+加入 scene 级 `evidence` 与 `review` 后，MVP 可以更诚实地表达：
+- 这一场戏主要依据哪章、哪条线索建立
+- 哪些字段是低置信度推断，不该被误读为稳定事实
+- 人工编辑时优先从哪里开始修
+
 ### 3. 保留来源章节映射
 
 题目强调输入为 3 章以上小说文本，因此输出需要能回答：
@@ -260,6 +294,10 @@ validation:
 - 更贴近剧本可拍摄单元
 - 便于后续扩展为卡片视图、场景编辑器或导出其他格式
 
+但首版也明确限制：
+- `beats` 不要求假装完整覆盖全部叙述
+- 如果章节主要由内心戏或概述性叙述组成，允许 beats 较少，同时把风险写进 `review.issues` / `validation.warnings`
+
 ## 首版校验规则建议
 
 最小校验规则：
@@ -272,6 +310,9 @@ validation:
 - 每个 `scene.beats` 非空
 - `dialogue` beat 必须包含 `character_id`
 - 所有外键引用必须有效：`location_id`、`character_id`、`source_chapters`
+- 若出现 `evidence.chapter_indexes`，其引用必须有效
+- 若出现 `review.confidence`，其值必须为 `high` `medium` `low`
+- validation 除结构校验外，还应补最小内容级审计：至少覆盖 scene objective / open question / beat 的明显重复与占位文案
 
 ## 示例片段
 
@@ -316,6 +357,13 @@ scenes:
     notes:
       adaptation_reason: "压缩心理描写，增强可视动作。"
       open_questions: []
+    evidence:
+      chapter_indexes: [1]
+      excerpt: "主角发现门锁异常。"
+      cues: ["门锁异常", "夜归"]
+    review:
+      confidence: medium
+      issues: []
 validation:
   status: "passed"
   warnings: []

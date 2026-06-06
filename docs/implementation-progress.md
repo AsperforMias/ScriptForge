@@ -8,6 +8,7 @@
 - 在不改前端逻辑、不改 API contract 的前提下，继续把后端从“可演示 MVP”收紧到“可信 MVP”。
 - 本轮会优先解决 3 条仍然影响交付可信度的红线：一章一场导致的过压缩、`validation.status` 总是过度乐观，以及复杂自定义中文输入下 warnings 只在少数题材里足够具体。
 - 方案边界仍然是 backend-only hardening：优先补轻量 scene-level splitting、基于章节证据的 location / objective / beat 收敛，以及更诚实的 validation downgrade；不把范围扩成完整产品级 NLP 重构。
+- 当前分支已把 Schema hardening 明确到 scene 级 `evidence` / `review`：前者负责最小证据绑定，后者负责低置信度与人工复核提示；同时 validation 新增最小内容级审计，避免 `passed` 继续掩盖重复 / 模板化问题。
 
 2026-06-06 最新后端可信度对齐：
 - `latest main` 在 `C:\Users\lenovo\Desktop\QiniuProject\test.txt` 这类“异世界转生 / 贵族成长 / 世界观说明 + 家庭互动 + 内心独白”的真实自定义中文三章节输入上，当前主要后端问题已经从“悬疑模板串题材”转移为以下 5 类可信度缺口：

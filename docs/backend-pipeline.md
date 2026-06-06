@@ -123,7 +123,9 @@ deterministic 首版要求：
 
 职责：
 - 运行 Schema 校验
+- 运行最小内容级审计（重复 / 模板化 / 低置信度聚集）
 - 填写 `validation.status` 与 `validation.warnings`
+- 回填 scene 级 `review` 信息，避免“结构通过 == 内容可靠”的误读
 - 生成 YAML 字符串
 
 失败条件：

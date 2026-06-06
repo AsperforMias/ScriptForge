@@ -162,8 +162,12 @@ func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, e
 				Content: "You adapt Chinese novels into structured screenplay YAML. " +
 					"Return only valid YAML that matches this exact root schema: version, source, adaptation, characters, locations, scenes, validation. " +
 					"Do not invent alternative top-level keys such as metadata. " +
-					"Every scene must include slugline.interior_exterior, slugline.location_id, slugline.time, summary, objective, beats, and notes.open_questions. " +
+					"Every scene must include slugline.interior_exterior, slugline.location_id, slugline.time, summary, beats, evidence, and review. " +
+					"objective and notes.open_questions are optional: leave them empty or omit them when the source evidence is insufficient. " +
 					"All scenes must reference a valid location_id declared in locations. " +
+					"Do not invent characters, locations, dialogue, objectives, or open questions that are not grounded in the provided context. " +
+					"Prefer omission over fabrication when evidence is weak. " +
+					"Do not repeat the same dialogue, beat, objective, or open question across scenes. " +
 					"Use Chinese content values where appropriate, but keep schema keys exactly as requested. " +
 					"Do not include markdown fences or explanations.",
 			},
@@ -178,8 +182,10 @@ func (g *OpenAICompatibleGenerator) buildRequest(req GenerateRequest) ([]byte, e
 					"characters:\n  - id: char_xxx\n    name: ...\n    role: protagonist\n    description: ...\n" +
 					"locations:\n  - id: loc_xxx\n    name: ...\n    description: ...\n" +
 					"scenes:\n  - id: scene_001\n    title: ...\n    source_chapters: [1]\n    slugline:\n      interior_exterior: INT\n      location_id: loc_xxx\n      time: NIGHT\n    summary: ...\n    objective: ...\n    beats:\n      - type: action\n        content: ...\n      - type: dialogue\n        character_id: char_xxx\n        content: ...\n        emotion: tense\n    notes:\n      adaptation_reason: ...\n      open_questions:\n        - ...\n" +
+					"    evidence:\n      chapter_indexes: [1]\n      excerpt: ...\n      cues:\n        - ...\n    review:\n      confidence: medium\n      issues:\n        - ...\n" +
 					"validation:\n  status: passed\n  warnings: []\n" +
-					"Ensure source.chapter_count matches the input, every scene references valid chapter indexes, and dialogue beats reference valid character_id values.",
+					"Ensure source.chapter_count matches the input, every scene references valid chapter indexes, and dialogue beats reference valid character_id values. " +
+					"If a scene detail is uncertain, lower review.confidence and record the issue instead of fabricating a polished answer.",
 			},
 		},
 	}
@@ -345,6 +351,7 @@ func parseGeneratedDocument(yamlText string, req GenerateRequest) (screenplay.Do
 	document, err := screenplay.ParseYAML(yamlText)
 	if err == nil {
 		document = normalizeGeneratedDocument(document)
+		document = enrichGeneratedDocument(document, req)
 		if validateErr := screenplay.Validate(document); validateErr == nil {
 			return document, nil, "canonical", nil
 		}
@@ -356,6 +363,7 @@ func parseGeneratedDocument(yamlText string, req GenerateRequest) (screenplay.Do
 	}
 
 	fallbackDocument = normalizeGeneratedDocument(fallbackDocument)
+	fallbackDocument = enrichGeneratedDocument(fallbackDocument, req)
 	if err := screenplay.Validate(fallbackDocument); err != nil {
 		return screenplay.Document{}, nil, "", err
 	}
@@ -477,6 +485,13 @@ func parseLooseDocument(yamlText string, req GenerateRequest) (screenplay.Docume
 			Notes: screenplay.SceneNotes{
 				AdaptationReason: "Normalized from a looser openai-compatible screenplay response into the canonical project schema.",
 				OpenQuestions:    lookupPlannedOpenQuestions(req, chapterIndex, idx),
+			},
+			Evidence: buildProviderSceneEvidence(req, chapterIndex, idx),
+			Review: &screenplay.Review{
+				Confidence: "medium",
+				Issues: []string{
+					"normalized from a loose provider scene; verify location, objective, and dialogue against the source chapters.",
+				},
 			},
 		}
 		scenes = append(scenes, scene)
@@ -615,6 +630,62 @@ func lookupPlannedLocation(req GenerateRequest, chapterIndex, fallbackIndex int)
 	return screenplay.Location{}, false
 }
 
+func enrichGeneratedDocument(doc screenplay.Document, req GenerateRequest) screenplay.Document {
+	for idx := range doc.Scenes {
+		scene := &doc.Scenes[idx]
+		chapterIndex := firstSceneChapter(scene.SourceChapters, idx, req)
+		if scene.Evidence == nil {
+			scene.Evidence = buildProviderSceneEvidence(req, chapterIndex, idx)
+		}
+		if scene.Review == nil {
+			scene.Review = &screenplay.Review{
+				Confidence: "medium",
+			}
+		}
+		if strings.TrimSpace(scene.Review.Confidence) == "" {
+			scene.Review.Confidence = "medium"
+		}
+	}
+	return doc
+}
+
+func buildProviderSceneEvidence(req GenerateRequest, chapterIndex, fallbackIndex int) *screenplay.Evidence {
+	excerpt := lookupChapterSummary(req, chapterIndex, "")
+	if excerpt == "" && fallbackIndex < len(req.Input.Source.Chapters) {
+		excerpt = req.Input.Source.Chapters[fallbackIndex].Title
+	}
+
+	cues := []string{}
+	if fallbackIndex < len(req.Plan.Scenes) {
+		plannedScene := req.Plan.Scenes[fallbackIndex]
+		if strings.TrimSpace(plannedScene.Title) != "" {
+			cues = append(cues, plannedScene.Title)
+		}
+		if strings.TrimSpace(plannedScene.Summary) != "" {
+			cues = append(cues, plannedScene.Summary)
+		}
+	}
+	if cue := lookupChapterTitle(req, chapterIndex, fallbackIndex); strings.TrimSpace(cue) != "" {
+		cues = append(cues, cue)
+	}
+
+	return &screenplay.Evidence{
+		ChapterIndexes: []int{chapterIndex},
+		Excerpt:        excerpt,
+		Cues:           uniqueNonEmptyStrings(cues),
+	}
+}
+
+func firstSceneChapter(sourceChapters []int, fallbackIndex int, req GenerateRequest) int {
+	if len(sourceChapters) > 0 && sourceChapters[0] > 0 {
+		return sourceChapters[0]
+	}
+	if fallbackIndex < len(req.Input.Source.Chapters) {
+		return req.Input.Source.Chapters[fallbackIndex].Index
+	}
+	return fallbackIndex + 1
+}
+
 func normalizeLooseBeatType(input string) string {
 	switch strings.TrimSpace(strings.ToLower(input)) {
 	case "dialogue":
@@ -710,4 +781,21 @@ func containsAny(input string, fragments ...string) bool {
 		}
 	}
 	return false
+}
+
+func uniqueNonEmptyStrings(values []string) []string {
+	seen := map[string]struct{}{}
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	return result
 }
