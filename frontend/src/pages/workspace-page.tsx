@@ -22,7 +22,7 @@ import { useCreateJob } from "../features/create-job/use-create-job";
 import { useJobPolling } from "../features/job-detail/use-job-polling";
 import { useJobResult } from "../features/job-result/use-job-result";
 import { downloadTextFile } from "../lib/download";
-import { formatDateTime, getErrorMessage } from "../lib/format";
+import { formatDateTime, formatUserFacingError, getErrorMessage } from "../lib/format";
 import { requestText } from "../lib/http";
 import type { JobStage, JobStatus, PipelineStageName } from "../types/api";
 
@@ -156,7 +156,7 @@ export function WorkspacePage() {
     setResultNotice({
       tone: "success",
       title: "已载入最新生成结果",
-      description: "右侧 YAML 编辑区已经同步到这次生成的剧本初稿；请先复核角色名、场景目标、beats 与开放问题，再继续编辑或导出。",
+      description: "右侧 YAML 编辑区已经同步到这次生成的剧本初稿；请先复核角色名、场景目标、场景片段与后续悬念，再继续编辑或导出。",
     });
   }, [loadedResultJobId, resultPayload]);
 
@@ -271,7 +271,7 @@ export function WorkspacePage() {
       setResultNotice({
         tone: "error",
         title: "下载失败",
-        description: getErrorMessage(error),
+        description: formatUserFacingError(getErrorMessage(error)),
       });
     }
   }
@@ -330,7 +330,7 @@ export function WorkspacePage() {
       setResultNotice({
         tone: "error",
         title: "复制失败",
-        description: getErrorMessage(error),
+        description: formatUserFacingError(getErrorMessage(error)),
       });
     }
   }
@@ -359,7 +359,7 @@ export function WorkspacePage() {
           <form className="panel panel--input" onSubmit={form.handleSubmit(handleSubmit)}>
             <div className="panel__header">
               <div>
-                <p className="panel__eyebrow">Input Workspace</p>
+                <p className="panel__eyebrow">输入区</p>
                 <h2>创作素材台</h2>
               </div>
               <span className="panel__badge">至少 3 章</span>
@@ -383,7 +383,7 @@ export function WorkspacePage() {
         <div className="panel panel--status">
           <div className="panel__header">
             <div>
-              <p className="panel__eyebrow">Job Status</p>
+              <p className="panel__eyebrow">进度区</p>
               <h2>生成进度</h2>
             </div>
             <span className="panel__badge panel__badge--muted">自动更新</span>
@@ -414,7 +414,7 @@ export function WorkspacePage() {
         <div className="panel panel--result">
           <div className="panel__header">
             <div>
-              <p className="panel__eyebrow">Result Workspace</p>
+              <p className="panel__eyebrow">结果区</p>
               <h2>YAML 初稿与结构摘要</h2>
             </div>
             <span className="panel__badge panel__badge--accent">{resultBadgeLabel}</span>

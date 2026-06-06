@@ -40,7 +40,7 @@ export function ExportActions({
           {hasEditedChanges ? "当前为本地编辑稿" : "当前为生成初稿"}
         </span>
         <p className="result-toolbar__caption">
-          这是可继续编辑的 YAML 剧本初稿，导出前请优先复核角色名、objective、beats 与 open questions。
+          这是可继续编辑的 YAML 剧本初稿，导出前请优先复核角色名、场景目标、场景片段与后续悬念。
         </p>
       </div>
       <div className="result-toolbar__actions">
@@ -58,7 +58,7 @@ export function ExportActions({
         </button>
       </div>
       {notice ? (
-        <div className={`result-toolbar__notice status-notice status-notice--${notice.tone}`}>
+        <div className={`result-toolbar__notice status-notice status-notice--${notice.tone} status-notice--scroll`}>
           <strong>{notice.title}</strong>
           <p>{notice.description}</p>
         </div>

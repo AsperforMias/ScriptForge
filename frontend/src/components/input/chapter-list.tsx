@@ -17,16 +17,16 @@ export function ChapterList() {
       <div className="section-heading">
         <div>
           <h3 id="chapter-list-heading">章节列表</h3>
-          <p>前端即时校验会拦截少于 3 章的提交，但后端仍是最终裁定方。</p>
+          <p>至少保留 3 章才能开始生成；提交后系统会按当前顺序依次整理内容。</p>
         </div>
-        <span className="section-tag">Chapters</span>
+        <span className="section-tag">章节</span>
       </div>
 
       <div className="chapter-list">
         {fields.map((field, index) => (
           <article className="chapter-card" key={field.id}>
             <div className="chapter-card__header">
-              <span className="chapter-index">Chapter {index + 1}</span>
+              <span className="chapter-index">第 {index + 1} 章</span>
               <div className="chapter-card__actions">
                 <button
                   className="ghost-button ghost-button--compact"
@@ -94,7 +94,7 @@ export function ChapterList() {
         >
           添加章节
         </button>
-        <p className="inline-note">章节顺序会直接映射到后端的 `source.chapters[].index`。</p>
+        <p className="inline-note">章节顺序会直接影响生成时的先后关系。</p>
       </div>
     </section>
   );
