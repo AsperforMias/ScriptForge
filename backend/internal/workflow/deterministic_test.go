@@ -26,6 +26,12 @@ func TestBuildOutlineProducesConflictPerChapter(t *testing.T) {
 	}
 }
 
+func TestSummarizeUsesChineseFallbackCopy(t *testing.T) {
+	if got := summarize(""); got != "这一章带出了新的戏剧变化。" {
+		t.Fatalf("expected chinese fallback summary, got %s", got)
+	}
+}
+
 func TestExtractEntitiesInfersProtagonistAndLocations(t *testing.T) {
 	source := normalizeFixtureSource()
 
@@ -254,6 +260,42 @@ func TestBuildScenePlanPrefersExplicitSceneEvidenceForCustomSuspenseInput(t *tes
 	}
 }
 
+func TestDeterministicWorkflowKeepsSuspenseEvidenceAheadOfFamilyKeywords(t *testing.T) {
+	source := normalizeFamilyWordSuspenseSource()
+	outline := BuildOutline(source)
+	entities := ExtractEntities(source)
+	plan := BuildScenePlan(source, outline, entities)
+
+	if len(plan.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(plan.Scenes))
+	}
+	if got := outline.Chapters[0].Conflict; !containsAny(got, "录音", "声音") {
+		t.Fatalf("expected chapter 1 conflict to stay on recording clue, got %s", got)
+	}
+	if got := outline.Chapters[0].Conflict; containsAny(got, "团圆饭", "误会说开", "家人把话说开") {
+		t.Fatalf("expected chapter 1 conflict to avoid family template leakage, got %s", got)
+	}
+	if got := plan.Scenes[0].Objective; !containsAny(got, "录音", "声音") {
+		t.Fatalf("expected scene 1 objective to stay on recording clue, got %s", got)
+	}
+	if got := plan.Scenes[1].Objective; !containsAny(got, "编号", "钥匙") {
+		t.Fatalf("expected scene 2 objective to stay on current clue, got %s", got)
+	}
+	if got := plan.Scenes[1].Notes.OpenQuestions[0]; containsAny(got, "团圆饭", "和解", "误会说开") {
+		t.Fatalf("expected scene 2 open question to avoid family template leakage, got %s", got)
+	}
+	if got := plan.Scenes[2].Objective; !containsAny(got, "钥匙", "打开", "仓库") {
+		t.Fatalf("expected scene 3 objective to stay on warehouse/key action, got %s", got)
+	}
+
+	expectedNames := []string{"闻溪", "郑岚", "老秦"}
+	for _, expectedName := range expectedNames {
+		if !characterNamesContain(entities, expectedName) {
+			t.Fatalf("expected extracted characters to include %s, got %#v", expectedName, entities.Characters)
+		}
+	}
+}
+
 func normalizeFixtureSource() ingest.NormalizedSource {
 	var req job.CreateJobRequest
 	req.Source.Title = "夜雨疑云"
@@ -350,4 +392,27 @@ func normalizeCustomSuspenseSource() ingest.NormalizedSource {
 		{Index: 3, Title: "第三章 船坞试锁", Content: "夜里，沈砚独自走进废弃船坞，用那把生锈钥匙去试库房侧门的锁孔。门后传来的撞击声让她意识到，真正想藏起来的东西还在里面。"},
 	}
 	return ingest.Normalize(req)
+}
+
+func normalizeFamilyWordSuspenseSource() ingest.NormalizedSource {
+	var req job.CreateJobRequest
+	req.Source.Title = "旧宅回声"
+	req.Source.Author = "自定义作者"
+	req.Adaptation.Style = "悬疑现实短剧"
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 客厅回放", Content: "闻溪回到父亲留下的家里，在旧客厅收拾遗物时听见随身听里多出一段陌生口哨。郑岚在里屋催她先吃饭，但闻溪只想先把录音倒回去，确认那段声音究竟录自哪一天。"},
+		{Index: 2, Title: "第二章 楼道纸灰", Content: "第二天傍晚，闻溪在自家楼道发现烧过的纸灰和一张写着仓库编号的便签。老秦说父亲生前把备用钥匙交给过一个陌生快递员，闻溪决定先去核对编号，再查钥匙落到了谁手里。"},
+		{Index: 3, Title: "第三章 仓库试锁", Content: "夜里，闻溪赶到江边旧仓库，用找到的钥匙去试开侧门。门内传来的拖拽声让她意识到，有人正赶在她之前转移父亲留下的箱子。"},
+	}
+	return ingest.Normalize(req)
+}
+
+func characterNamesContain(entities EntityBundle, expectedName string) bool {
+	for _, character := range entities.Characters {
+		if character.Name == expectedName {
+			return true
+		}
+	}
+	return false
 }

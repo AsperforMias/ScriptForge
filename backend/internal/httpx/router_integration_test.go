@@ -270,6 +270,60 @@ func TestRouterJobLifecycleWithRealisticCustomSuspenseInput(t *testing.T) {
 	}
 }
 
+func TestRouterJobLifecycleWithFamilyWordSuspenseInput(t *testing.T) {
+	router, repo, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
+
+	requestBody, err := json.Marshal(familyWordSuspenseCreateJobRequest())
+	if err != nil {
+		t.Fatalf("marshal suspense request: %v", err)
+	}
+
+	createResp := performRequest(t, router, http.MethodPost, "/api/v1/jobs", bytes.NewReader(requestBody))
+	if createResp.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", createResp.Code)
+	}
+
+	var createEnvelope struct {
+		Data struct {
+			Job struct {
+				ID string `json:"id"`
+			} `json:"job"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	waitForSucceededJob(t, repo, createEnvelope.Data.Job.ID)
+
+	resultResp := performRequest(t, router, http.MethodGet, "/api/v1/jobs/"+createEnvelope.Data.Job.ID+"/result", nil)
+	if resultResp.Code != http.StatusOK {
+		t.Fatalf("expected 200 result status, got %d", resultResp.Code)
+	}
+
+	var resultEnvelope struct {
+		Data struct {
+			Screenplay screenplay.Document `json:"screenplay"`
+			YAMLText   string              `json:"yaml_text"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resultResp.Body).Decode(&resultEnvelope); err != nil {
+		t.Fatalf("decode result response: %v", err)
+	}
+	if err := screenplay.Validate(resultEnvelope.Data.Screenplay); err != nil {
+		t.Fatalf("expected valid screenplay from suspense request: %v", err)
+	}
+	assertFamilyWordSuspenseScreenplay(t, resultEnvelope.Data.Screenplay)
+
+	var yamlDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(resultEnvelope.Data.YAMLText), &yamlDoc); err != nil {
+		t.Fatalf("unmarshal yaml text: %v", err)
+	}
+	if !reflect.DeepEqual(yamlDoc, resultEnvelope.Data.Screenplay) {
+		t.Fatalf("expected api screenplay json and yaml_text to describe the same document")
+	}
+}
+
 func TestRouterRejectsInvalidChapterCount(t *testing.T) {
 	router, _, _ := newTestHarness(t, pipeline.NewRunner(artifact.New(filepath.Join(t.TempDir(), "artifacts")), llm.NewUnavailableGenerator("deterministic mode does not use llm")))
 
@@ -641,6 +695,22 @@ func validMockLLMCreateJobRequest() job.CreateJobRequest {
 	return req
 }
 
+func familyWordSuspenseCreateJobRequest() job.CreateJobRequest {
+	var req job.CreateJobRequest
+	req.Source.Title = "旧宅回声"
+	req.Source.Author = "自定义作者"
+	req.Adaptation.Style = "悬疑现实短剧"
+	req.Adaptation.Audience = "青年向"
+	req.Adaptation.Notes = []string{"家庭词不能盖过当前线索", "同章多线索时围绕主证据推进"}
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 客厅回放", Content: "闻溪回到父亲留下的家里，在旧客厅收拾遗物时听见随身听里多出一段陌生口哨。郑岚在里屋催她先吃饭，但闻溪只想先把录音倒回去，确认那段声音究竟录自哪一天。"},
+		{Index: 2, Title: "第二章 楼道纸灰", Content: "第二天傍晚，闻溪在自家楼道发现烧过的纸灰和一张写着仓库编号的便签。老秦说父亲生前把备用钥匙交给过一个陌生快递员，闻溪决定先去核对编号，再查钥匙落到了谁手里。"},
+		{Index: 3, Title: "第三章 仓库试锁", Content: "夜里，闻溪赶到江边旧仓库，用找到的钥匙去试开侧门。门内传来的拖拽声让她意识到，有人正赶在她之前转移父亲留下的箱子。"},
+	}
+	return req
+}
+
 func customChineseCreateJobRequest() job.CreateJobRequest {
 	var req job.CreateJobRequest
 	req.Source.Title = "雾港录音带"
@@ -715,6 +785,47 @@ func assertCustomSuspenseScreenplay(t *testing.T, doc screenplay.Document) {
 	}
 	if got := doc.Scenes[2].Notes.OpenQuestions[0]; !containsAnyText(got, "钥匙", "门") {
 		t.Fatalf("expected scene 3 open question to stay on key/door clue, got %s", got)
+	}
+}
+
+func assertFamilyWordSuspenseScreenplay(t *testing.T, doc screenplay.Document) {
+	t.Helper()
+
+	if len(doc.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(doc.Scenes))
+	}
+	if len(doc.Characters) < 3 {
+		t.Fatalf("expected multiple extracted characters, got %#v", doc.Characters)
+	}
+
+	expectedNames := []string{"闻溪", "郑岚", "老秦"}
+	for _, expectedName := range expectedNames {
+		found := false
+		for _, character := range doc.Characters {
+			if character.Name == expectedName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected extracted characters to include %s, got %#v", expectedName, doc.Characters)
+		}
+	}
+
+	if got := doc.Scenes[0].Objective; !containsAnyText(got, "录音", "声音") {
+		t.Fatalf("expected scene 1 objective to stay on recording clue, got %s", got)
+	}
+	if got := doc.Scenes[0].Objective; containsAnyText(got, "团圆饭", "误会说开", "和解") {
+		t.Fatalf("expected scene 1 objective to avoid family template leakage, got %s", got)
+	}
+	if got := doc.Scenes[1].Objective; !containsAnyText(got, "编号", "钥匙") {
+		t.Fatalf("expected scene 2 objective to stay on current clue, got %s", got)
+	}
+	if got := doc.Scenes[1].Notes.OpenQuestions[0]; containsAnyText(got, "团圆饭", "和解", "误会说开") {
+		t.Fatalf("expected scene 2 open question to avoid family template leakage, got %s", got)
+	}
+	if got := doc.Scenes[2].Objective; !containsAnyText(got, "钥匙", "打开", "仓库") {
+		t.Fatalf("expected scene 3 objective to stay on key/warehouse action, got %s", got)
 	}
 }
 
