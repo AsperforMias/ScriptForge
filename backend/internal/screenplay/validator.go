@@ -25,7 +25,9 @@ func ValidateAndSerialize(doc Document) (ValidatedDocument, error) {
 		return ValidatedDocument{}, err
 	}
 
-	doc.Validation.Status = "passed"
+	if strings.TrimSpace(doc.Validation.Status) == "" {
+		doc.Validation.Status = "passed"
+	}
 	if doc.Validation.Warnings == nil {
 		doc.Validation.Warnings = []string{}
 	}

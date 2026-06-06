@@ -559,37 +559,37 @@ func lookupChapterSummary(req GenerateRequest, chapterIndex int, fallback string
 }
 
 func lookupPlannedObjective(req GenerateRequest, chapterIndex, fallbackIndex int) string {
+	if fallbackIndex < len(req.Plan.Scenes) {
+		return req.Plan.Scenes[fallbackIndex].Objective
+	}
 	for _, scene := range req.Plan.Scenes {
 		if len(scene.SourceChapters) > 0 && scene.SourceChapters[0] == chapterIndex {
 			return scene.Objective
 		}
 	}
-	if fallbackIndex < len(req.Plan.Scenes) {
-		return req.Plan.Scenes[fallbackIndex].Objective
-	}
 	return "Drive the chapter conflict into a filmable dramatic action."
 }
 
 func lookupPlannedOpenQuestions(req GenerateRequest, chapterIndex, fallbackIndex int) []string {
+	if fallbackIndex < len(req.Plan.Scenes) {
+		return req.Plan.Scenes[fallbackIndex].Notes.OpenQuestions
+	}
 	for _, scene := range req.Plan.Scenes {
 		if len(scene.SourceChapters) > 0 && scene.SourceChapters[0] == chapterIndex {
 			return scene.Notes.OpenQuestions
 		}
 	}
-	if fallbackIndex < len(req.Plan.Scenes) {
-		return req.Plan.Scenes[fallbackIndex].Notes.OpenQuestions
-	}
 	return []string{}
 }
 
 func lookupPlannedScene(req GenerateRequest, chapterIndex, fallbackIndex int) (screenplay.Scene, bool) {
+	if fallbackIndex < len(req.Plan.Scenes) {
+		return req.Plan.Scenes[fallbackIndex], true
+	}
 	for _, scene := range req.Plan.Scenes {
 		if len(scene.SourceChapters) > 0 && scene.SourceChapters[0] == chapterIndex {
 			return scene, true
 		}
-	}
-	if fallbackIndex < len(req.Plan.Scenes) {
-		return req.Plan.Scenes[fallbackIndex], true
 	}
 	return screenplay.Scene{}, false
 }
@@ -598,6 +598,11 @@ func lookupPlannedLocation(req GenerateRequest, chapterIndex, fallbackIndex int)
 	scene, ok := lookupPlannedScene(req, chapterIndex, fallbackIndex)
 	if !ok {
 		return screenplay.Location{}, false
+	}
+	for _, location := range req.Plan.Locations {
+		if location.ID == scene.Slugline.LocationID {
+			return location, true
+		}
 	}
 	for _, location := range req.Entities.Locations {
 		if location.ID == scene.Slugline.LocationID {

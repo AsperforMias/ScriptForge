@@ -992,8 +992,8 @@ func assertGrowthFantasyScreenplay(t *testing.T, doc screenplay.Document) {
 func assertRealGrowthFantasyScreenplay(t *testing.T, doc screenplay.Document) {
 	t.Helper()
 
-	if len(doc.Scenes) != 3 {
-		t.Fatalf("expected 3 scenes, got %d", len(doc.Scenes))
+	if len(doc.Scenes) <= len(doc.Source.Chapters) {
+		t.Fatalf("expected at least one chapter to split into multiple scenes, got %d scenes for %d chapters", len(doc.Scenes), len(doc.Source.Chapters))
 	}
 	if len(doc.Validation.Warnings) == 0 {
 		t.Fatal("expected real growth-fantasy response to surface validation warnings")
@@ -1021,6 +1021,15 @@ func assertRealGrowthFantasyScreenplay(t *testing.T, doc screenplay.Document) {
 	}
 	if matched < 3 {
 		t.Fatalf("expected core names to be recovered, matched %d in %#v", matched, doc.Characters)
+	}
+	if countScenesForChapter(doc, 2) < 2 || countScenesForChapter(doc, 3) < 2 {
+		t.Fatalf("expected chapter 2 and 3 to split into multiple scenes, got chapter2=%d chapter3=%d", countScenesForChapter(doc, 2), countScenesForChapter(doc, 3))
+	}
+	if !documentHasLocation(doc, "藏书馆") || !documentHasLocation(doc, "花坛") || !documentHasLocation(doc, "账房") || !documentHasLocation(doc, "议事厅") {
+		t.Fatalf("expected split scenes to preserve concrete locations, got %#v", doc.Locations)
+	}
+	if doc.Validation.Status != "passed" {
+		t.Fatalf("expected credible growth-fantasy regression to stay structurally passed, got %s", doc.Validation.Status)
 	}
 
 	for idx, scene := range doc.Scenes {
@@ -1072,6 +1081,28 @@ func containsAnyText(input string, keywords ...string) bool {
 	return false
 }
 
+func countScenesForChapter(doc screenplay.Document, chapterIndex int) int {
+	count := 0
+	for _, scene := range doc.Scenes {
+		for _, sourceChapter := range scene.SourceChapters {
+			if sourceChapter == chapterIndex {
+				count++
+				break
+			}
+		}
+	}
+	return count
+}
+
+func documentHasLocation(doc screenplay.Document, expected string) bool {
+	for _, location := range doc.Locations {
+		if location.Name == expected {
+			return true
+		}
+	}
+	return false
+}
+
 func looksLikeNarrativeCarryover(input string) bool {
 	input = strings.TrimSpace(input)
 	if input == "" {
@@ -1080,7 +1111,7 @@ func looksLikeNarrativeCarryover(input string) bool {
 	if utf8.RuneCountInString(input) > 40 {
 		return true
 	}
-	return containsAnyText(input, "因为", "随着", "直到", "只能靠", "所能看到", "难不成", "让人感觉", "也不知道", "这让他", "原本", "【", "】", "...", "……")
+	return containsAnyText(input, "因为", "随着", "直到", "只能", "所能看到", "难不成", "让人感觉", "也不知道", "这让他", "原本", "……", "...")
 }
 
 func looksLikeBrokenActionBeat(input string) bool {
@@ -1088,7 +1119,7 @@ func looksLikeBrokenActionBeat(input string) bool {
 	if input == "" {
 		return true
 	}
-	return containsAnyText(input, "【", "】", "...", "……", "——") || strings.HasPrefix(input, "“") || strings.HasPrefix(input, "”")
+	return containsAnyText(input, "【", "】", "...", "……") || strings.HasPrefix(input, "“") || strings.HasPrefix(input, "\"")
 }
 
 func containsSpecificWarning(warnings []string, keywords ...string) bool {

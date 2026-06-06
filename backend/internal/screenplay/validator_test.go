@@ -21,6 +21,20 @@ func TestValidateAndSerialize(t *testing.T) {
 	}
 }
 
+func TestValidateAndSerializePreservesFailedStatus(t *testing.T) {
+	doc := validDocument()
+	doc.Validation.Status = "failed"
+	doc.Validation.Warnings = []string{"scene_001: objective is still derived from long narrative phrasing"}
+
+	validated, err := ValidateAndSerialize(doc)
+	if err != nil {
+		t.Fatalf("unexpected validation error: %v", err)
+	}
+	if validated.Document.Validation.Status != "failed" {
+		t.Fatalf("expected validation status failed to be preserved, got %s", validated.Document.Validation.Status)
+	}
+}
+
 func TestValidateRejectsInvalidSceneLocation(t *testing.T) {
 	doc := validDocument()
 	doc.Scenes[0].Slugline.LocationID = "missing"
