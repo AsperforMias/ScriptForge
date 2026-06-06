@@ -16,6 +16,9 @@
 - deterministic fixture 仍保留，但不再作为唯一验收对象；当前回归已额外覆盖至少一条“非 fixture、自定义中文三章节输入”的 create -> run -> result 基本链路
 - deterministic 链路仍以规则法为主，但本轮已补强真实用户输入下的人名/地点兜底、scene objective 差异化和 open question 去重，降低同题材机械重复
 - 因此，后续验收必须继续把“用户自定义章节输入”作为主路径之一，而不是把 sample preset 或 fixture 当作默认成功条件
+- 最新 `main` 在“异世界转生 / 贵族成长”类自定义中文三章节输入上的网页实测表明：当前主要短板仍在后端生成质量，而不是前端链路或任务化 API；生成结果虽然能通过 schema 级校验，但仍可能出现人物抽取碎词化、题材模板串用、scene objective / dialogue 空泛占位，以及 `validation.status=passed` 但语义质量不足的问题
+- 上述问题不能简单归因于 DeepSeek `v4-flash` 模型本身。若问题出现在 `generation.mode=deterministic`，则根因首先是后端 deterministic 规则与 fallback 仍未覆盖该题材；若问题出现在 `generation.mode=llm(openai_compatible)`，则应视为“provider 质量 + 后端归一化/兜底策略”共同导致，不能只把责任外推给模型
+- 因此，当前项目已经满足“可运行、可演示、YAML-first、任务化 pipeline 明确”的赛事 MVP 方向，但还不应自称为完整产品；更准确的表述是“比赛导向的可演示 MVP，主链路已成型，但任意自定义输入下的语义稳定性仍需继续 hardening”
 
 已完成：
 - 题目与赛事要求的精简总结
@@ -94,6 +97,8 @@
   说明：当前能生成合法 YAML，但对真实用户输入仍偏模板化，需要补强角色抽取、地点/冲突推断与 scene 级差异化表达，避免 demo 以外的文本看起来过度理想化
 - deterministic 复杂中文输入的语义一致性 hardening
   说明：本轮已修复 `buildConflict` 的 summary 级宽关键词桶误判，并清理明显英文 fallback；但 deterministic 对多场景章节仍未做 scene 级拆分，对更复杂多人物、多线索中文输入仍可能偏单场景压缩，需要继续向“真实输入优先”的中文表达收紧
+- 非悬疑 / 非既有 fixture 题材的真实输入 hardening
+  说明：最新 `main` 在“异世界转生 / 贵族成长”自定义输入上暴露出碎词角色名、跨题材 objective 漂移、空泛 open question 与 beat 文本不可直接拍摄等问题；后续需要把人物抽取、题材识别、scene goal 生成与 validation warning 提示继续收紧到“章节证据优先”，避免 schema 通过但内容不可信
 - 前后端验收口径重新对齐
   说明：前端需要明确“preset 只是辅助，不是唯一入口”，后端需要明确“fixture 只是回归基线，不代表真实用户输入已经被充分覆盖”
 - 更丰富的 fixture 覆盖面
