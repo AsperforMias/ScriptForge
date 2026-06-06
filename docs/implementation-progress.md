@@ -126,6 +126,7 @@
 - 补一条非 preset 的真实用户输入自检路径，至少覆盖“清空默认样例 -> 手工录入 3 章 -> create job -> polling -> YAML/result/export”
 
 优先级 2：
+- 继续补强 deterministic 对非 fixture / 非样例输入的语义一致性，重点收敛 objective / dialogue / open question / location 对当前章节显式证据的依赖，减少跨题材模板串用和凭空补线索
 - 补强 deterministic 对非 fixture / 非样例输入的泛化能力，降低单主角、单模板输出在真实用户输入下的违和感
 - 扩展 deterministic 与 llm 的 fixture 覆盖面
 - 继续扩展真实 provider 返回变体回归

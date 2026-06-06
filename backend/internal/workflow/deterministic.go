@@ -202,91 +202,274 @@ func buildConflict(summary string) string {
 	}
 }
 
-func buildObjective(chapter OutlineChapter, title, content, locationName string) string {
-	switch {
-	case containsAny(content, "门锁", "被人动过", "走廊"):
-		return "确认门锁异常是否意味着有人闯入，并判断主角能否立刻进入现场。"
-	case containsAny(content, "线索", "车站", "寄信人", "追踪"):
-		return "顺着字条和车站线索追查寄信人，把被动防备转成主动调查。"
-	case containsAny(content, "字条", "别睡", "提前进入"):
-		return "确认陌生字条是在警告还是威胁，并找出谁提前进入过房间。"
-	case containsAny(content, "数据被人替换", "动了最终版本", "复核提案"):
-		return "确认是谁替换了关键数据，并决定汇报前要先止损还是直接揭穿。"
-	case containsAny(content, "独占客户", "怀疑已经在团队里扩散", "咖啡馆见面", "对质"):
-		return "弄清团队猜疑是谁挑起的，并判断这次对质能否在汇报前止损。"
-	case containsAny(content, "会议室", "摆到台面上", "正式汇报前"):
-		return "在会议室摊牌前守住证据，让项目风险无法继续被掩盖。"
-	case containsAny(content, "主力队友可能缺席", "最后一棒", "加练"):
-		return "确认临阵变动会把责任推向谁，并为队伍重排接力节奏。"
-	case containsAny(content, "教室", "质疑战术安排", "吵散"):
-		return "稳住快要失控的队伍情绪，并把争执重新拉回比赛方案。"
-	case containsAny(content, "比赛当天", "站上跑道", "带着现有阵容", "接力跑完"):
-		return "带着现有阵容完成比赛，并把临场压力转成真正的起跑动作。"
-	case containsAny(content, "病房外", "出院回家吃团圆饭", "医生建议"):
-		return "确认父亲坚持回家的代价，并在家人与医生建议之间做出选择。"
-	case strings.Contains(content, "厨房") && containsAny(content, "旧账", "指责", "姐姐"):
-		return "接住厨房里的旧账与指责，并逼近这场家庭争执真正的症结。"
-	case strings.Contains(content, "客厅") && containsAny(content, "父亲", "误会", "说出口"):
-		return "趁着父亲先开口的时机，把多年误会真正说开。"
-	case containsAny(content, "夜市", "误把", "笑话"):
-		return "先止住夜市里的失控误会，再判断这次撞见会不会变成新的合作。"
-	case containsAny(content, "餐馆", "解释误会", "越描越乱"):
-		return "在餐馆里把误会说清楚，并避免朋友起哄继续推高尴尬。"
-	case containsAny(content, "广场", "试播", "直播"):
-		return "把前两章的尴尬转成一次真正能落地的合作试播。"
-	}
+func sceneText(title, content string) string {
+	return strings.TrimSpace(title + " " + content)
+}
 
-	issue := extractIssueFocus(content)
-	action := extractActionFocus(content)
+func keywordScore(text string, strong, weak []string) int {
+	score := 0
+	for _, keyword := range strong {
+		if strings.Contains(text, keyword) {
+			score += 2
+		}
+	}
+	for _, keyword := range weak {
+		if strings.Contains(text, keyword) {
+			score++
+		}
+	}
+	return score
+}
+
+func familySceneScore(title, content, locationName string) int {
+	score := keywordScore(
+		sceneText(title, content),
+		[]string{"团圆饭", "病房", "出院", "旧账", "和解", "说出口", "医生建议"},
+		[]string{"父亲", "母亲", "姐姐", "家里", "客厅", "厨房", "照料"},
+	)
+	switch locationName {
+	case "病房", "厨房", "客厅":
+		score += 2
+	}
+	return score
+}
+
+func workplaceSceneScore(title, content, locationName string) int {
+	score := keywordScore(
+		sceneText(title, content),
+		[]string{"数据被人替换", "最终版本", "汇报", "提案", "项目", "客户", "会议室", "证据"},
+		[]string{"咖啡馆", "对质", "止损", "摊牌", "备份文件", "独占客户"},
+	)
+	switch locationName {
+	case "办公室", "会议室", "咖啡馆":
+		score++
+	}
+	return score
+}
+
+func sportsSceneScore(title, content, locationName string) int {
+	score := keywordScore(
+		sceneText(title, content),
+		[]string{"接力", "决赛", "跑道", "主力队友", "最后一棒", "战术安排"},
+		[]string{"操场", "教室", "起跑", "比赛", "队伍", "队友"},
+	)
+	switch locationName {
+	case "操场", "教室", "跑道":
+		score++
+	}
+	return score
+}
+
+func comedySceneScore(title, content, locationName string) int {
+	score := keywordScore(
+		sceneText(title, content),
+		[]string{"误会", "摄影师", "直播", "试播", "笑话", "起哄"},
+		[]string{"夜市", "餐馆", "广场", "设备", "圆场"},
+	)
+	switch locationName {
+	case "夜市", "餐馆", "广场":
+		score++
+	}
+	return score
+}
+
+func isSuspenseIntrusionScene(title, content, locationName string) bool {
+	return strings.Contains(content, "门锁") && containsAny(content, "被人动过", "走廊", "不确定是否应该立刻进去")
+}
+
+func isSuspenseWarningScene(title, content, locationName string) bool {
+	return containsAny(content, "字条", "留言", "今晚别睡") && containsAny(content, "提前进入", "知道", "警告", "恶作剧")
+}
+
+func isStationPursuitScene(title, content, locationName string) bool {
+	text := sceneText(title, content)
+	if locationName == "车站" && keywordScore(text, []string{"寄信人", "追踪", "追查", "车站"}, []string{"线索", "字条"}) >= 4 {
+		return true
+	}
+	return containsAny(title, "车站", "追踪") && containsAny(content, "前往车站", "赶到车站", "来到车站")
+}
+
+func isWorkplaceDataScene(title, content, locationName string) bool {
+	return workplaceSceneScore(title, content, locationName) >= 4 && containsAny(content, "数据被人替换", "最终版本", "复核提案")
+}
+
+func isWorkplaceConfrontationScene(title, content, locationName string) bool {
+	return workplaceSceneScore(title, content, locationName) >= 4 && containsAny(content, "独占客户", "怀疑已经在团队里扩散", "咖啡馆见面", "对质")
+}
+
+func isWorkplaceShowdownScene(title, content, locationName string) bool {
+	return workplaceSceneScore(title, content, locationName) >= 4 && containsAny(content, "会议室", "摆到台面上", "正式汇报前", "证据")
+}
+
+func isSportsSetupScene(title, content, locationName string) bool {
+	return sportsSceneScore(title, content, locationName) >= 4 && containsAny(content, "主力队友可能缺席", "最后一棒", "加练")
+}
+
+func isSportsConflictScene(title, content, locationName string) bool {
+	return sportsSceneScore(title, content, locationName) >= 4 && containsAny(content, "教室", "质疑战术安排", "吵散")
+}
+
+func isSportsRaceScene(title, content, locationName string) bool {
+	return sportsSceneScore(title, content, locationName) >= 4 && containsAny(content, "比赛当天", "站上跑道", "带着现有阵容", "接力跑完")
+}
+
+func isFamilyCareScene(title, content, locationName string) bool {
+	return familySceneScore(title, content, locationName) >= 4 &&
+		containsAny(content, "病房外", "出院回家吃团圆饭", "医生建议") &&
+		containsAny(content, "父亲", "母亲", "姐姐", "家里")
+}
+
+func isFamilyConflictScene(title, content, locationName string) bool {
+	return familySceneScore(title, content, locationName) >= 4 &&
+		locationName == "厨房" &&
+		containsAny(content, "旧账", "指责") &&
+		containsAny(content, "父亲", "母亲", "姐姐", "家里")
+}
+
+func isFamilyReconcileScene(title, content, locationName string) bool {
+	return familySceneScore(title, content, locationName) >= 4 &&
+		locationName == "客厅" &&
+		containsAny(content, "误会", "说出口", "先开口", "坦白") &&
+		containsAny(content, "父亲", "母亲", "姐姐", "家里")
+}
+
+func isComedyMeetScene(title, content, locationName string) bool {
+	return comedySceneScore(title, content, locationName) >= 4 && locationName == "夜市" && containsAny(content, "误把", "笑话")
+}
+
+func isComedyClarifyScene(title, content, locationName string) bool {
+	return comedySceneScore(title, content, locationName) >= 4 && locationName == "餐馆" && containsAny(content, "解释误会", "越描越乱")
+}
+
+func isComedyBroadcastScene(title, content, locationName string) bool {
+	return comedySceneScore(title, content, locationName) >= 4 && locationName == "广场" && containsAny(content, "试播", "直播")
+}
+
+type sceneArtifact struct {
+	kind  string
+	label string
+}
+
+func inferSceneArtifact(title, content, locationName string) sceneArtifact {
+	text := sceneText(title, content)
 	switch {
-	case issue != "" && action != "":
-		return fmt.Sprintf("%s，并%s。", objectiveLead(issue), actionClause(action))
-	case action != "":
-		return fmt.Sprintf("%s，并把局势推进到下一步。", actionClause(action))
-	case issue != "":
-		return fmt.Sprintf("%s，并为下一步行动建立判断。", objectiveLead(issue))
+	case containsAny(text, "录音", "录音机", "录音带", "磁带", "笑声", "潮声"):
+		return sceneArtifact{kind: "recording", label: "录音里多出的声音"}
+	case containsAny(text, "留言", "来信", "匿名信", "字条"):
+		return sceneArtifact{kind: "message", label: "匿名留言"}
+	case containsAny(text, "钥匙", "锁孔"):
+		return sceneArtifact{kind: "key", label: "这把钥匙"}
+	case containsAny(text, "账本"):
+		return sceneArtifact{kind: "ledger", label: "账本里被藏起的记录"}
+	case containsAny(text, "合同", "合约"):
+		return sceneArtifact{kind: "contract", label: "合同里被藏起的条件"}
+	case containsAny(text, "货单", "货运事故"):
+		return sceneArtifact{kind: "manifest", label: "货单和事故记录"}
+	case containsAny(text, "铭牌", "档案", "照片", "底片", "证据"):
+		return sceneArtifact{kind: "clue", label: "这条新线索"}
+	case containsAny(text, "门锁"):
+		return sceneArtifact{kind: "lock", label: "门锁异常"}
+	case containsAny(text, "数据"):
+		return sceneArtifact{kind: "data", label: "关键数据被替换的原因"}
 	default:
-		return fallbackSceneObjective(ingest.NormalizedChapter{Index: chapter.Index, Title: title}, locationName)
+		titleFocus := trimChapterPrefix(title)
+		if titleFocus != "" {
+			return sceneArtifact{kind: "title", label: titleFocus}
+		}
+		if locationName != "" {
+			return sceneArtifact{kind: "location", label: locationName}
+		}
+		return sceneArtifact{}
 	}
 }
 
-func buildDialogue(chapter OutlineChapter, title, content, locationName string) string {
+func buildEvidenceDrivenObjective(chapter ingest.NormalizedChapter, locationName string) string {
+	artifact := inferSceneArtifact(chapter.Title, chapter.Content, locationName)
+	decision := inferGenericDecision(chapter.Content, locationName)
+	switch artifact.kind {
+	case "recording":
+		if containsAny(chapter.Content, "核对", "重播") {
+			return "先确认录音里多出的声音从何而来，再决定该向谁核对这条线索。"
+		}
+		return "先确认录音里多出的声音从何而来，再决定是否继续追查下去。"
+	case "message":
+		if containsAny(chapter.Content, "赶到", "赴约", "见面", "约见") {
+			return "先确认匿名留言是不是诱饵，再决定要不要按约继续追查。"
+		}
+		return "先弄清匿名留言背后的真实意图，再决定下一步该找谁。"
+	case "key":
+		if containsAny(chapter.Content, "试锁", "打开", "锁孔", "库房", "船坞") {
+			return "先确认这把钥匙究竟能打开哪里，再决定是否继续深入。"
+		}
+		return "先弄清这把钥匙为什么会出现在这里，再决定是否顺着它继续追查。"
+	case "ledger":
+		return "先确认账本里到底藏着哪一段记录，再决定该信谁、该找谁对质。"
+	case "contract":
+		return "先确认合同里被遮住的条件是什么，再决定该不该继续签下去。"
+	case "manifest":
+		return "先弄清货单和事故记录之间缺失了哪一环，再决定何时把真相带出去。"
+	case "clue":
+		if decision != "" {
+			return fmt.Sprintf("先弄清%s指向什么，再%s。", artifact.label, decision)
+		}
+		return "先弄清这条新线索到底指向什么，再决定下一步该追到哪里。"
+	case "lock":
+		return "先确认门锁异常意味着什么，再决定该不该继续待在现场。"
+	case "data":
+		return "先确认关键数据是在哪里被调包的，再决定下一步该找谁负责。"
+	default:
+		if artifact.label != "" && decision != "" {
+			return fmt.Sprintf("先弄清%s背后的问题，再%s。", artifact.label, decision)
+		}
+		if artifact.label != "" {
+			return fmt.Sprintf("先弄清%s背后的问题，并据此推进下一步行动。", artifact.label)
+		}
+		return fallbackSceneObjective(chapter, locationName)
+	}
+}
+
+func inferGenericDecision(content, locationName string) string {
 	switch {
-	case containsAny(content, "病房", "团圆饭", "父亲", "母亲", "姐姐", "客厅", "厨房", "家里"):
-		if containsAny(content, "病房外", "医生建议") {
-			return "回不回家吃这顿饭，今晚必须有人把后果说清楚。"
-		}
-		if containsAny(content, "客厅", "误会", "说出口") {
-			return "既然爸先提了，我也不想再把这些话憋回去。"
-		}
-		return "今晚这顿饭不是为了热闹，是为了把这些年的话说清楚。"
-	case containsAny(content, "夜市", "餐馆", "广场", "直播", "摄影师", "试播", "设备"):
-		if containsAny(content, "夜市", "误把") {
-			return "我先认这次闹错了，但这件事不能就这么糊过去。"
-		}
-		if containsAny(content, "广场", "试播", "直播") {
-			return "既然都站到镜头前了，就把这次试播做成真的。"
-		}
-		return "先别急着生气，我们至少得把这场误会解释清楚。"
-	case containsAny(content, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
-		if containsAny(content, "独占客户", "怀疑已经在团队里扩散", "咖啡馆见面") {
-			return "如果连谁在放消息都不清楚，我们谁都别想安心进会议室。"
-		}
-		if containsAny(content, "会议室", "摆到台面上") {
-			return "证据我已经带来了，今天谁都别想把这件事轻轻带过。"
-		}
-		return "如果现在不把问题找出来，明天整个项目都会失控。"
-	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
-		if containsAny(content, "教室", "质疑战术安排", "吵散") {
-			return "还没站上跑道就先散掉，我们输的不会只是这场比赛。"
-		}
-		return "就算少一个人，我们也得把这场接力跑完。"
-	case containsAny(content, "线索", "车站", "寄信人", "追踪"):
-		return "线索既然指向车站，我就不能再等了。"
-	case containsAny(content, "门锁", "被人动过", "走廊"):
-		return "门锁被动过，屋里也许还有人。"
-	case containsAny(content, "字条", "别睡", "提前进入"):
-		return "这张字条不是恶作剧，对方知道我今晚会回来。"
+	case containsAny(content, "告诉警方", "报警", "交给警方"):
+		return "决定是否把消息交给警方"
+	case containsAny(content, "核对", "查证", "对照"):
+		return "确认下一步该向谁核对"
+	case containsAny(content, "赶到", "赴约", "见面", "约见"):
+		return "判断这次赴约是不是圈套"
+	case containsAny(content, "试锁", "打开", "锁孔"):
+		return "赶在被打断前试出答案"
+	case containsAny(content, "带到", "签约现场", "摆到台面上", "摊牌"):
+		return "决定在什么时机把真相摆到台面上"
+	case containsAny(content, "追查", "继续追", "顺着"):
+		return "决定要不要继续追查下去"
+	case locationName != "":
+		return fmt.Sprintf("决定是否继续在%s追下去", locationName)
+	default:
+		return ""
+	}
+}
+
+func buildEvidenceDrivenDialogue(chapter OutlineChapter, title, content, locationName string) string {
+	artifact := inferSceneArtifact(title, content, locationName)
+	switch artifact.kind {
+	case "recording":
+		return "先把录音里的异常声音核对清楚，再决定该信谁。"
+	case "message":
+		return "如果这张留言真想把我引过去，我更得先看清它想让我见谁。"
+	case "key":
+		return "钥匙不会平白无故留下，它一定在指向下一道门。"
+	case "ledger":
+		return "只要账本还在，就有人不想让我把这一页翻出来。"
+	case "contract":
+		return "合同敢藏条件，就说明有人不想让我现在看懂它。"
+	case "manifest":
+		return "货单和事故记录对不上，这里面一定还有人没说实话。"
+	case "clue":
+		return "这条线索既然露出来了，我就不能让它再断掉。"
+	case "lock":
+		return "门锁既然被动过，说明有人比我先到过这里。"
+	case "data":
+		return "数据敢在最后一刻被换掉，就说明有人赌我来不及发现。"
 	default:
 		issue := extractIssueFocus(content)
 		if issue != "" {
@@ -296,19 +479,120 @@ func buildDialogue(chapter OutlineChapter, title, content, locationName string) 
 	}
 }
 
+func buildEvidenceDrivenOpenQuestion(title, content, locationName string) []string {
+	artifact := inferSceneArtifact(title, content, locationName)
+	switch artifact.kind {
+	case "recording":
+		return []string{"录音里多出的声音究竟是谁留下的？"}
+	case "message":
+		return []string{"匿名留言到底想把主角引到哪里？"}
+	case "key":
+		return []string{"这把钥匙最终会打开哪一道门？"}
+	case "ledger":
+		return []string{"账本里到底藏着谁不想被看见的记录？"}
+	case "contract":
+		return []string{"合同里被遮住的条件，会把谁逼到台前？"}
+	case "manifest":
+		return []string{"货单和事故记录对不上的那一段，究竟是谁动了手脚？"}
+	case "clue":
+		return []string{"这条新线索背后到底还藏着什么？"}
+	case "lock":
+		return []string{"是谁先一步动过门锁，又想在现场掩盖什么？"}
+	case "data":
+		return []string{"关键数据究竟是在哪个环节被人换掉的？"}
+	default:
+		issue := extractIssueFocus(content)
+		action := extractActionFocus(content)
+		if question := questionFromSignals(issue, action); question != "" {
+			return []string{question}
+		}
+		return nil
+	}
+}
+
+func buildObjective(chapter OutlineChapter, title, content, locationName string) string {
+	switch {
+	case isSuspenseIntrusionScene(title, content, locationName):
+		return "确认门锁异常是否意味着有人闯入，并判断主角能否立刻进入现场。"
+	case isStationPursuitScene(title, content, locationName):
+		return "顺着字条和车站线索追查寄信人，把被动防备转成主动调查。"
+	case isSuspenseWarningScene(title, content, locationName):
+		return "确认陌生字条是在警告还是威胁，并找出谁提前进入过房间。"
+	case isWorkplaceDataScene(title, content, locationName):
+		return "确认是谁替换了关键数据，并决定汇报前要先止损还是直接揭穿。"
+	case isWorkplaceConfrontationScene(title, content, locationName):
+		return "弄清团队猜疑是谁挑起的，并判断这次对质能否在汇报前止损。"
+	case isWorkplaceShowdownScene(title, content, locationName):
+		return "在会议室摊牌前守住证据，让项目风险无法继续被掩盖。"
+	case isSportsSetupScene(title, content, locationName):
+		return "确认临阵变动会把责任推向谁，并为队伍重排接力节奏。"
+	case isSportsConflictScene(title, content, locationName):
+		return "稳住快要失控的队伍情绪，并把争执重新拉回比赛方案。"
+	case isSportsRaceScene(title, content, locationName):
+		return "带着现有阵容完成比赛，并把临场压力转成真正的起跑动作。"
+	case isFamilyCareScene(title, content, locationName):
+		return "确认父亲坚持回家的代价，并在家人与医生建议之间做出选择。"
+	case isFamilyConflictScene(title, content, locationName):
+		return "接住厨房里的旧账与指责，并逼近这场家庭争执真正的症结。"
+	case isFamilyReconcileScene(title, content, locationName):
+		return "趁着父亲先开口的时机，把多年误会真正说开。"
+	case isComedyMeetScene(title, content, locationName):
+		return "先止住夜市里的失控误会，再判断这次撞见会不会变成新的合作。"
+	case isComedyClarifyScene(title, content, locationName):
+		return "在餐馆里把误会说清楚，并避免朋友起哄继续推高尴尬。"
+	case isComedyBroadcastScene(title, content, locationName):
+		return "把前两章的尴尬转成一次真正能落地的合作试播。"
+	}
+	return buildEvidenceDrivenObjective(ingest.NormalizedChapter{Index: chapter.Index, Title: title, Content: content}, locationName)
+}
+
+func buildDialogue(chapter OutlineChapter, title, content, locationName string) string {
+	switch {
+	case isFamilyCareScene(title, content, locationName):
+		return "回不回家吃这顿饭，今晚必须有人把后果说清楚。"
+	case isFamilyReconcileScene(title, content, locationName):
+		return "既然爸先提了，我也不想再把这些话憋回去。"
+	case isFamilyConflictScene(title, content, locationName):
+		return "今晚这顿饭不是为了热闹，是为了把这些年的话说清楚。"
+	case isComedyMeetScene(title, content, locationName):
+		return "我先认这次闹错了，但这件事不能就这么糊过去。"
+	case isComedyBroadcastScene(title, content, locationName):
+		return "既然都站到镜头前了，就把这次试播做成真的。"
+	case isComedyClarifyScene(title, content, locationName):
+		return "先别急着生气，我们至少得把这场误会解释清楚。"
+	case isWorkplaceConfrontationScene(title, content, locationName):
+		return "如果连谁在放消息都不清楚，我们谁都别想安心进会议室。"
+	case isWorkplaceShowdownScene(title, content, locationName):
+		return "证据我已经带来了，今天谁都别想把这件事轻轻带过。"
+	case isWorkplaceDataScene(title, content, locationName):
+		return "如果现在不把问题找出来，明天整个项目都会失控。"
+	case isSportsConflictScene(title, content, locationName):
+		return "还没站上跑道就先散掉，我们输的不会只是这场比赛。"
+	case isSportsSetupScene(title, content, locationName), isSportsRaceScene(title, content, locationName):
+		return "就算少一个人，我们也得把这场接力跑完。"
+	case isStationPursuitScene(title, content, locationName):
+		return "线索既然指向车站，我就不能再等了。"
+	case isSuspenseIntrusionScene(title, content, locationName):
+		return "门锁被动过，屋里也许还有人。"
+	case isSuspenseWarningScene(title, content, locationName):
+		return "这张字条不是恶作剧，对方知道我今晚会回来。"
+	}
+	return buildEvidenceDrivenDialogue(chapter, title, content, locationName)
+}
+
 func inferEmotion(content string) string {
 	switch {
-	case containsAny(content, "病房", "团圆饭", "父亲", "母亲", "姐姐", "客厅", "厨房", "家里"):
+	case familySceneScore("", content, "") >= 3:
 		return "restrained"
-	case containsAny(content, "夜市", "餐馆", "广场", "直播", "摄影师", "试播", "设备"):
+	case comedySceneScore("", content, "") >= 3:
 		return "awkward"
-	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
+	case sportsSceneScore("", content, "") >= 3:
 		return "determined"
-	case containsAny(content, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
+	case workplaceSceneScore("", content, "") >= 3:
 		return "focused"
 	case containsAny(content, "门锁", "别睡", "被人动过", "危险"):
 		return "tense"
-	case containsAny(content, "线索", "前往", "追踪", "决定"):
+	case containsAny(content, "线索", "前往", "追踪", "决定", "钥匙", "录音", "留言"):
 		return "determined"
 	default:
 		return "focused"
@@ -318,44 +602,38 @@ func inferEmotion(content string) string {
 func inferOpenQuestions(title, content, locationName string) []string {
 	questions := make([]string, 0, 2)
 	switch {
-	case containsAny(content, "门锁", "被人动过"):
+	case isSuspenseIntrusionScene(title, content, locationName):
 		questions = append(questions, "是谁动过门锁，屋里还留下了什么痕迹？")
-	case containsAny(content, "线索", "寄信人", "车站"):
+	case isStationPursuitScene(title, content, locationName):
 		questions = append(questions, "顺着这条车站线索，主角究竟会找到谁？")
-	case containsAny(content, "字条", "别睡"):
+	case isSuspenseWarningScene(title, content, locationName):
 		questions = append(questions, "留下字条的人为什么知道主角今晚会回来？")
-	case containsAny(content, "数据被人替换", "动了最终版本", "复核提案"):
+	case isWorkplaceDataScene(title, content, locationName):
 		questions = append(questions, "是谁替换了关键数据，真正想掩盖什么？")
-	case containsAny(content, "独占客户", "怀疑已经在团队里扩散", "咖啡馆见面", "对质"):
+	case isWorkplaceConfrontationScene(title, content, locationName):
 		questions = append(questions, "团队里的怀疑究竟是谁放出来的？")
-	case containsAny(content, "会议室", "摆到台面上", "正式汇报前"):
+	case isWorkplaceShowdownScene(title, content, locationName):
 		questions = append(questions, "这场会议室摊牌之后，项目还能不能按原计划推进？")
-	case containsAny(content, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
-		if containsAny(content, "主力队友可能缺席", "最后一棒", "加练") {
-			questions = append(questions, "主力缺席背后到底发生了什么，最后一棒会落到谁手里？")
-		} else if containsAny(content, "教室", "质疑战术安排", "吵散") {
-			questions = append(questions, "队伍能在起跑前把这场争执真正压住吗？")
-		} else {
-			questions = append(questions, "队伍能否在比赛开始前重新建立信任？")
-		}
-	case containsAny(content, "病房外", "出院回家吃团圆饭", "医生建议"):
+	case isSportsSetupScene(title, content, locationName):
+		questions = append(questions, "主力缺席背后到底发生了什么，最后一棒会落到谁手里？")
+	case isSportsConflictScene(title, content, locationName):
+		questions = append(questions, "队伍能在起跑前把这场争执真正压住吗？")
+	case isSportsRaceScene(title, content, locationName):
+		questions = append(questions, "队伍能否在比赛开始前重新建立信任？")
+	case isFamilyCareScene(title, content, locationName):
 		questions = append(questions, "这顿团圆饭值不值得冒着父亲身体再出状况的风险？")
-	case strings.Contains(content, "厨房") && containsAny(content, "旧账", "指责", "姐姐"):
+	case isFamilyConflictScene(title, content, locationName):
 		questions = append(questions, "厨房里的这场争执，会不会把多年旧账彻底掀开？")
-	case strings.Contains(content, "客厅") && containsAny(content, "父亲", "误会", "说出口"):
+	case isFamilyReconcileScene(title, content, locationName):
 		questions = append(questions, "这次客厅里的坦白，能不能真的让一家人把误会说开？")
-	case containsAny(content, "夜市", "误把", "笑话"):
+	case isComedyMeetScene(title, content, locationName):
 		questions = append(questions, "这场夜市误会会把两人的关系推向敌对还是合作？")
-	case containsAny(content, "餐馆", "解释误会", "越描越乱"):
+	case isComedyClarifyScene(title, content, locationName):
 		questions = append(questions, "这顿餐馆圆场会不会把误会解释得更糟？")
-	case containsAny(content, "广场", "试播", "直播"):
+	case isComedyBroadcastScene(title, content, locationName):
 		questions = append(questions, "这次广场试播能不能把之前的尴尬真的翻篇？")
 	default:
-		issue := extractIssueFocus(content)
-		action := extractActionFocus(content)
-		if question := questionFromSignals(issue, action); question != "" {
-			questions = append(questions, question)
-		}
+		questions = append(questions, buildEvidenceDrivenOpenQuestion(title, content, locationName)...)
 	}
 	if len(questions) == 0 {
 		questions = append(questions, fallbackOpenQuestion(title, locationName))
@@ -385,11 +663,18 @@ func inferCharacterName(source ingest.NormalizedSource) string {
 }
 
 func inferLocationName(chapter ingest.NormalizedChapter) string {
-	keywords := []string{"病房", "公寓", "房间", "走廊", "办公室", "会议室", "街道", "学校", "教室", "操场", "跑道", "看台", "咖啡馆", "厨房", "客厅", "夜市", "餐馆", "广场", "医院", "仓库", "车站", "天台", "码头", "直播间", "录音室", "实验室", "展厅", "档案室", "礼堂", "楼道", "门口", "宿舍", "商场", "桥下", "桥边", "河边", "巷口", "老城区", "后台", "休息室"}
+	keywords := locationKeywords()
+	bestName := ""
+	bestScore := -1
 	for _, keyword := range keywords {
-		if strings.Contains(chapter.Content, keyword) || strings.Contains(chapter.Title, keyword) {
-			return keyword
+		score := locationCandidateScore(chapter.Title, chapter.Content, keyword)
+		if score > bestScore {
+			bestScore = score
+			bestName = keyword
 		}
+	}
+	if bestScore >= 0 {
+		return bestName
 	}
 
 	patterns := []*regexp.Regexp{
@@ -410,8 +695,68 @@ func inferLocationName(chapter ingest.NormalizedChapter) string {
 	return fmt.Sprintf("第%d章关键场景", chapter.Index)
 }
 
+func locationKeywords() []string {
+	return []string{
+		"录音室", "会议室", "档案室", "直播间", "实验室", "休息室",
+		"病房", "船坞", "钟楼", "河堤", "河岸", "堤岸", "桥下", "桥边", "巷口",
+		"码头", "车站", "天台", "公寓", "房间", "走廊", "办公室", "学校", "教室",
+		"操场", "跑道", "看台", "咖啡馆", "厨房", "客厅", "夜市", "餐馆", "广场",
+		"医院", "仓库", "库房", "展厅", "礼堂", "楼道", "门口", "宿舍", "商场",
+		"老城区", "城区", "后台", "街道",
+	}
+}
+
+func locationCandidateScore(title, content, keyword string) int {
+	score := -1
+	if strings.Contains(title, keyword) {
+		score = 6
+	}
+	if count := strings.Count(content, keyword); count > 0 {
+		if score < 0 {
+			score = 0
+		}
+		score += count * 2
+	}
+
+	contextBonus := 0
+	if regexp.MustCompile(fmt.Sprintf(`(?:在|到|回到|来到|走进|进入|站在|留在|赶到|前往|约在|冲到|守在|停在|躲进|奔向)(?:[\p{Han}]{0,6})?%s`, regexp.QuoteMeta(keyword))).MatchString(content) {
+		contextBonus = 3
+	} else if regexp.MustCompile(fmt.Sprintf(`%s(?:里|内|外|边|上|前|后)`, regexp.QuoteMeta(keyword))).MatchString(content) {
+		contextBonus = 1
+	}
+	if contextBonus > 0 {
+		if score < 0 {
+			score = 0
+		}
+		score += contextBonus
+	}
+
+	if index := strings.Index(content, keyword); index >= 0 {
+		earlyBonus := 3 - utf8.RuneCountInString(content[:index])/8
+		if earlyBonus < 0 {
+			earlyBonus = 0
+		}
+		if score < 0 {
+			score = 0
+		}
+		score += earlyBonus
+	}
+
+	negativePatterns := []*regexp.Regexp{
+		regexp.MustCompile(fmt.Sprintf(`(?:不是|并非|不在|没有去|没去)(?:[\p{Han}]{0,6})?%s`, regexp.QuoteMeta(keyword))),
+		regexp.MustCompile(fmt.Sprintf(`而不是(?:[\p{Han}]{0,6})?%s`, regexp.QuoteMeta(keyword))),
+	}
+	for _, pattern := range negativePatterns {
+		if pattern.MatchString(content) {
+			score -= 4
+		}
+	}
+
+	return score
+}
+
 func inferInteriorExterior(content string) string {
-	if strings.Contains(content, "街") || strings.Contains(content, "路") || strings.Contains(content, "广场") || strings.Contains(content, "车站") || strings.Contains(content, "码头") || strings.Contains(content, "操场") || strings.Contains(content, "跑道") || strings.Contains(content, "看台") || strings.Contains(content, "天台") || strings.Contains(content, "夜市") {
+	if strings.Contains(content, "街") || strings.Contains(content, "路") || strings.Contains(content, "广场") || strings.Contains(content, "车站") || strings.Contains(content, "码头") || strings.Contains(content, "操场") || strings.Contains(content, "跑道") || strings.Contains(content, "看台") || strings.Contains(content, "天台") || strings.Contains(content, "夜市") || strings.Contains(content, "河堤") || strings.Contains(content, "河岸") || strings.Contains(content, "堤岸") || strings.Contains(content, "船坞") || strings.Contains(content, "钟楼") || strings.Contains(content, "桥下") || strings.Contains(content, "桥边") {
 		return "EXT"
 	}
 	return "INT"
@@ -519,7 +864,7 @@ func containsStopWord(input string) bool {
 }
 
 func looksLikeLocation(input string) bool {
-	suffixes := []string{"室", "厅", "房", "馆", "站", "场", "道", "街", "路", "桥", "巷", "楼", "院", "台", "库", "口", "区", "市", "校", "园", "城"}
+	suffixes := []string{"室", "厅", "房", "馆", "站", "场", "道", "街", "路", "桥", "巷", "楼", "院", "台", "库", "口", "区", "市", "校", "园", "城", "堤", "岸", "坞"}
 	for _, suffix := range suffixes {
 		if strings.HasSuffix(input, suffix) {
 			return true

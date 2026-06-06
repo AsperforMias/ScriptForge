@@ -208,6 +208,52 @@ func TestBuildScenePlanFallsBackForWeakEntitiesAndSparseSignals(t *testing.T) {
 	}
 }
 
+func TestBuildScenePlanPrefersExplicitSceneEvidenceForCustomSuspenseInput(t *testing.T) {
+	source := normalizeCustomSuspenseSource()
+	outline := BuildOutline(source)
+	entities := ExtractEntities(source)
+	plan := BuildScenePlan(source, outline, entities)
+
+	if got := plan.Scenes[0].Slugline.LocationID; got != "loc_chapter_01" {
+		t.Fatalf("unexpected scene 1 location id: %s", got)
+	}
+	if got := entities.Locations[0].Name; got != "客厅" {
+		t.Fatalf("expected scene 1 location 客厅, got %s", got)
+	}
+	if got := plan.Scenes[0].Objective; got == "" || !containsAny(got, "录音") {
+		t.Fatalf("expected scene 1 objective to stay on recording clue, got %s", got)
+	}
+	if got := plan.Scenes[0].Objective; containsAny(got, "团圆饭", "误会说开", "和解") {
+		t.Fatalf("expected scene 1 objective to avoid family template leakage, got %s", got)
+	}
+	if got := plan.Scenes[0].Beats[1].Content; !containsAny(got, "录音") {
+		t.Fatalf("expected scene 1 dialogue to mention recording clue, got %s", got)
+	}
+
+	if got := entities.Locations[1].Name; got != "河堤" {
+		t.Fatalf("expected scene 2 location 河堤, got %s", got)
+	}
+	if got := plan.Scenes[1].Objective; containsAny(got, "车站", "寄信人") {
+		t.Fatalf("expected scene 2 objective to avoid station template, got %s", got)
+	}
+	if got := plan.Scenes[1].Beats[1].Content; containsAny(got, "车站", "寄信人") {
+		t.Fatalf("expected scene 2 dialogue to avoid station template, got %s", got)
+	}
+	if got := plan.Scenes[1].Notes.OpenQuestions[0]; containsAny(got, "车站", "寄信人") {
+		t.Fatalf("expected scene 2 open question to avoid station template, got %s", got)
+	}
+
+	if got := entities.Locations[2].Name; got != "船坞" {
+		t.Fatalf("expected scene 3 location 船坞, got %s", got)
+	}
+	if got := plan.Scenes[2].Objective; got == "" || !containsAny(got, "钥匙", "打开") {
+		t.Fatalf("expected scene 3 objective to stay on key/lock action, got %s", got)
+	}
+	if got := plan.Scenes[2].Notes.OpenQuestions[0]; !containsAny(got, "钥匙", "门") {
+		t.Fatalf("expected scene 3 open question to stay on key/door clue, got %s", got)
+	}
+}
+
 func normalizeFixtureSource() ingest.NormalizedSource {
 	var req job.CreateJobRequest
 	req.Source.Title = "夜雨疑云"
@@ -288,6 +334,20 @@ func normalizeSparseCustomSource() ingest.NormalizedSource {
 		{Index: 1, Title: "第一章 录音失真", Content: "暴雨落了一整夜，旧录音里突然多出一段陌生笑声。叙述者不敢立刻重播，只能先把磁带锁进抽屉。"},
 		{Index: 2, Title: "第二章 匿名留言", Content: "第二天下午，留言板上多出一行约见时间，没人承认写过它。叙述者决定先核对录音来源，再去找留下字的人。"},
 		{Index: 3, Title: "第三章 钟楼扑空", Content: "傍晚，叙述者带着磁带赶到老城区的旧钟楼，却发现约见人已经提前离开，只留下一把钥匙。"},
+	}
+	return ingest.Normalize(req)
+}
+
+func normalizeCustomSuspenseSource() ingest.NormalizedSource {
+	var req job.CreateJobRequest
+	req.Source.Title = "回潮暗线"
+	req.Source.Author = "自定义作者"
+	req.Adaptation.Style = "悬疑现实短剧"
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 旧客厅录音", Content: "沈砚回到父亲留下的旧客厅整理遗物，听见录音机里多出一段夹着潮声的陌生对话。她不敢惊动家里其他人，只想先确认那段录音是不是被人动过。"},
+		{Index: 2, Title: "第二章 河堤碰面", Content: "第二天傍晚，沈砚按匿名留言赶到河堤，发现纸条提到的线索指向废弃船坞，而不是任何车站。她决定先弄清是谁把钥匙塞进自己口袋，再判断这场约见是不是圈套。"},
+		{Index: 3, Title: "第三章 船坞试锁", Content: "夜里，沈砚独自走进废弃船坞，用那把生锈钥匙去试库房侧门的锁孔。门后传来的撞击声让她意识到，真正想藏起来的东西还在里面。"},
 	}
 	return ingest.Normalize(req)
 }

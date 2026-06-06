@@ -165,6 +165,31 @@ func TestRunnerRunSupportsCustomChineseInputRegression(t *testing.T) {
 	}
 }
 
+func TestRunnerRunSupportsRealisticCustomSuspenseRegression(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := artifact.New(tmpDir)
+	runner := NewRunner(store, llm.NewUnavailableGenerator("deterministic mode does not use llm"))
+
+	req := customSuspenseCreateJobRequest()
+	result, err := runner.Run(context.Background(), "job_test_runner_custom_suspense", req)
+	if err != nil {
+		t.Fatalf("unexpected suspense run error: %v", err)
+	}
+
+	if err := screenplay.Validate(result.Document); err != nil {
+		t.Fatalf("expected valid screenplay document: %v", err)
+	}
+	assertCustomSuspenseDocument(t, result.Document)
+
+	var yamlDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(result.YAMLText), &yamlDoc); err != nil {
+		t.Fatalf("expected yaml output to be parseable: %v", err)
+	}
+	if !reflect.DeepEqual(yamlDoc, result.Document) {
+		t.Fatal("expected yaml_text and in-memory document to describe the same screenplay")
+	}
+}
+
 func mustLoadFixtureRequest(t *testing.T, name string) job.CreateJobRequest {
 	t.Helper()
 
@@ -297,6 +322,76 @@ func customChineseCreateJobRequest() job.CreateJobRequest {
 		{Index: 3, Title: "第三章 钟楼扑空", Content: "傍晚，叙述者带着磁带赶到老城区的旧钟楼，却发现约见人已经提前离开，只留下一把钥匙。"},
 	}
 	return req
+}
+
+func customSuspenseCreateJobRequest() job.CreateJobRequest {
+	var req job.CreateJobRequest
+	req.Source.Title = "回潮暗线"
+	req.Source.Author = "自定义作者"
+	req.Adaptation.Style = "悬疑现实短剧"
+	req.Adaptation.Audience = "青年向"
+	req.Adaptation.Notes = []string{"以当前章节证据驱动场景目标", "避免凭空补车站线索"}
+	req.Generation.Mode = "deterministic"
+	req.Source.Chapters = []job.ChapterBody{
+		{Index: 1, Title: "第一章 旧客厅录音", Content: "沈砚回到父亲留下的旧客厅整理遗物，听见录音机里多出一段夹着潮声的陌生对话。她不敢惊动家里其他人，只想先确认那段录音是不是被人动过。"},
+		{Index: 2, Title: "第二章 河堤碰面", Content: "第二天傍晚，沈砚按匿名留言赶到河堤，发现纸条提到的线索指向废弃船坞，而不是任何车站。她决定先弄清是谁把钥匙塞进自己口袋，再判断这场约见是不是圈套。"},
+		{Index: 3, Title: "第三章 船坞试锁", Content: "夜里，沈砚独自走进废弃船坞，用那把生锈钥匙去试库房侧门的锁孔。门后传来的撞击声让她意识到，真正想藏起来的东西还在里面。"},
+	}
+	return req
+}
+
+func assertCustomSuspenseDocument(t *testing.T, doc screenplay.Document) {
+	t.Helper()
+
+	if len(doc.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(doc.Scenes))
+	}
+	if len(doc.Locations) != 3 {
+		t.Fatalf("expected 3 locations, got %d", len(doc.Locations))
+	}
+
+	expectedLocations := []string{"客厅", "河堤", "船坞"}
+	for idx, location := range doc.Locations {
+		if location.Name != expectedLocations[idx] {
+			t.Fatalf("expected location %s for chapter %d, got %s", expectedLocations[idx], idx+1, location.Name)
+		}
+	}
+
+	if got := doc.Scenes[0].Objective; !containsAnyText(got, "录音") {
+		t.Fatalf("expected scene 1 objective to mention recording clue, got %s", got)
+	}
+	if got := doc.Scenes[0].Objective; containsAnyText(got, "团圆饭", "误会说开", "和解") {
+		t.Fatalf("expected scene 1 objective to avoid family template leakage, got %s", got)
+	}
+	if got := doc.Scenes[0].Beats[1].Content; !containsAnyText(got, "录音") {
+		t.Fatalf("expected scene 1 dialogue to mention recording clue, got %s", got)
+	}
+
+	if got := doc.Scenes[1].Objective; containsAnyText(got, "车站", "寄信人") {
+		t.Fatalf("expected scene 2 objective to avoid station template, got %s", got)
+	}
+	if got := doc.Scenes[1].Beats[1].Content; containsAnyText(got, "车站", "寄信人") {
+		t.Fatalf("expected scene 2 dialogue to avoid station template, got %s", got)
+	}
+	if got := doc.Scenes[1].Notes.OpenQuestions[0]; containsAnyText(got, "车站", "寄信人") {
+		t.Fatalf("expected scene 2 open question to avoid station template, got %s", got)
+	}
+
+	if got := doc.Scenes[2].Objective; !containsAnyText(got, "钥匙", "打开") {
+		t.Fatalf("expected scene 3 objective to stay on key clue, got %s", got)
+	}
+	if got := doc.Scenes[2].Notes.OpenQuestions[0]; !containsAnyText(got, "钥匙", "门") {
+		t.Fatalf("expected scene 3 open question to stay on key/door clue, got %s", got)
+	}
+}
+
+func containsAnyText(input string, keywords ...string) bool {
+	for _, keyword := range keywords {
+		if strings.Contains(input, keyword) {
+			return true
+		}
+	}
+	return false
 }
 
 func yamlDocumentsEqual(actualYAML, expectedYAML string) bool {
