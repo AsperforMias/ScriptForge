@@ -85,7 +85,7 @@ Frontend real-chain self-check:
 
 Scripted frontend smoke-check:
 - `npm run smoke:workspace` expects the backend on `:8080`, the frontend dev server on `:5173`, and a local Chrome or Edge executable.
-- It verifies two real frontend acceptance paths: a sample preset run and a non-preset manual 3-chapter run, both covering real `POST /api/v1/jobs`, polling, YAML load, structured summary, export, local edit, and reset.
+- It verifies two real frontend acceptance paths: a sample preset run and a non-preset manual 3-chapter run, both covering real `POST /api/v1/jobs`, polling, YAML load, structured summary, export, local edit, `复制当前 YAML`, failed-job regenerate, `lastJobId` refresh restore, and mobile `Input -> Status -> Result` panel order.
 - Optional overrides:
   - `FRONTEND_SMOKE_UI_URL`
   - `FRONTEND_SMOKE_BACKEND_HEALTH_URL`
