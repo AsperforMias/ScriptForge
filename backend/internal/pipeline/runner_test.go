@@ -8,10 +8,12 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/AsperforMias/ScriptForge/backend/internal/job"
 	"github.com/AsperforMias/ScriptForge/backend/internal/llm"
 	"github.com/AsperforMias/ScriptForge/backend/internal/screenplay"
+	"github.com/AsperforMias/ScriptForge/backend/internal/testutil"
 	"github.com/AsperforMias/ScriptForge/backend/internal/storage/artifact"
 	"github.com/AsperforMias/ScriptForge/backend/internal/workflow"
 	"gopkg.in/yaml.v3"
@@ -230,6 +232,31 @@ func TestRunnerRunSupportsGrowthFantasyRegression(t *testing.T) {
 		t.Fatalf("expected valid screenplay document: %v", err)
 	}
 	assertGrowthFantasyDocument(t, result.Document)
+
+	var yamlDoc screenplay.Document
+	if err := yaml.Unmarshal([]byte(result.YAMLText), &yamlDoc); err != nil {
+		t.Fatalf("expected yaml output to be parseable: %v", err)
+	}
+	if !reflect.DeepEqual(yamlDoc, result.Document) {
+		t.Fatal("expected yaml_text and in-memory document to describe the same screenplay")
+	}
+}
+
+func TestRunnerRunSupportsRealGrowthFantasyRegression(t *testing.T) {
+	tmpDir := t.TempDir()
+	store := artifact.New(tmpDir)
+	runner := NewRunner(store, llm.NewUnavailableGenerator("deterministic mode does not use llm"))
+
+	req := testutil.GrowthFantasyRealInputRequest()
+	result, err := runner.Run(context.Background(), "job_test_runner_real_growth_fantasy", req)
+	if err != nil {
+		t.Fatalf("unexpected real growth-fantasy run error: %v", err)
+	}
+
+	if err := screenplay.Validate(result.Document); err != nil {
+		t.Fatalf("expected valid screenplay document: %v", err)
+	}
+	assertRealGrowthFantasyDocument(t, result.Document)
 
 	var yamlDoc screenplay.Document
 	if err := yaml.Unmarshal([]byte(result.YAMLText), &yamlDoc); err != nil {
@@ -557,9 +584,120 @@ func assertGrowthFantasyDocument(t *testing.T, doc screenplay.Document) {
 	}
 }
 
+func assertRealGrowthFantasyDocument(t *testing.T, doc screenplay.Document) {
+	t.Helper()
+
+	if len(doc.Scenes) != 3 {
+		t.Fatalf("expected 3 scenes, got %d", len(doc.Scenes))
+	}
+	if len(doc.Validation.Warnings) == 0 {
+		t.Fatal("expected real growth-fantasy regression to surface validation warnings")
+	}
+
+	for _, badName := range testutil.GrowthFantasyRealInputForbiddenFragments() {
+		for _, character := range doc.Characters {
+			if character.Name == badName {
+				t.Fatalf("expected filtered fragment %s to stay out of characters, got %#v", badName, doc.Characters)
+			}
+		}
+	}
+	if got := doc.Characters[0].Name; got != "厄洛斯" {
+		t.Fatalf("expected protagonist 厄洛斯, got %s", got)
+	}
+	matched := 0
+	for _, expected := range testutil.GrowthFantasyRealInputExpectedNames() {
+		for _, character := range doc.Characters {
+			if character.Name == expected {
+				matched++
+				break
+			}
+		}
+	}
+	if matched < 3 {
+		t.Fatalf("expected core names to be recovered, matched %d in %#v", matched, doc.Characters)
+	}
+
+	for idx, scene := range doc.Scenes {
+		if strings.TrimSpace(scene.Objective) == "" {
+			t.Fatalf("expected objective for scene %d", idx+1)
+		}
+		if looksLikeNarrativeCarryover(scene.Objective) {
+			t.Fatalf("expected compact objective for scene %d, got %s", idx+1, scene.Objective)
+		}
+		if len(scene.Notes.OpenQuestions) == 0 || looksLikeNarrativeCarryover(scene.Notes.OpenQuestions[0]) {
+			t.Fatalf("expected compact open question for scene %d, got %#v", idx+1, scene.Notes.OpenQuestions)
+		}
+
+		actionBeatCount := 0
+		for _, beat := range scene.Beats {
+			if beat.Type == "dialogue" && looksLikeNarrativeCarryover(beat.Content) {
+				t.Fatalf("expected compact dialogue for scene %d, got %s", idx+1, beat.Content)
+			}
+			if beat.Type != "action" {
+				continue
+			}
+			actionBeatCount++
+			if beat.Content == scene.Summary || looksLikeBrokenActionBeat(beat.Content) {
+				t.Fatalf("expected scene %d action beat to stay shootable, got %s", idx+1, beat.Content)
+			}
+		}
+		if actionBeatCount == 0 {
+			t.Fatalf("expected action beat for scene %d", idx+1)
+		}
+	}
+
+	for _, warning := range doc.Validation.Warnings {
+		if strings.Contains(warning, "当前按通用成长/世界观场景规则生成") {
+			t.Fatalf("expected warnings to move beyond generic growth copy, got %#v", doc.Validation.Warnings)
+		}
+	}
+	if !containsSpecificWarning(doc.Validation.Warnings, "characters:", "fragment") &&
+		!containsSpecificWarning(doc.Validation.Warnings, "protagonist confidence") &&
+		!containsSpecificWarning(doc.Validation.Warnings, "objective is still derived") &&
+		!containsSpecificWarning(doc.Validation.Warnings, "beat adaptation remains") &&
+		!containsSpecificWarning(doc.Validation.Warnings, "location/slugline confidence is low") {
+		t.Fatalf("expected concrete low-confidence warnings, got %#v", doc.Validation.Warnings)
+	}
+}
+
 func containsAnyText(input string, keywords ...string) bool {
 	for _, keyword := range keywords {
 		if strings.Contains(input, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+func looksLikeNarrativeCarryover(input string) bool {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return true
+	}
+	if utf8.RuneCountInString(input) > 40 {
+		return true
+	}
+	return containsAnyText(input, "因为", "随着", "直到", "只能靠", "所能看到", "难不成", "让人感觉", "也不知道", "这让他", "原本", "【", "】", "...", "……")
+}
+
+func looksLikeBrokenActionBeat(input string) bool {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return true
+	}
+	return containsAnyText(input, "【", "】", "...", "……", "——") || strings.HasPrefix(input, "“") || strings.HasPrefix(input, "”")
+}
+
+func containsSpecificWarning(warnings []string, keywords ...string) bool {
+	for _, warning := range warnings {
+		matched := true
+		for _, keyword := range keywords {
+			if !strings.Contains(warning, keyword) {
+				matched = false
+				break
+			}
+		}
+		if matched {
 			return true
 		}
 	}

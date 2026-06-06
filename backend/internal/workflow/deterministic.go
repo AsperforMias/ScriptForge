@@ -24,9 +24,12 @@ type OutlineBundle struct {
 }
 
 type EntityBundle struct {
-	Characters []screenplay.Character
-	Locations  []screenplay.Location
-	Warnings   []string
+	Characters                []screenplay.Character
+	Locations                 []screenplay.Location
+	Warnings                  []string
+	RejectedNames             []string
+	ProtagonistConfidenceLow  bool
+	ProtagonistSelectionScore int
 }
 
 type ScenePlan struct {
@@ -58,10 +61,17 @@ func BuildOutline(source ingest.NormalizedSource) OutlineBundle {
 }
 
 func ExtractEntities(source ingest.NormalizedSource) EntityBundle {
-	characterNames, rejectedNames := inferCharacterNames(source)
+	characterNames, rejectedNames, protagonistConfidenceLow, protagonistSelectionScore := inferCharacterNames(source)
 	mainCharacterName := "主角"
 	if len(characterNames) > 0 {
 		mainCharacterName = characterNames[0]
+	}
+	growthLikeSource := false
+	for _, chapter := range source.Chapters {
+		if inferSceneTone(source.Title, chapter.Title, chapter.Content) == sceneToneGrowth {
+			growthLikeSource = true
+			break
+		}
 	}
 
 	characters := make([]screenplay.Character, 0, len(characterNames))
@@ -96,19 +106,28 @@ func ExtractEntities(source ingest.NormalizedSource) EntityBundle {
 	if len(characterNames) == 0 {
 		warnings = append(warnings, "characters: 未从章节中稳定识别到明确姓名，已回退为“主角”，建议复核人物抽取。")
 	}
-	if len(characterNames) == 0 && len(rejectedNames) > 0 {
-		warnings = append(warnings, fmt.Sprintf("characters: 已过滤疑似虚词或叙述碎片 %s，建议复核角色识别结果。", joinLimited(rejectedNames, 3)))
+	if growthLikeSource {
+		if warnableRejected := warnableRejectedNames(rejectedNames); len(warnableRejected) > 0 {
+		warnings = append(warnings, fmt.Sprintf("characters: filtered fragment-like candidates %s", joinLimited(warnableRejected, 4)))
+		}
+	}
+	if growthLikeSource && protagonistConfidenceLow && len(characterNames) > 1 && len(rejectedNames) > 0 {
+		warnings = append(warnings, fmt.Sprintf("characters: protagonist confidence is low; selected %s from limited or conflicting chapter evidence.", mainCharacterName))
 	}
 
 	return EntityBundle{
-		Characters: characters,
-		Locations:  locations,
-		Warnings:   warnings,
+		Characters:                characters,
+		Locations:                 locations,
+		Warnings:                  warnings,
+		RejectedNames:             uniqueStrings(rejectedNames),
+		ProtagonistConfidenceLow:  protagonistConfidenceLow,
+		ProtagonistSelectionScore: protagonistSelectionScore,
 	}
 }
 
 func BuildScenePlan(source ingest.NormalizedSource, outline OutlineBundle, entities EntityBundle) ScenePlan {
 	characterID := entities.Characters[0].ID
+	protagonistName := entities.Characters[0].Name
 	scenes := make([]screenplay.Scene, 0, len(source.Chapters))
 	warnings := make([]string, 0, len(source.Chapters)+len(entities.Warnings))
 	locationNames := make(map[string]string, len(entities.Locations))
@@ -124,19 +143,19 @@ func BuildScenePlan(source ingest.NormalizedSource, outline OutlineBundle, entit
 		locationName := locationNames[locationID]
 		tone := inferSceneTone(source.Title, chapter.Title, chapter.Content)
 		objective := ensureUniqueSceneText(
-			buildObjective(chapterOutline, chapter.Title, chapter.Content, locationName, tone),
+			buildObjective(chapterOutline, chapter.Title, chapter.Content, locationName, protagonistName, tone),
 			seenObjectives,
 			fallbackSceneObjective(chapter, locationName),
 		)
-		dialogue := buildDialogue(chapterOutline, chapter.Title, chapter.Content, locationName, tone)
+		dialogue := buildDialogue(chapterOutline, chapter.Title, chapter.Content, locationName, protagonistName, tone)
 		openQuestions := ensureUniqueQuestions(
-			inferOpenQuestions(chapter.Title, chapter.Content, locationName, tone),
+			inferOpenQuestions(chapter.Title, chapter.Content, locationName, protagonistName, tone),
 			seenQuestions,
 			chapter,
 			locationName,
 		)
 		emotion := inferEmotion(chapter.Content)
-		beats := buildSceneBeats(chapterOutline, chapter, characterID, locationName, dialogue, emotion, tone)
+		beats := buildSceneBeats(chapterOutline, chapter, characterID, protagonistName, locationName, dialogue, emotion, tone)
 		scene := screenplay.Scene{
 			ID:             fmt.Sprintf("scene_%03d", idx+1),
 			Title:          chapter.Title,
@@ -156,17 +175,20 @@ func BuildScenePlan(source ingest.NormalizedSource, outline OutlineBundle, entit
 		}
 		scenes = append(scenes, scene)
 
-		if tone == sceneToneGrowth {
-			warnings = append(warnings, fmt.Sprintf("%s: 当前按通用成长/世界观场景规则生成，建议复核角色关系、动机和场面调度。", scene.ID))
+		if tone == sceneToneGrowth && isNarrativeHeavy(chapter.Content) {
+			warnings = append(warnings, fmt.Sprintf("%s: objective is still derived from dense narrative/world-building phrasing; review adaptation intent.", scene.ID))
 		}
-		if beats.UsedFallback {
-			warnings = append(warnings, fmt.Sprintf("%s: beats 部分使用了通用动作兜底，建议补充更具体的可拍摄片段。", scene.ID))
+		if tone == sceneToneGrowth && (beats.UsedFallback || hasWeakActionBeat(scene.Beats)) {
+			warnings = append(warnings, fmt.Sprintf("%s: beat adaptation remains low confidence; source chapter is still dominated by summary/internal narration.", scene.ID))
 		}
 		if objective == fallbackSceneObjective(chapter, locationName) {
 			warnings = append(warnings, fmt.Sprintf("%s: objective 仍落在通用兜底文案，建议复核当前章节的核心行动。", scene.ID))
 		}
 		if len(openQuestions) > 0 && openQuestions[0] == fallbackOpenQuestion(chapter.Title, locationName) {
 			warnings = append(warnings, fmt.Sprintf("%s: open_questions 仍落在通用兜底文案，建议补充当前章节真正悬而未决的问题。", scene.ID))
+		}
+		if tone == sceneToneGrowth && locationConfidenceLow(chapter, locationName) {
+			warnings = append(warnings, fmt.Sprintf("%s: location/slugline confidence is low; chapter evidence spans multiple spaces or relies on fallback location inference.", scene.ID))
 		}
 		if leakage := detectCrossGenreLeakage(scene, chapter.Content, tone); leakage != "" {
 			warnings = append(warnings, leakage)
@@ -686,63 +708,111 @@ func inferSceneTone(sourceTitle, chapterTitle, content string) sceneTone {
 	}
 }
 
-func buildGrowthObjective(chapter ingest.NormalizedChapter, locationName string) string {
-	issue := shortenPhrase(extractIssueFocus(chapter.Content), 18)
-	action := actionClause(extractActionFocus(chapter.Content))
+type growthSceneFocus struct {
+	objective    string
+	dialogue     string
+	openQuestion string
+}
+
+func buildGrowthObjective(chapter ingest.NormalizedChapter, protagonistName, locationName string) string {
+	return buildGrowthSceneFocus(chapter, protagonistName, locationName).objective
+}
+
+func buildGrowthDialogue(chapter ingest.NormalizedChapter, protagonistName, locationName string) string {
+	return buildGrowthSceneFocus(chapter, protagonistName, locationName).dialogue
+}
+
+func buildGrowthOpenQuestion(chapter ingest.NormalizedChapter, protagonistName, locationName string) string {
+	return buildGrowthSceneFocus(chapter, protagonistName, locationName).openQuestion
+}
+
+func buildGrowthSceneFocus(chapter ingest.NormalizedChapter, protagonistName, locationName string) growthSceneFocus {
+	text := sceneText(chapter.Title, chapter.Content)
+	protagonist := protagonistLabel(protagonistName)
 	titleFocus := trimChapterPrefix(chapter.Title)
+
 	switch {
-	case issue != "" && action != "":
-		return fmt.Sprintf("先处理%s带来的局面，再%s。", issue, action)
-	case action != "":
-		return fmt.Sprintf("让主角围绕%s做出明确选择，并把局面推向下一步。", action)
-	case issue != "" && titleFocus != "":
-		return fmt.Sprintf("围绕%s里的%s建立新的处境变化，并把它落到明确行动上。", titleFocus, issue)
-	case titleFocus != "" && locationName != "":
-		return fmt.Sprintf("围绕%s在%s遇到的新局面建立选择，并把这一章推进到下一步。", titleFocus, locationName)
-	case titleFocus != "":
-		return fmt.Sprintf("围绕%s建立主角当前的处境变化，并把它改写成可继续扩展的场景行动。", titleFocus)
+	case containsAny(text, "穿越", "转生", "醒来", "婴儿", "假酒", "光晕", "梦里"):
+		return growthSceneFocus{
+			objective:    fmt.Sprintf("确认%s已经转生到陌生的新身份里，并建立这场重生带来的基本处境。", protagonist),
+			dialogue:     "先弄清这到底是梦、幻觉，还是我真的换了人生。",
+			openQuestion: "这次转生，会把主角带进怎样的新世界？",
+		}
+	case containsAny(text, "神秘侧", "精灵族", "纪元") && containsAny(text, "温蒂尼", "艾丝黛儿", "姐姐", "妈妈"):
+		return growthSceneFocus{
+			objective:    fmt.Sprintf("把神秘侧线索从猜想推进成明确兴趣，并借家人碰撞建立%s在公爵家的位置。", protagonist),
+			dialogue:     "至少可以确定，这个世界没有表面上那么普通。",
+			openQuestion: normalizeQuestion(fmt.Sprintf("%s下一步会从哪里继续追查这个世界的异常", protagonist)),
+		}
+	case containsAny(text, "藏书馆", "迷雾海", "海域", "历史书", "书架"):
+		return growthSceneFocus{
+			objective:    fmt.Sprintf("借%s里的异常线索，确认这个世界确实藏着神秘侧，并推动%s继续追查。", growthLocationLabel(locationName), protagonist),
+			dialogue:     "既然迷雾海不像自然现象，我就得顺着这条线继续查下去。",
+			openQuestion: "迷雾海背后，到底藏着这个世界怎样的神秘侧？",
+		}
+	case containsAny(text, "接手", "领地", "遗产分配", "北境"):
+		return growthSceneFocus{
+			objective:    "确认接手北境后的真实烂账，并把继承危机立刻转成治理计划。",
+			dialogue:     "先把北境到底烂成什么样看清楚，再谈别的。",
+			openQuestion: "这片北境烂账后面，还藏着谁故意留下的坑？",
+		}
+	case containsAny(text, "巡视", "粮仓", "围墙", "灌渠", "春播", "领民", "审计"):
+		return growthSceneFocus{
+			objective:    "先稳住北境庄园的春播和领民，再查清亏空是谁一路压上去的。",
+			dialogue:     "领民和春播不能乱，亏空的账我会一笔笔追出来。",
+			openQuestion: "是谁把北境的亏空一路压到了王都审计前？",
+		}
+	case containsAny(text, "议事厅", "税期", "修渠", "商会代表"):
+		return growthSceneFocus{
+			objective:    "借议事厅里的新税期和修渠顺序，先把北境秩序重新立起来。",
+			dialogue:     "先把税期和修渠顺序定下来，北境才有翻身的机会。",
+			openQuestion: "新的秩序一旦公布，谁会先回来争夺北境的成果？",
+		}
+	case containsAny(text, "姐姐", "妈妈", "逃课", "花坛", "告状"):
+		return growthSceneFocus{
+			objective:    fmt.Sprintf("通过与家人的正面碰撞，建立%s在公爵家内部的关系位置。", protagonist),
+			dialogue:     "先把家里这层关系站稳，我才有余力去追别的事。",
+			openQuestion: normalizeQuestion(fmt.Sprintf("%s会把家里的这层关系推进成怎样的局面", protagonist)),
+		}
 	default:
-		return fallbackSceneObjective(chapter, locationName)
+		switch {
+		case titleFocus != "":
+			return growthSceneFocus{
+				objective:    fmt.Sprintf("围绕%s，先确认%s这一场的处境，再把下一步目标压实。", titleFocus, protagonist),
+				dialogue:     "先把眼前的局面站稳，后面的路才能继续走。",
+				openQuestion: normalizeQuestion(fmt.Sprintf("%s会把这一步推进到哪里", protagonist)),
+			}
+		case locationName != "":
+			return growthSceneFocus{
+				objective:    fmt.Sprintf("先在%s站稳当前处境，再把%s的下一步目标说清楚。", locationName, protagonist),
+				dialogue:     "这一步不能只停在说明上，我得先把局面往前推。",
+				openQuestion: normalizeQuestion(fmt.Sprintf("%s接下来会把局面推向哪里", protagonist)),
+			}
+		default:
+			return growthSceneFocus{
+				objective:    fallbackSceneObjective(chapter, locationName),
+				dialogue:     "这一步不能只停在说明上，我得先把局面往前推。",
+				openQuestion: "",
+			}
+		}
 	}
 }
 
-func buildGrowthDialogue(title, content, locationName string) string {
-	action := actionClause(extractActionFocus(content))
-	issue := shortenPhrase(extractIssueFocus(content), 16)
-	titleFocus := trimChapterPrefix(title)
-	switch {
-	case action != "":
-		return fmt.Sprintf("再拖下去只会更被动，我得先%s。", strings.TrimSuffix(action, "。"))
-	case issue != "":
-		return fmt.Sprintf("先把%s稳住，后面的路才走得下去。", issue)
-	case titleFocus != "":
-		return fmt.Sprintf("%s已经把我推到这一步了，我不能再按旧办法应付。", titleFocus)
-	case locationName != "":
-		return fmt.Sprintf("既然局面已经压到%s，我得先把下一步走出来。", locationName)
-	default:
-		return "这一步不能只停在说明上，我得先把局面往前推。"
+func protagonistLabel(name string) string {
+	if strings.TrimSpace(name) == "" {
+		return "主角"
 	}
+	return name
 }
 
-func buildGrowthOpenQuestion(title, content, locationName string) string {
-	action := actionClause(extractActionFocus(content))
-	issue := shortenPhrase(extractIssueFocus(content), 16)
-	titleFocus := trimChapterPrefix(title)
-	switch {
-	case issue != "" && action != "":
-		return normalizeQuestion(fmt.Sprintf("%s之后，主角还能否%s", issue, strings.TrimSuffix(action, "。")))
-	case titleFocus != "" && locationName != "":
-		return normalizeQuestion(fmt.Sprintf("%s在%s做出的选择，会把局面推向哪里", titleFocus, locationName))
-	case titleFocus != "":
-		return normalizeQuestion(fmt.Sprintf("%s这一步，会怎样改变主角接下来的处境", titleFocus))
-	case locationName != "":
-		return normalizeQuestion(fmt.Sprintf("%s里的这次推进，会把主角带向什么新局面", locationName))
-	default:
-		return ""
+func growthLocationLabel(locationName string) string {
+	if strings.TrimSpace(locationName) == "" {
+		return "当前场景"
 	}
+	return locationName
 }
 
-func buildSceneBeats(chapter OutlineChapter, normalizedChapter ingest.NormalizedChapter, characterID, locationName, dialogue, emotion string, tone sceneTone) beatPlan {
+func buildSceneBeats(chapter OutlineChapter, normalizedChapter ingest.NormalizedChapter, characterID, protagonistName, locationName, dialogue, emotion string, tone sceneTone) beatPlan {
 	if tone != sceneToneGrowth {
 		return beatPlan{
 			Beats: []screenplay.Beat{
@@ -766,7 +836,7 @@ func buildSceneBeats(chapter OutlineChapter, normalizedChapter ingest.Normalized
 
 	firstAction := chooseActionBeatSentence(sentences, "")
 	if firstAction == "" {
-		firstAction = normalizeBeatText(chapter.Summary)
+		firstAction = buildFocusedGrowthFallbackBeat(normalizedChapter, protagonistName, locationName)
 		usedFallback = true
 	}
 	if firstAction != "" {
@@ -787,13 +857,20 @@ func buildSceneBeats(chapter OutlineChapter, normalizedChapter ingest.Normalized
 			Content: secondAction,
 		})
 	} else {
-		fallbackBeat := buildFallbackBeat(normalizedChapter, locationName)
+		fallbackBeat := buildFocusedGrowthFallbackBeat(normalizedChapter, protagonistName, locationName)
 		if fallbackBeat != "" {
 			usedFallback = true
-			beats = append(beats, screenplay.Beat{
-				Type:    "note",
-				Content: fallbackBeat,
-			})
+			beatType := "action"
+			if fallbackBeat == firstAction {
+				fallbackBeat = buildFallbackBeat(normalizedChapter, locationName)
+				beatType = "note"
+			}
+			if fallbackBeat != "" {
+				beats = append(beats, screenplay.Beat{
+					Type:    beatType,
+					Content: fallbackBeat,
+				})
+			}
 		}
 	}
 
@@ -810,20 +887,62 @@ func buildSceneBeats(chapter OutlineChapter, normalizedChapter ingest.Normalized
 }
 
 func chooseActionBeatSentence(sentences []string, previous string) string {
+	bestScore := -1
+	bestSentence := ""
 	for _, sentence := range sentences {
-		normalized := normalizeBeatText(sentence)
+		normalized, score := scoreActionBeatSentence(sentence)
 		if normalized == "" || normalized == previous {
 			continue
 		}
-		return normalized
+		if score > bestScore {
+			bestScore = score
+			bestSentence = normalized
+		}
 	}
-	return ""
+	if bestScore < 2 {
+		return ""
+	}
+	return bestSentence
 }
 
 func normalizeBeatText(input string) string {
 	input = strings.TrimSpace(input)
+	if strings.HasPrefix(input, "【") && strings.Contains(input, "】") {
+		input = input[strings.Index(input, "】")+len("】"):]
+	}
+	input = strings.TrimLeft(input, "“”\"'【】（）()：:，、 ")
 	input = strings.TrimRight(input, "。！？!?")
 	return strings.TrimSpace(input)
+}
+
+func scoreActionBeatSentence(sentence string) (string, int) {
+	candidate := normalizeBeatText(sentence)
+	if candidate == "" {
+		return "", -1
+	}
+	score := 0
+	if containsAny(candidate, "推开", "打开", "走进", "走去", "赶来", "扑倒", "提走", "停下", "摊开", "召集", "翻看", "抽出", "塞回", "摇晃", "站住", "起身", "转头", "走向", "来到") {
+		score += 4
+	}
+	if containsAny(candidate, "门", "床", "花坛", "藏书馆", "书架", "书", "大厅", "长廊", "账房", "议事厅", "庄园", "地图", "名册", "墨水", "项链") {
+		score += 2
+	}
+	if containsAny(candidate, "感觉", "意识", "觉得", "想到", "想起", "明白", "不理解", "有些", "怀疑", "兴奋", "失落", "百思不得其解") {
+		score -= 2
+	}
+	if containsAny(candidate, "因为", "随着", "直到", "难不成", "好像", "这让", "原本", "也不知道", "只是", "不过", "毕竟", "如果") {
+		score -= 2
+	}
+	if containsAny(candidate, "【", "】", "...", "……") {
+		score -= 4
+	}
+	if strings.Contains(candidate, "？") || strings.Contains(candidate, "?") {
+		score--
+	}
+	if utf8.RuneCountInString(candidate) > 34 {
+		score -= 2
+	}
+	return candidate, score
 }
 
 func buildFallbackBeat(chapter ingest.NormalizedChapter, locationName string) string {
@@ -840,6 +959,29 @@ func buildFallbackBeat(chapter ingest.NormalizedChapter, locationName string) st
 		return fmt.Sprintf("主角在%s继续推进当前局面。", locationName)
 	default:
 		return fmt.Sprintf("主角把第%d章的变化转成下一步可拍摄行动。", chapter.Index)
+	}
+}
+
+func buildFocusedGrowthFallbackBeat(chapter ingest.NormalizedChapter, protagonistName, locationName string) string {
+	text := sceneText(chapter.Title, chapter.Content)
+	protagonist := protagonistLabel(protagonistName)
+	switch {
+	case containsAny(text, "穿越", "转生", "醒来", "婴儿", "光晕"):
+		return "白光压进黑暗，陌生的新生命在啼哭里睁开眼。"
+	case containsAny(text, "花坛", "温蒂尼", "扑倒"):
+		return fmt.Sprintf("%s在长廊边被突然扑出的温蒂尼撞倒在地。", protagonist)
+	case containsAny(text, "藏书馆", "书架", "迷雾海"):
+		return fmt.Sprintf("%s推开藏书馆大门，在书架间翻找与迷雾海有关的线索。", protagonist)
+	case containsAny(text, "接手", "领地", "北境"):
+		return fmt.Sprintf("%s把旧地图和欠税名册摊开，开始核对北境的真实烂账。", protagonist)
+	case containsAny(text, "巡视", "庄园", "粮仓"):
+		return fmt.Sprintf("%s带人穿过庄园，一处处核对粮仓、围墙和灌渠的损坏情况。", protagonist)
+	case containsAny(text, "议事厅", "税期", "修渠"):
+		return fmt.Sprintf("%s在议事厅召集众人，准备当场定下新的税期和修渠顺序。", protagonist)
+	case locationName != "":
+		return fmt.Sprintf("%s在%s里把当前局面转成具体动作。", protagonist, locationName)
+	default:
+		return buildFallbackBeat(chapter, locationName)
 	}
 }
 
@@ -870,6 +1012,51 @@ func detectCrossGenreLeakage(scene screenplay.Scene, chapterContent string, tone
 	}
 
 	return ""
+}
+
+func isNarrativeHeavy(content string) bool {
+	sentences := splitSentences(content)
+	internalSignals := 0
+	for _, keyword := range []string{
+		"感觉", "意识", "想到", "想起", "不理解", "百思不得其解", "兴奋", "失落", "打量", "怀疑", "这个世界", "纪元", "海域", "历史书", "记载", "迷雾海",
+	} {
+		internalSignals += strings.Count(content, keyword)
+	}
+	return len(sentences) >= 14 || internalSignals >= 6
+}
+
+func hasWeakActionBeat(beats []screenplay.Beat) bool {
+	actionBeats := 0
+	for _, beat := range beats {
+		if beat.Type != "action" {
+			continue
+		}
+		actionBeats++
+		if _, score := scoreActionBeatSentence(beat.Content); score < 2 {
+			return true
+		}
+	}
+	return actionBeats == 0
+}
+
+func locationConfidenceLow(chapter ingest.NormalizedChapter, locationName string) bool {
+	if strings.TrimSpace(locationName) == "" {
+		return true
+	}
+	if strings.Contains(locationName, "现场") || strings.Contains(locationName, "关键场景") {
+		return true
+	}
+
+	distinctSignals := 0
+	for _, keyword := range locationKeywords() {
+		if strings.Contains(chapter.Content, keyword) {
+			distinctSignals++
+			if distinctSignals >= 3 {
+				return true
+			}
+		}
+	}
+	return !strings.Contains(chapter.Content, locationName)
 }
 
 func uniqueStrings(values []string) []string {
@@ -903,9 +1090,23 @@ func joinLimited(values []string, limit int) string {
 	return strings.Join(values, " / ")
 }
 
-func buildObjective(chapter OutlineChapter, title, content, locationName string, tone sceneTone) string {
+func warnableRejectedNames(values []string) []string {
+	results := []string{}
+	for _, value := range uniqueStrings(values) {
+		if utf8.RuneCountInString(value) < 3 && !looksLikeNarrativeFragment(value) {
+			continue
+		}
+		if containsAny(value, "他们", "她们", "我们", "你们", "有人", "对方") {
+			continue
+		}
+		results = append(results, value)
+	}
+	return results
+}
+
+func buildObjective(chapter OutlineChapter, title, content, locationName, protagonistName string, tone sceneTone) string {
 	if tone == sceneToneGrowth {
-		return buildGrowthObjective(ingest.NormalizedChapter{Index: chapter.Index, Title: title, Content: content}, locationName)
+		return buildGrowthObjective(ingest.NormalizedChapter{Index: chapter.Index, Title: title, Content: content}, protagonistName, locationName)
 	}
 	switch {
 	case isSuspenseIntrusionScene(title, content, locationName):
@@ -942,9 +1143,9 @@ func buildObjective(chapter OutlineChapter, title, content, locationName string,
 	return buildEvidenceDrivenObjective(ingest.NormalizedChapter{Index: chapter.Index, Title: title, Content: content}, locationName)
 }
 
-func buildDialogue(chapter OutlineChapter, title, content, locationName string, tone sceneTone) string {
+func buildDialogue(chapter OutlineChapter, title, content, locationName, protagonistName string, tone sceneTone) string {
 	if tone == sceneToneGrowth {
-		return buildGrowthDialogue(title, content, locationName)
+		return buildGrowthDialogue(ingest.NormalizedChapter{Index: chapter.Index, Title: title, Content: content}, protagonistName, locationName)
 	}
 	switch {
 	case isFamilyCareScene(title, content, locationName):
@@ -998,10 +1199,10 @@ func inferEmotion(content string) string {
 	}
 }
 
-func inferOpenQuestions(title, content, locationName string, tone sceneTone) []string {
+func inferOpenQuestions(title, content, locationName, protagonistName string, tone sceneTone) []string {
 	questions := make([]string, 0, 2)
 	if tone == sceneToneGrowth {
-		questions = append(questions, buildGrowthOpenQuestion(title, content, locationName))
+		questions = append(questions, buildGrowthOpenQuestion(ingest.NormalizedChapter{Title: title, Content: content}, protagonistName, locationName))
 		if len(questions) > 0 {
 			return questions
 		}
@@ -1047,38 +1248,55 @@ func inferOpenQuestions(title, content, locationName string, tone sceneTone) []s
 }
 
 func inferCharacterName(source ingest.NormalizedSource) string {
-	names, _ := inferCharacterNames(source)
+	names, _, _, _ := inferCharacterNames(source)
 	if len(names) > 0 {
 		return names[0]
 	}
 	return "主角"
 }
 
-func inferCharacterNames(source ingest.NormalizedSource) ([]string, []string) {
-	type candidateMeta struct {
-		count     int
-		firstSeen int
-	}
+type characterCandidateMeta struct {
+	count         int
+	firstSeen     int
+	chapterHits   map[int]struct{}
+	actionScore   int
+	povScore      int
+	dialogueScore int
+	explicitScore int
+}
 
-	candidates := map[string]candidateMeta{}
+type characterSignalPattern struct {
+	pattern *regexp.Regexp
+	weight  int
+	kind    string
+}
+
+func inferCharacterNames(source ingest.NormalizedSource) ([]string, []string, bool, int) {
+	candidates := map[string]characterCandidateMeta{}
 	rejected := []string{}
 	seenOrder := 0
 	for _, chapter := range source.Chapters {
-		names, rejectedNames := inferLikelyNames(chapter.Content)
+		names, rejectedNames := inferLikelyNames(chapter)
 		rejected = append(rejected, rejectedNames...)
 		for _, candidate := range names {
 			meta := candidates[candidate]
 			if meta.count == 0 {
 				meta.firstSeen = seenOrder
+				meta.chapterHits = map[int]struct{}{}
 			}
 			meta.count++
+			meta.chapterHits[chapter.Index] = struct{}{}
+			meta.actionScore += scoreCandidateAction(candidate, chapter.Content)
+			meta.povScore += scoreCandidatePOV(candidate, chapter.Content)
+			meta.dialogueScore += scoreCandidateDialogue(candidate, chapter.Content)
+			meta.explicitScore += scoreCandidateExplicitNaming(candidate, chapter.Content)
 			candidates[candidate] = meta
 			seenOrder++
 		}
 	}
 
 	if len(candidates) == 0 {
-		return nil, uniqueStrings(rejected)
+		return nil, uniqueStrings(rejected), true, 0
 	}
 
 	names := make([]string, 0, len(candidates))
@@ -1086,21 +1304,57 @@ func inferCharacterNames(source ingest.NormalizedSource) ([]string, []string) {
 		names = append(names, candidate)
 	}
 	sort.Slice(names, func(i, j int) bool {
+		leftScore := characterSelectionScore(candidates[names[i]])
+		rightScore := characterSelectionScore(candidates[names[j]])
+		if leftScore != rightScore {
+			return leftScore > rightScore
+		}
+
 		left := candidates[names[i]]
 		right := candidates[names[j]]
+		if len(left.chapterHits) != len(right.chapterHits) {
+			return len(left.chapterHits) > len(right.chapterHits)
+		}
 		if left.count != right.count {
 			return left.count > right.count
 		}
 		return left.firstSeen < right.firstSeen
 	})
 
+	topScore := characterSelectionScore(candidates[names[0]])
+	secondScore := 0
+	if len(names) > 1 {
+		secondScore = characterSelectionScore(candidates[names[1]])
+	}
+	protagonistConfidenceLow := false
+	if len(names) == 0 {
+		protagonistConfidenceLow = true
+	} else if len(names) > 1 && len(candidates[names[0]].chapterHits) < 2 {
+		protagonistConfidenceLow = true
+	} else if len(names) > 1 && topScore-secondScore < 4 {
+		protagonistConfidenceLow = true
+	}
+
 	if len(names) > 4 {
 		names = names[:4]
 	}
-	return names, uniqueStrings(rejected)
+	return names, uniqueStrings(rejected), protagonistConfidenceLow, topScore
+}
+
+func characterSelectionScore(meta characterCandidateMeta) int {
+	return meta.count*3 +
+		len(meta.chapterHits)*5 +
+		meta.actionScore*2 +
+		meta.povScore*3 +
+		meta.dialogueScore*2 +
+		meta.explicitScore*3
 }
 
 func inferLocationName(chapter ingest.NormalizedChapter) string {
+	if containsAny(chapter.Content, "房门", "床上", "屋里", "屋内", "回到屋") {
+		return "房间"
+	}
+
 	keywords := locationKeywords()
 	bestName := ""
 	bestScore := -1
@@ -1116,8 +1370,8 @@ func inferLocationName(chapter ingest.NormalizedChapter) string {
 	}
 
 	patterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?:在|到|回到|来到|走进|进入|站在|留在|赶到|前往|约在|冲到|守在)([\p{Han}]{1,10}(?:公寓|房间|走廊|办公室|会议室|街道|学校|教室|操场|跑道|看台|咖啡馆|厨房|客厅|夜市|餐馆|广场|医院|仓库|车站|病房|码头|天台|小区|宿舍|商场|后台|直播间|录音室|实验室|展厅|档案室|礼堂|老城区|城区|巷口|桥下|桥边|河边|楼道|门口|休息室))`),
-		regexp.MustCompile(`([\p{Han}]{1,10}(?:公寓|房间|走廊|办公室|会议室|街道|学校|教室|操场|跑道|看台|咖啡馆|厨房|客厅|夜市|餐馆|广场|医院|仓库|车站|病房|码头|天台|小区|宿舍|商场|后台|直播间|录音室|实验室|展厅|档案室|礼堂|老城区|城区|巷口|桥下|桥边|河边|楼道|门口|休息室))`),
+		regexp.MustCompile(`(?:在|到|回到|来到|走进|进入|站在|留在|赶到|前往|约在|冲到|守在)([\p{Han}]{1,10}(?:公寓|房间|走廊|办公室|会议室|街道|学校|教室|操场|跑道|看台|咖啡馆|厨房|客厅|夜市|餐馆|广场|医院|仓库|车站|病房|码头|天台|小区|宿舍|商场|后台|直播间|录音室|实验室|展厅|档案室|礼堂|老城区|城区|巷口|桥下|桥边|河边|楼道|门口|休息室|藏书馆|账房|庄园|议事厅|花坛|花园|府邸))`),
+		regexp.MustCompile(`([\p{Han}]{1,10}(?:公寓|房间|走廊|办公室|会议室|街道|学校|教室|操场|跑道|看台|咖啡馆|厨房|客厅|夜市|餐馆|广场|医院|仓库|车站|病房|码头|天台|小区|宿舍|商场|后台|直播间|录音室|实验室|展厅|档案室|礼堂|老城区|城区|巷口|桥下|桥边|河边|楼道|门口|休息室|藏书馆|账房|庄园|议事厅|花坛|花园|府邸))`),
 	}
 	for _, pattern := range patterns {
 		matches := pattern.FindStringSubmatch(chapter.Content)
@@ -1135,6 +1389,7 @@ func inferLocationName(chapter ingest.NormalizedChapter) string {
 
 func locationKeywords() []string {
 	return []string{
+		"藏书馆", "议事厅", "账房", "庄园", "花坛", "花园", "府邸",
 		"录音室", "会议室", "档案室", "直播间", "实验室", "休息室",
 		"病房", "船坞", "钟楼", "河堤", "河岸", "堤岸", "桥下", "桥边", "巷口",
 		"码头", "车站", "天台", "公寓", "房间", "走廊", "办公室", "学校", "教室",
@@ -1194,8 +1449,11 @@ func locationCandidateScore(title, content, keyword string) int {
 }
 
 func inferInteriorExterior(content string) string {
-	if strings.Contains(content, "街") || strings.Contains(content, "路") || strings.Contains(content, "广场") || strings.Contains(content, "车站") || strings.Contains(content, "码头") || strings.Contains(content, "操场") || strings.Contains(content, "跑道") || strings.Contains(content, "看台") || strings.Contains(content, "天台") || strings.Contains(content, "夜市") || strings.Contains(content, "河堤") || strings.Contains(content, "河岸") || strings.Contains(content, "堤岸") || strings.Contains(content, "船坞") || strings.Contains(content, "钟楼") || strings.Contains(content, "桥下") || strings.Contains(content, "桥边") {
+	if containsAny(content, "街", "路", "广场", "车站", "码头", "操场", "跑道", "看台", "天台", "夜市", "河堤", "河岸", "堤岸", "船坞", "钟楼", "桥下", "桥边", "花坛", "花园") {
 		return "EXT"
+	}
+	if containsAny(content, "房门", "床上", "屋里", "屋内", "藏书馆", "账房", "议事厅", "房间") {
+		return "INT"
 	}
 	return "INT"
 }
@@ -1247,32 +1505,164 @@ func inferLeadingName(content string) string {
 	return candidate
 }
 
-func inferLikelyNames(content string) ([]string, []string) {
-	patterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?:^|[。，“”、\s])([\p{Han}]{2,3})(?:早上|晚上|清晨|深夜|当天|第二天|一早|傍晚|夜里|独自|第一次|终于|突然|立刻|先|还|只好|只能|带着|却|又|还|便|再)*?(?:在|回到|来到|走进|发现|决定|意识到|听见|看见|接到|站在|站上|留在|约|坐在|准备|必须|试图|想要|只能|正要|忽然|突然)`),
-		regexp.MustCompile(`(?:^|[。，“”、\s])([\p{Han}]{2,3})(?:说|问|想|看|听|记得|觉得|怀疑|提醒|主张)`),
+func inferLikelyNames(chapter ingest.NormalizedChapter) ([]string, []string) {
+	patterns := []characterSignalPattern{
+		{
+			pattern: regexp.MustCompile(`(?:^|[。，“”、\s])([\p{Han}]{2,4}?)(?:早上|晚上|清晨|深夜|当天|第二天|一早|傍晚|夜里|独自|第一次|终于|突然|立刻|先|还|只好|只能|带着|却|又|便|正要|继续)?(?:在|回到|来到|走进|进入|留在|赶到|前往|站在|站上|按|守在|听完|听见|看见|发现|意识到|决定|提醒|盯着|看着|开口|说道|说)`),
+			weight:  4,
+			kind:    "subject_context",
+		},
+		{
+			pattern: regexp.MustCompile(`(?:^|[。，“”、\s])([\p{Han}]{2,4}?)(?:[.．·][\p{Han}]{1,8}){1,3}`),
+			weight:  4,
+			kind:    "full_name",
+		},
+		{
+			pattern: regexp.MustCompile(`(?:^|[。，“”、\s])(?:小)?([\p{Han}]{2,4}?)(?:正是|就是)(?:[\p{Han}]{0,6})?(?:名字|姐姐|妈妈|母亲|弟弟|儿子|女儿)?`),
+			weight:  4,
+			kind:    "explicit_name",
+		},
+		{
+			pattern: regexp.MustCompile(`(?:姐姐|弟弟|妈妈|母亲|父亲|侍女|骑士|管家|先生|夫人|公爵|伯爵|侯爵)(?:是|叫|名为|自然就是|正是)?(?:这一世)?(?:她的|他的)?(?:名字)?(?:为)?(?:小)?([\p{Han}]{2,4}?)`),
+			weight:  4,
+			kind:    "role_name",
+		},
+		{
+			pattern: regexp.MustCompile(`(?:“|")小?([\p{Han}]{2,4}?)(?:！|!|？|\?)`),
+			weight:  2,
+			kind:    "callout",
+		},
+		{
+			pattern: regexp.MustCompile(`(?:^|[。，“”、\s])([\p{Han}]{2,4}?)(?:摇了摇头|转头看去|看着|听到|说道|说|问道|提醒|决定|意识到|发现|走去|走向|继续|想起|感觉|觉得|开口|停下|扑倒|赶来|盯着|怒斥|夸赞道|回答)`),
+			weight:  3,
+			kind:    "action_context",
+		},
+		{
+			pattern: regexp.MustCompile(`(?:^|[。，“”、\s])([\p{Han}]{2,4}?)(?:说|问|想|看|听|记得|觉得|怀疑|提醒|主张|表情|语气)`),
+			weight:  2,
+			kind:    "speech_context",
+		},
 	}
 	seen := map[string]struct{}{}
 	rejected := []string{}
 	results := make([]string, 0, 4)
+	scoreByName := map[string]int{}
 	for _, pattern := range patterns {
-		for _, matches := range pattern.FindAllStringSubmatch(content, -1) {
+		for _, matches := range pattern.pattern.FindAllStringSubmatch(chapter.Content, -1) {
 			if len(matches) != 2 {
 				continue
 			}
-			candidate := matches[1]
-			if containsStopWord(candidate) || looksLikeLocation(candidate) || !looksLikeCharacterName(candidate) {
+			candidate := normalizeCharacterCandidate(matches[1])
+			if candidate == "" || containsStopWord(candidate) || looksLikeLocation(candidate) || looksLikeNarrativeFragment(candidate) || !looksLikeCharacterName(candidate) {
 				rejected = append(rejected, candidate)
 				continue
 			}
-			if _, ok := seen[candidate]; ok {
-				continue
+			scoreByName[candidate] += pattern.weight
+			if _, ok := seen[candidate]; !ok {
+				seen[candidate] = struct{}{}
+				results = append(results, candidate)
 			}
-			seen[candidate] = struct{}{}
-			results = append(results, candidate)
 		}
 	}
-	return results, uniqueStrings(rejected)
+
+	filtered := make([]string, 0, len(results))
+	for _, candidate := range results {
+		totalScore := scoreByName[candidate] +
+			scoreCandidateAction(candidate, chapter.Content) +
+			scoreCandidatePOV(candidate, chapter.Content) +
+			scoreCandidateDialogue(candidate, chapter.Content) +
+			scoreCandidateExplicitNaming(candidate, chapter.Content)
+		if totalScore < 4 {
+			rejected = append(rejected, candidate)
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
+	return filtered, uniqueStrings(rejected)
+}
+
+func normalizeCharacterCandidate(candidate string) string {
+	candidate = strings.TrimSpace(candidate)
+	candidate = strings.Trim(candidate, "“”\"'【】（）()：:，。！？!?、 ")
+	candidate = strings.TrimPrefix(candidate, "小")
+	candidate = strings.TrimSpace(candidate)
+	if utf8.RuneCountInString(candidate) < 2 || utf8.RuneCountInString(candidate) > 4 {
+		return ""
+	}
+	if !regexp.MustCompile(`^[\p{Han}]{2,4}$`).MatchString(candidate) {
+		return ""
+	}
+	return candidate
+}
+
+func scoreCandidateAction(candidate, content string) int {
+	return countCandidateContext(content, candidate, []string{
+		"决定", "意识到", "发现", "看着", "看见", "听到", "转头", "摇了摇头", "走去", "继续", "赶来", "扑倒", "开口", "停下", "回答", "提醒",
+	})
+}
+
+func scoreCandidatePOV(candidate, content string) int {
+	return countCandidateContext(content, candidate, []string{
+		"感觉", "觉得", "不理解", "想到", "想起", "有些", "怀疑", "百思不得其解", "兴奋", "失落", "吃惊", "看起来", "心里",
+	})
+}
+
+func scoreCandidateDialogue(candidate, content string) int {
+	return countCandidateContext(content, candidate, []string{
+		"说", "问", "回答", "提醒", "夸赞道", "念道", "怒斥", "呵斥",
+	})
+}
+
+func scoreCandidateExplicitNaming(candidate, content string) int {
+	return countCandidateContext(content, candidate, []string{
+		"名字", "正是", "就是", "全名", "姐姐自然就是", "妈妈", "母亲", "弟弟", "姐姐",
+	})
+}
+
+func countCandidateContext(content, candidate string, verbs []string) int {
+	score := 0
+	for _, verb := range verbs {
+		patterns := []*regexp.Regexp{
+			regexp.MustCompile(fmt.Sprintf(`%s(?:[\p{Han}]{0,6})?%s`, regexp.QuoteMeta(candidate), regexp.QuoteMeta(verb))),
+			regexp.MustCompile(fmt.Sprintf(`%s(?:[\p{Han}]{0,6})?%s`, regexp.QuoteMeta(verb), regexp.QuoteMeta(candidate))),
+		}
+		for _, pattern := range patterns {
+			score += len(pattern.FindAllString(content, -1))
+		}
+	}
+	return score
+}
+
+func looksLikeNarrativeFragment(input string) bool {
+	if input == "" {
+		return false
+	}
+
+	exactFragments := []string{
+		"脑子里", "三岁时", "因为听", "这一世", "这一次", "原本", "直到他", "难不成", "只不过", "不过嘛", "看样子", "于是咆", "就这样", "这一看",
+		"电话", "坚持", "生前", "留下", "坐在",
+	}
+	for _, fragment := range exactFragments {
+		if input == fragment {
+			return true
+		}
+	}
+
+	fragmentPatterns := []*regexp.Regexp{
+		regexp.MustCompile(`^(?:因为|所以|如果|只是|不过|但是|于是|随着|直到|就在|原本|毕竟|如今|今天|许久|难道|不会|这么|这个|那个|然后|开始|继续)`),
+		regexp.MustCompile(`(?:子里|岁时|时候|上方|下方|边缘|视野|画面|海域|世界|记忆|意识|脑海|晚上|清晨|傍晚|深夜|当天|一早)$`),
+		regexp.MustCompile(`(?:自己|感觉|发现|意识|想到|想起|看见|听见|打量|继续|开始|回到|走进|来到|第一次|差点|终于|坚持|电话|生前|留下|坐在)`),
+	}
+	for _, pattern := range fragmentPatterns {
+		if pattern.MatchString(input) {
+			return true
+		}
+	}
+	if containsAny(input, "的", "和", "把", "里", "让", "被", "于", "与", "终于", "差点", "第一次", "电话", "生前", "留下", "坐在", "晚上", "清晨", "傍晚", "深夜") {
+		return true
+	}
+
+	return false
 }
 
 func looksLikeCharacterName(input string) bool {
@@ -1307,6 +1697,7 @@ func containsStopWord(input string) bool {
 		"朋友", "主力", "比赛", "项目", "父亲", "母亲", "姐姐", "医生", "教练", "有人", "对方",
 		"家里", "团队", "夜市", "广场", "厨房", "客厅", "会议", "教室", "叙述者", "两人", "他们", "她们", "我们", "你们",
 		"所以", "现在", "更别", "如果", "然后", "于是", "只是", "已经", "终于", "因此", "此时", "这时", "这里", "那里", "为了", "但是", "不过", "可是",
+		"电话", "坚持", "生前", "留下", "坐在", "第一次",
 	}
 	for _, stopWord := range stopWords {
 		if input == stopWord {
@@ -1325,7 +1716,7 @@ func containsStopWord(input string) bool {
 			return true
 		}
 	}
-	badFragments := []string{"发现", "决定", "意识", "带着", "回到", "来到", "走进", "前往", "站上", "站在"}
+	badFragments := []string{"发现", "决定", "意识", "带着", "回到", "来到", "走进", "前往", "站上", "站在", "晚上", "清晨", "傍晚", "深夜", "第一次", "差点", "终于", "电话", "坚持", "生前", "留下", "坐在"}
 	for _, fragment := range badFragments {
 		if strings.Contains(input, fragment) {
 			return true
@@ -1611,7 +2002,12 @@ func inferLocationFromTitle(title string) string {
 	if looksLikeLocation(titleFocus) {
 		return titleFocus
 	}
-	return titleFocus + "现场"
+	for _, keyword := range locationKeywords() {
+		if strings.Contains(titleFocus, keyword) {
+			return keyword
+		}
+	}
+	return ""
 }
 
 func shortenPhrase(input string, limit int) string {

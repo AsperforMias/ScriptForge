@@ -4,6 +4,15 @@
 
 更新时间：2026-06-06
 
+2026-06-06 最新后端可信度对齐：
+- `latest main` 在 `C:\Users\lenovo\Desktop\QiniuProject\test.txt` 这类“异世界转生 / 贵族成长 / 世界观说明 + 家庭互动 + 内心独白”的真实自定义中文三章节输入上，当前主要后端问题已经从“悬疑模板串题材”转移为以下 5 类可信度缺口：
+- 人物抽取仍会碎片化，可能生成 `脑子里`、`三岁时`、`因为听` 这类叙述碎片，并且主角 / 主视角候选不稳定。
+- protagonist / POV 判断仍偏向“按出现频次硬选”，在成长 / 世界观章节里会把配角或误抽碎片顶成主角。
+- `scene objective`、`dialogue`、`open_questions` 不再明显串悬疑模板，但仍会过度贴近原文长叙述从句，像把说明性文字压进字段，而不是可信的场景目标与问题。
+- `beats` 仍然更像章节 summary 的切句碎片，不够像可拍摄动作；括号残片、标点断裂、`...` 与内心独白截断仍可能直接落进 action beat。
+- `validation.warnings` 已经开始出现，但语义仍然过粗，尚不能明确指出角色碎片、主视角不稳、objective 过近原文、beat 适配失败、location / slugline 低置信度等具体风险。
+- 这不是赛后优化项，而是比赛交付前必须解决的后端可信度问题；但本轮目标仍然是把 deterministic 修到“可信 MVP”，而不是把系统扩展成任意题材都很强的完整产品。
+
 当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器，以及前端工作台首版真实联调落地。
 当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / product-facing polish”。2026-06-06 的 `main` 自检曾暴露“验收路径过度围绕样例组织”和“deterministic 对非 fixture 输入泛化不足”两类问题；当前分支已先补齐前后端自定义输入验收链路，并把后端自检基线收紧回可信状态。
 本轮后端继续聚焦 deterministic 复杂中文输入 hardening：重点不是再改 API 或 YAML-first，而是把 `conflict / objective / dialogue / open_questions / fallback` 进一步收紧到“章节证据优先”，减少家庭词、单地点、单线索模板在悬疑等真实输入里的跨题材串用。
@@ -97,6 +106,8 @@
   说明：需要把“用户手工录入自己的小说章节”补成明确自检项，并同步修复前端 smoke script、README 操作步骤与 UI 文案漂移，避免当前只对 sample preset 讲得清、验得通
 - deterministic 对非 fixture 输入的泛化补强
   说明：当前能生成合法 YAML，但对真实用户输入仍偏模板化，需要补强角色抽取、地点/冲突推断与 scene 级差异化表达，避免 demo 以外的文本看起来过度理想化
+- 真实成长 / 转生中文输入的 deterministic 可信度 hardening
+  说明：`test.txt` 这类“异世界转生 / 贵族成长”真实三章节输入已经证明，当前剩余短板不是 API、任务化 pipeline 或 YAML schema，而是 deterministic 在角色抽取、protagonist / POV 判断、scene goal 压缩、beat 改写和 warning 粒度上的可信度；该项属于比赛交付前必须收敛的问题，但目标是“可信 MVP”而不是完整产品级 NLP。
 - deterministic 复杂中文输入的语义一致性 hardening
   说明：本轮已修复 `buildConflict` 的 summary 级宽关键词桶误判，并清理明显英文 fallback；但 deterministic 对多场景章节仍未做 scene 级拆分，对更复杂多人物、多线索中文输入仍可能偏单场景压缩，需要继续向“真实输入优先”的中文表达收紧
 - 非悬疑 / 非既有 fixture 题材的真实输入 hardening
