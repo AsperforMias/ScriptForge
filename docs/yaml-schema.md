@@ -168,7 +168,7 @@ scenes:
       location_id: "loc_old_apartment"
       time: "NIGHT"
     summary: "林琪回到旧公寓，察觉门锁被动过。"
-    objective: "建立悬疑氛围并抛出异常线索。"
+    objective: "确认门锁是否真的被人动过。"
     beats:
       - type: "action"
         content: "走廊尽头的声控灯忽明忽暗，林琪停在门前。"
@@ -346,7 +346,7 @@ scenes:
       location_id: "loc_old_apartment"
       time: "NIGHT"
     summary: "主角发现门锁异常。"
-    objective: "建立悬疑氛围。"
+    objective: "确认门锁异常不是自己的错觉。"
     beats:
       - type: "action"
         content: "林琪站在门前，钥匙停在半空。"

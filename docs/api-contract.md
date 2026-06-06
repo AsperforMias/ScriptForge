@@ -187,6 +187,12 @@ Response `200 OK`:
 }
 ```
 
+实现备注（当前版本）：
+- `GET /jobs/{job_id}` 返回的是“当前已持久化的 job / stage 状态”
+- 当前实现会在整条 `runner.Run(...)` 结束后再统一写回完整 stage 详情
+- 因此当上游 LLM 调用耗时较长时，轮询侧可能长时间看到 `current_stage=ingest` 与较早的 `progress_percent`
+- 这不影响最终 `succeeded / failed` 结果语义，但前端不应把“阶段长时间停在 ingest”误判为轮询中断
+
 ## GET `/jobs/{job_id}/result`
 
 获取结构化结果。仅当 job 状态为 `succeeded` 时返回成功。
