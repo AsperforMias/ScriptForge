@@ -158,7 +158,7 @@ frontend/
       globals.css
 ```
 
-状态说明（2026-06-05）：
+状态说明（2026-06-07）：
 - `frontend/` 已按上述结构落下首版骨架
 - 当前已具备可运行的单页工作台、基础样式与真实 API 联调能力
 - 多章节表单、创建 job、2s 轮询、YAML 结果载入、结构化摘要与导出动作都已接入真实后端
@@ -168,11 +168,14 @@ frontend/
 - 前端示例已扩展为可切换的多题材 preset，至少覆盖悬疑、职场与校园运动
 - sample preset 仅作为首次体验与 demo 加速器；“用户手工录入自己的 3 章内容并完成主链路”仍应作为首版主验收路径之一
 - 工作台首屏仍默认载入推荐的 `职场` 示例，便于首次体验；同时必须提供显式的“切换为空白手工输入 / 直接覆盖当前字段”入口，避免 UI 暗示只能提交示例内容
+- 示例区现已收束为 `2 x 2` 卡片区：悬疑 / 职场 / 校园运动 / 空白手工输入，避免把“空白输入”单独做成旁侧小按钮
 - README 已补齐真实前端自检路径，覆盖 sample preset、非 preset 手工输入、job 轮询、YAML/result/export 与 failed-job regenerate 验证步骤
 - 工作台已补齐 idle / loading / succeeded / failed 四类真实状态文案，并把结果区空态与失败态对齐到真实 job/result 查询状态
 - 响应式断点已细化为桌面双栏、平板双列过渡、移动端纵向堆叠，保持 `Input -> Result` 的阅读顺序，并把生成进度固定收束在结果区顶部
+- 当前视觉方向已明显转向“全圆角 + 浅色块层级 + 大留白”；大部分层级不再依赖显式边框，而是通过容器明暗差与间距区分
 - `frontend/scripts/smoke-workspace.mjs` 与 `npm run smoke:workspace` 已就位，可自动验证 sample preset 主链路、非 preset 手工 3 章链路、disabled-provider fallback regenerate、`复制当前 YAML`、`lastJobId` 与 workspace draft 刷新恢复，以及移动端 `Input -> Result` 阅读顺序
 - 结果区现已统一使用“当前为生成初稿 / 当前为本地编辑稿 / 恢复生成初稿 / 下载生成初稿 YAML / 复制当前 YAML / 导出 YAML”这套文案，并为复制、恢复、导出动作提供真实反馈提示
+- `本次结果` 现已从胶囊标签收束为结果区内的普通加粗标题，避免和进度条、信息标签竞争视觉层级
 - 结构化摘要现已补充 overview 层，优先展示章节 / 场景 / 角色 / 结构校验状态，再展开角色、地点与 scene 卡片
 - 结果区现已固定展示“这是可继续编辑的 YAML 剧本初稿”的人工复核提示；即使 `validation.warnings` 为空，也会继续提醒“结构通过 != 内容质量通过”
 - `validation.warnings` 现已与人工复核说明合并展示，重点提醒用户优先检查角色名、objective、beats 与 open questions，避免 `validation.status=passed` 被误读为“结果质量没问题”
@@ -212,10 +215,11 @@ frontend/
   - 作者
   - 改编风格
   - 额外说明
+  - `2 x 2` 示例 / 空白输入卡片区
   - 章节列表编辑
 - `Result Workspace`
   - 顶部生成进度条
-  - 当前 job 基本信息
+  - `本次结果` 标题与当前 job 基本信息
   - 错误提示 / fallback 提示
   - 重新生成入口
   - YAML 文本编辑区
