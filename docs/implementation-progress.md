@@ -6,6 +6,8 @@
 
 当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器，以及前端工作台首版真实联调落地。
 当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / product-facing polish”。2026-06-06 的 `main` 自检曾暴露“验收路径过度围绕样例组织”和“deterministic 对非 fixture 输入泛化不足”两类问题；当前分支已先补齐前后端自定义输入验收链路，并把后端自检基线收紧回可信状态。
+本轮后端继续聚焦 deterministic 复杂中文输入 hardening：重点不是再改 API 或 YAML-first，而是把 `conflict / objective / dialogue / open_questions / fallback` 进一步收紧到“章节证据优先”，减少家庭词、单地点、单线索模板在悬疑等真实输入里的跨题材串用。
+截至本轮，`buildConflict` 已从 summary 级宽关键词桶收紧到章节正文证据优先；deterministic 也已补入支持人物抽取与新的非 fixture 手写中文三章节回归，且中文路径下的明显英文 fallback 文案已清理，`backend/` 下 `GOCACHE=/tmp/scriptforge-gocache go test ./...` 重新通过。
 
 2026-06-06 自检补充结论：
 - 当前产品链路并未把用户锁死在 fixture/sample preset 上；前端表单与后端 `POST /api/v1/jobs` 均支持用户直接粘贴 / 手工录入自己的 3 章以上小说文本
@@ -80,12 +82,17 @@
 - deterministic workflow 规则已补强为中文目标、对话、开放问题生成
 - deterministic workflow 已补充家庭情感与都市轻喜剧两类题材规则
 - deterministic workflow 单测与 fixture 回归测试
+- deterministic `buildConflict` 已补成章节证据优先推断，避免“父亲 / 客厅 / 家里”类家庭词把悬疑章节误拉进家庭模板
+- deterministic 实体抽取已补入有限支持人物识别，降低多人物中文输入被压成单主角的程度
+- deterministic 中文 fallback 文案已收紧，并新增一条非 fixture、手写中文三章节悬疑回归，覆盖“家庭词存在但不应落入家庭模板”的真实输入场景
 
 尚未完成：
 - 自定义输入验收链路 hardening
   说明：需要把“用户手工录入自己的小说章节”补成明确自检项，并同步修复前端 smoke script、README 操作步骤与 UI 文案漂移，避免当前只对 sample preset 讲得清、验得通
 - deterministic 对非 fixture 输入的泛化补强
   说明：当前能生成合法 YAML，但对真实用户输入仍偏模板化，需要补强角色抽取、地点/冲突推断与 scene 级差异化表达，避免 demo 以外的文本看起来过度理想化
+- deterministic 复杂中文输入的语义一致性 hardening
+  说明：本轮已修复 `buildConflict` 的 summary 级宽关键词桶误判，并清理明显英文 fallback；但 deterministic 对多场景章节仍未做 scene 级拆分，对更复杂多人物、多线索中文输入仍可能偏单场景压缩，需要继续向“真实输入优先”的中文表达收紧
 - 前后端验收口径重新对齐
   说明：前端需要明确“preset 只是辅助，不是唯一入口”，后端需要明确“fixture 只是回归基线，不代表真实用户输入已经被充分覆盖”
 - 更丰富的 fixture 覆盖面

@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -39,7 +40,7 @@ func BuildOutline(source ingest.NormalizedSource) OutlineBundle {
 			Index:    chapter.Index,
 			Title:    chapter.Title,
 			Summary:  summary,
-			Conflict: buildConflict(summary),
+			Conflict: buildConflict(chapter, summary),
 		})
 	}
 
@@ -47,14 +48,28 @@ func BuildOutline(source ingest.NormalizedSource) OutlineBundle {
 }
 
 func ExtractEntities(source ingest.NormalizedSource) EntityBundle {
-	mainCharacterName := inferCharacterName(source)
-	characters := []screenplay.Character{
-		{
-			ID:          "char_" + slugify(mainCharacterName),
-			Name:        mainCharacterName,
-			Role:        "protagonist",
-			Description: "从章节行动线中推断出的主视角人物，负责把发现转化为调查行动。",
-		},
+	characterNames := inferCharacterNames(source)
+	mainCharacterName := "主角"
+	if len(characterNames) > 0 {
+		mainCharacterName = characterNames[0]
+	}
+
+	characters := make([]screenplay.Character, 0, len(characterNames))
+	characters = append(characters, screenplay.Character{
+		ID:          "char_" + slugify(mainCharacterName),
+		Name:        mainCharacterName,
+		Role:        "protagonist",
+		Description: "从章节行动线中推断出的主视角人物，负责把发现转化为调查行动。",
+	})
+	if len(characterNames) > 1 {
+		for _, name := range characterNames[1:] {
+			characters = append(characters, screenplay.Character{
+				ID:          "char_" + slugify(name),
+				Name:        name,
+				Role:        "supporting",
+				Description: "从章节显式证据中识别出的关联人物，会直接影响当前场景判断。",
+			})
+		}
 	}
 
 	locations := make([]screenplay.Location, 0, len(source.Chapters))
@@ -169,7 +184,7 @@ func BuildDocument(req job.CreateJobRequest, source ingest.NormalizedSource, out
 func summarize(content string) string {
 	content = strings.TrimSpace(content)
 	if content == "" {
-		return "This chapter introduces a new dramatic development."
+		return "这一章带出了新的戏剧变化。"
 	}
 	if len([]rune(content)) <= 80 {
 		return content
@@ -177,28 +192,31 @@ func summarize(content string) string {
 	return string([]rune(content)[:80]) + "..."
 }
 
-func buildConflict(summary string) string {
+func buildConflict(chapter ingest.NormalizedChapter, summary string) string {
+	locationName := inferLocationName(chapter)
+	title := chapter.Title
+	content := chapter.Content
 	switch {
-	case containsAny(summary, "病房", "团圆饭", "父亲", "母亲", "姐姐", "客厅", "厨房", "家里"):
-		return "家庭照料和旧误会同时浮上台面，主角必须在情感压力下推动家人把话说开。"
-	case containsAny(summary, "夜市", "餐馆", "广场", "直播", "摄影师", "试播", "设备"):
-		return "一场误会把合作关系推向失控边缘，主角必须把尴尬局面转成新的默契。"
-	case containsAny(summary, "项目", "汇报", "客户", "方案", "数据", "提案", "会议"):
-		return "项目推进进入关键节点，主角必须在时间压力下查清内部失误或背叛。"
-	case containsAny(summary, "比赛", "接力", "训练", "跑道", "队伍", "队友", "决赛"):
-		return "比赛临近，主角必须在团队压力和胜负期待之间做出选择。"
-	case containsAny(summary, "线索", "车站", "寄信人", "追踪"):
-		return "主角决定主动追查线索，把被动戒备转化为现实行动。"
-	case containsAny(summary, "门锁", "被人动过", "停在走廊"):
+	case isSuspenseIntrusionScene(title, content, locationName):
 		return "主角意识到私人空间可能已经被入侵，必须先判断危险是否仍在现场。"
-	case containsAny(summary, "字条", "别睡", "提前进入"):
+	case isSuspenseWarningScene(title, content, locationName):
 		return "匿名警告把模糊的不安变成了明确威胁，主角必须判断这是不是针对她的布局。"
+	case isStationPursuitScene(title, content, locationName):
+		return "主角决定主动追查线索，把被动戒备转化为现实行动。"
+	case isFamilyCareScene(title, content, locationName):
+		return "家庭照料和健康风险同时压上来，主角必须在亲情牵扯里做出现实选择。"
+	case isFamilyConflictScene(title, content, locationName):
+		return "旧账和指责被重新翻开，主角必须顶住情绪压力逼近真正的症结。"
+	case isFamilyReconcileScene(title, content, locationName):
+		return "迟来的坦白终于出现缺口，主角必须决定是否趁机把误会说开。"
+	case isComedyMeetScene(title, content, locationName), isComedyClarifyScene(title, content, locationName), isComedyBroadcastScene(title, content, locationName):
+		return "误会把合作关系推到失控边缘，主角必须先稳住场面再决定如何收尾。"
+	case isWorkplaceDataScene(title, content, locationName), isWorkplaceConfrontationScene(title, content, locationName), isWorkplaceShowdownScene(title, content, locationName):
+		return "项目推进进入关键节点，主角必须在时间压力下查清是谁先动了手。"
+	case isSportsSetupScene(title, content, locationName), isSportsConflictScene(title, content, locationName), isSportsRaceScene(title, content, locationName):
+		return "比赛压力已经落到眼前，主角必须在团队摇摆中把行动重新拉回赛场。"
 	default:
-		issue := extractIssueFocus(summary)
-		if issue != "" {
-			return fmt.Sprintf("新线索让局势出现变化，主角必须先处理%s带来的压力。", issue)
-		}
-		return "章节中的新信息迫使主角做出下一步戏剧行动。"
+		return buildEvidenceDrivenConflict(title, content, summary, locationName)
 	}
 }
 
@@ -350,36 +368,138 @@ type sceneArtifact struct {
 	label string
 }
 
+type sceneArtifactProfile struct {
+	kind     string
+	label    string
+	keywords []string
+}
+
 func inferSceneArtifact(title, content, locationName string) sceneArtifact {
 	text := sceneText(title, content)
-	switch {
-	case containsAny(text, "录音", "录音机", "录音带", "磁带", "笑声", "潮声"):
-		return sceneArtifact{kind: "recording", label: "录音里多出的声音"}
-	case containsAny(text, "留言", "来信", "匿名信", "字条"):
-		return sceneArtifact{kind: "message", label: "匿名留言"}
-	case containsAny(text, "钥匙", "锁孔"):
-		return sceneArtifact{kind: "key", label: "这把钥匙"}
-	case containsAny(text, "账本"):
-		return sceneArtifact{kind: "ledger", label: "账本里被藏起的记录"}
-	case containsAny(text, "合同", "合约"):
-		return sceneArtifact{kind: "contract", label: "合同里被藏起的条件"}
-	case containsAny(text, "货单", "货运事故"):
-		return sceneArtifact{kind: "manifest", label: "货单和事故记录"}
-	case containsAny(text, "铭牌", "档案", "照片", "底片", "证据"):
-		return sceneArtifact{kind: "clue", label: "这条新线索"}
-	case containsAny(text, "门锁"):
-		return sceneArtifact{kind: "lock", label: "门锁异常"}
-	case containsAny(text, "数据"):
-		return sceneArtifact{kind: "data", label: "关键数据被替换的原因"}
+	issue := extractIssueFocus(content)
+	action := extractActionFocus(content)
+	sentences := splitSentences(content)
+	lastSentence := ""
+	if len(sentences) > 0 {
+		lastSentence = sentences[len(sentences)-1]
+	}
+
+	bestScore := 0
+	bestArtifact := sceneArtifact{}
+	for _, profile := range sceneArtifactProfiles() {
+		score := scoreSceneArtifact(profile, title, text, issue, action, lastSentence)
+		if score > bestScore {
+			bestScore = score
+			bestArtifact = sceneArtifact{kind: profile.kind, label: profile.label}
+		}
+	}
+	if bestScore > 0 {
+		return bestArtifact
+	}
+
+	titleFocus := trimChapterPrefix(title)
+	if titleFocus != "" {
+		return sceneArtifact{kind: "title", label: titleFocus}
+	}
+	if locationName != "" {
+		return sceneArtifact{kind: "location", label: locationName}
+	}
+	return sceneArtifact{}
+}
+
+func sceneArtifactProfiles() []sceneArtifactProfile {
+	return []sceneArtifactProfile{
+		{kind: "recording", label: "录音里多出的声音", keywords: []string{"录音", "录音机", "录音带", "磁带", "随身听", "口哨", "笑声", "潮声"}},
+		{kind: "message", label: "匿名留言", keywords: []string{"留言", "来信", "匿名信", "字条", "便签", "纸条"}},
+		{kind: "key", label: "这把钥匙", keywords: []string{"钥匙", "锁孔", "侧门", "试锁", "试开"}},
+		{kind: "ledger", label: "账本里被藏起的记录", keywords: []string{"账本"}},
+		{kind: "contract", label: "合同里被藏起的条件", keywords: []string{"合同", "合约"}},
+		{kind: "manifest", label: "货单和事故记录", keywords: []string{"货单", "货运事故", "事故记录"}},
+		{kind: "lock", label: "门锁异常", keywords: []string{"门锁"}},
+		{kind: "data", label: "关键数据被替换的原因", keywords: []string{"数据", "版本", "提案"}},
+		{kind: "clue", label: "这条新线索", keywords: []string{"编号", "铭牌", "档案", "照片", "底片", "证据", "线索"}},
+	}
+}
+
+func scoreSceneArtifact(profile sceneArtifactProfile, title, text, issue, action, lastSentence string) int {
+	score := 0
+	for _, keyword := range profile.keywords {
+		if strings.Contains(title, keyword) {
+			score += 6
+		}
+		score += strings.Count(text, keyword) * 2
+		if strings.Contains(issue, keyword) {
+			score += 4
+		}
+		if strings.Contains(action, keyword) {
+			score += 5
+		}
+		if strings.Contains(lastSentence, keyword) {
+			score += 2
+		}
+		if regexp.MustCompile(fmt.Sprintf(`(?:不是|并非|并不是|而不是)(?:[\p{Han}]{0,6})?%s`, regexp.QuoteMeta(keyword))).MatchString(text) {
+			score -= 4
+		}
+	}
+
+	switch profile.kind {
+	case "recording":
+		if containsAny(action, "核对", "重播", "倒回去", "确认") {
+			score += 3
+		}
+	case "message":
+		if containsAny(action, "赴约", "约见", "见面", "赶到") {
+			score += 2
+		}
+	case "key":
+		if containsAny(action, "试锁", "打开", "核对编号", "查钥匙") {
+			score += 3
+		}
+	case "clue":
+		score--
+	}
+
+	return score
+}
+
+func buildEvidenceDrivenConflict(title, content, summary, locationName string) string {
+	artifact := inferSceneArtifact(title, content, locationName)
+	issue := shortenPhrase(extractIssueFocus(content), 20)
+	action := actionClause(extractActionFocus(content))
+
+	switch artifact.kind {
+	case "recording":
+		return "录音里多出的声音把局势推向未知，主角必须先确认这段异常究竟指向谁。"
+	case "message":
+		return "匿名留言让怀疑突然有了方向，主角必须先判断这是不是有人故意设下的引路。"
+	case "key":
+		return "突然出现的钥匙让线索有了入口，主角必须先确认它究竟能打开哪里。"
+	case "ledger":
+		return "被藏起的账本记录重新浮出水面，主角必须先判断该相信谁。"
+	case "contract":
+		return "合同里被遮住的条件把局势推向失衡，主角必须先看清谁在设局。"
+	case "manifest":
+		return "货单和事故记录对不上，主角必须尽快查清究竟是哪一环被人改动。"
+	case "lock":
+		return "门锁异常说明现场边界已经失守，主角必须先判断危险是否还留在眼前。"
+	case "data":
+		return "关键数据在最后关头被动过，主角必须赶在汇报前查清责任落点。"
+	case "clue":
+		if issue != "" && action != "" {
+			return fmt.Sprintf("%s让局势突然收紧，主角必须%s。", issue, action)
+		}
+		return "新出现的线索让局势迅速收紧，主角必须先把它追到更具体的落点。"
 	default:
-		titleFocus := trimChapterPrefix(title)
-		if titleFocus != "" {
-			return sceneArtifact{kind: "title", label: titleFocus}
+		if issue != "" && action != "" {
+			return fmt.Sprintf("%s让局势突然收紧，主角必须%s。", issue, action)
 		}
-		if locationName != "" {
-			return sceneArtifact{kind: "location", label: locationName}
+		if issue != "" {
+			return fmt.Sprintf("%s让主角无法继续观望，必须立刻做出回应。", issue)
 		}
-		return sceneArtifact{}
+		if summary != "" {
+			return "章节里的新变化迫使主角立刻做出下一步判断。"
+		}
+		return "章节里的新变化迫使主角立刻做出下一步判断。"
 	}
 }
 
@@ -642,24 +762,54 @@ func inferOpenQuestions(title, content, locationName string) []string {
 }
 
 func inferCharacterName(source ingest.NormalizedSource) string {
-	candidateCounts := map[string]int{}
-	for _, chapter := range source.Chapters {
-		for _, candidate := range inferLikelyNames(chapter.Content) {
-			candidateCounts[candidate]++
-		}
-	}
-	bestName := ""
-	bestScore := 0
-	for candidate, score := range candidateCounts {
-		if score > bestScore || (score == bestScore && bestName == "") {
-			bestName = candidate
-			bestScore = score
-		}
-	}
-	if bestName != "" {
-		return bestName
+	names := inferCharacterNames(source)
+	if len(names) > 0 {
+		return names[0]
 	}
 	return "主角"
+}
+
+func inferCharacterNames(source ingest.NormalizedSource) []string {
+	type candidateMeta struct {
+		count     int
+		firstSeen int
+	}
+
+	candidates := map[string]candidateMeta{}
+	seenOrder := 0
+	for _, chapter := range source.Chapters {
+		for _, candidate := range inferLikelyNames(chapter.Content) {
+			meta := candidates[candidate]
+			if meta.count == 0 {
+				meta.firstSeen = seenOrder
+			}
+			meta.count++
+			candidates[candidate] = meta
+			seenOrder++
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	names := make([]string, 0, len(candidates))
+	for candidate := range candidates {
+		names = append(names, candidate)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		left := candidates[names[i]]
+		right := candidates[names[j]]
+		if left.count != right.count {
+			return left.count > right.count
+		}
+		return left.firstSeen < right.firstSeen
+	})
+
+	if len(names) > 4 {
+		names = names[:4]
+	}
+	return names
 }
 
 func inferLocationName(chapter ingest.NormalizedChapter) string {
@@ -836,14 +986,20 @@ func inferLikelyNames(content string) []string {
 }
 
 func containsStopWord(input string) bool {
-	stopWords := []string{"今天", "第二", "第三", "第一", "凌晨", "晚上", "清晨", "第二天", "当天", "傍晚", "夜里", "朋友", "主力", "比赛", "项目", "父亲", "母亲", "姐姐", "医生", "有人", "对方", "家里", "团队", "夜市", "广场", "厨房", "客厅", "会议", "教室", "叙述者"}
+	stopWords := []string{"今天", "第二", "第三", "第一", "凌晨", "晚上", "清晨", "第二天", "当天", "傍晚", "夜里", "朋友", "主力", "比赛", "项目", "父亲", "母亲", "姐姐", "医生", "教练", "有人", "对方", "家里", "团队", "夜市", "广场", "厨房", "客厅", "会议", "教室", "叙述者", "两人", "他们", "她们", "我们", "你们"}
 	for _, stopWord := range stopWords {
 		if input == stopWord {
 			return true
 		}
 	}
-	badPrefixes := []string{"却", "并", "再", "先", "还", "只", "就", "又", "忽", "突", "原", "正", "不", "要", "会", "能", "可"}
+	badPrefixes := []string{"却", "并", "再", "先", "还", "只", "就", "又", "忽", "突", "原", "正", "不", "要", "会", "能", "可", "她", "他", "我", "你", "您", "这", "那", "该", "其", "俩"}
 	for _, prefix := range badPrefixes {
+		if strings.HasPrefix(input, prefix) {
+			return true
+		}
+	}
+	badStarts := []string{"父亲", "母亲", "姐姐", "哥哥", "弟弟", "妹妹", "医生", "同事", "队友", "朋友", "邻居", "老师", "警察"}
+	for _, prefix := range badStarts {
 		if strings.HasPrefix(input, prefix) {
 			return true
 		}
@@ -854,7 +1010,7 @@ func containsStopWord(input string) bool {
 			return true
 		}
 	}
-	invalidChars := []string{"独", "自", "叙", "述", "者"}
+	invalidChars := []string{"独", "自", "叙", "述", "者", "她", "他", "我", "你"}
 	for _, char := range invalidChars {
 		if strings.Contains(input, char) {
 			return true
