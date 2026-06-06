@@ -2,10 +2,17 @@
 
 ## 当前状态
 
-更新时间：2026-06-05
+更新时间：2026-06-06
 
 当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器，以及前端工作台首版真实联调落地。
-当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / product-facing polish”，当前重点转为 smoke-check、响应式可读性、结果区 polish 与产品文案收束。
+当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / product-facing polish”，但 2026-06-06 的 `main` 自检表明当前重点应先回到“自定义输入验收链路修复 + smoke-check / README / 文案同步 + deterministic 泛化补强”，再继续录屏与 demo 收束。
+
+2026-06-06 自检补充结论：
+- 当前产品链路并未把用户锁死在 fixture/sample preset 上；前端表单与后端 `POST /api/v1/jobs` 均支持用户直接粘贴 / 手工录入自己的 3 章以上小说文本
+- 当前真正的问题不是“不能输自己的内容”，而是“验证路径过度围绕样例组织”：README、frontend smoke script 和部分结果区文案仍与当前 UI 实现存在漂移
+- `npm run build` 可通过，前后端真实联调也可跑通，但 `go test ./...` 与 `npm run smoke:workspace` 在当前 `main` 上都不能作为稳定验收依据
+- deterministic 链路不是空壳，但对非 fixture 的真实用户输入仍有明显泛化风险：当前规则更偏单主角、单地点、单冲突模板，scene objective / open question 也容易在同题材内重复
+- 因此，下一阶段文档与实现都必须把“用户自定义章节输入”提升为主验收路径，而不是把 sample preset 当作默认成功条件
 
 已完成：
 - 题目与赛事要求的精简总结
@@ -74,6 +81,12 @@
 - deterministic workflow 单测与 fixture 回归测试
 
 尚未完成：
+- 自定义输入验收链路 hardening
+  说明：需要把“用户手工录入自己的小说章节”补成明确自检项，并同步修复前端 smoke script、README 操作步骤与 UI 文案漂移，避免当前只对 sample preset 讲得清、验得通
+- deterministic 对非 fixture 输入的泛化补强
+  说明：当前能生成合法 YAML，但对真实用户输入仍偏模板化，需要补强角色抽取、地点/冲突推断与 scene 级差异化表达，避免 demo 以外的文本看起来过度理想化
+- 前后端验收口径重新对齐
+  说明：前端需要明确“preset 只是辅助，不是唯一入口”，后端需要明确“fixture 只是回归基线，不代表真实用户输入已经被充分覆盖”
 - 更丰富的 fixture 覆盖面
   说明：当前已具备多题材 deterministic 样例和多类 provider fixture，但仍可继续扩展更多真实 provider 返回变体与 demo 专用样例
 - demo 视频与演示稿素材
@@ -108,14 +121,17 @@
 ## 下一步优先级
 
 优先级 1：
-- 录制 demo 视频与演示稿素材，沿用当前默认 `职场` 样例和已固化的讲解顺序
+- 修复“自定义输入优先”的验收链路：同步更新 README、frontend smoke-check、结果区文案与相关 docs，使 `main` 分支重新具备稳定自检能力
+- 补一条非 preset 的真实用户输入自检路径，至少覆盖“清空默认样例 -> 手工录入 3 章 -> create job -> polling -> YAML/result/export”
 
 优先级 2：
+- 补强 deterministic 对非 fixture / 非样例输入的泛化能力，降低单主角、单模板输出在真实用户输入下的违和感
 - 扩展 deterministic 与 llm 的 fixture 覆盖面
 - 继续扩展真实 provider 返回变体回归
 - 视演示需要补充更多题材样例输入输出
 
 优先级 3：
+- 录制 demo 视频与演示稿素材，沿用当前默认 `职场` 样例和已固化的讲解顺序
 - 若演示时间允许，可继续增强 smoke-check 对结果区 polish 的覆盖面
 - 视时间决定是否提供公网演示环境
 

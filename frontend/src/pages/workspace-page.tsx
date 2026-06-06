@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChapterList } from "../components/input/chapter-list";
 import { SourceForm } from "../components/input/source-form";
@@ -9,10 +9,11 @@ import { ScreenplaySummary } from "../components/result/screenplay-summary";
 import { YamlEditor } from "../components/result/yaml-editor";
 import { mapDraftToCreateJobRequest } from "../features/create-job/mapper";
 import {
+  blankWorkspaceFormValues,
   cloneWorkspaceFormValues,
   defaultWorkspaceFormValues,
+  findMatchingWorkspaceSamplePresetId,
   recommendedWorkspaceSamplePreset,
-  sampleWorkspaceFormValues,
   type WorkspaceFormValues,
   type WorkspaceSamplePresetId,
   workspaceSamplePresets,
@@ -58,6 +59,10 @@ export function WorkspacePage() {
   const form = useForm<WorkspaceFormValues>({
     defaultValues: cloneWorkspaceFormValues(defaultWorkspaceFormValues),
   });
+  const watchedFormValues = useWatch({
+    control: form.control,
+    defaultValue: cloneWorkspaceFormValues(defaultWorkspaceFormValues),
+  });
   const [activeSamplePresetId, setActiveSamplePresetId] = useState<WorkspaceSamplePresetId | null>(
     recommendedWorkspaceSamplePreset.id,
   );
@@ -102,9 +107,21 @@ export function WorkspacePage() {
     setResultNotice({
       tone: "success",
       title: "已载入最新生成结果",
-      description: "右侧 YAML 编辑区已经同步到这次生成的剧本初稿，你可以继续修改、复制或导出。",
+      description: "右侧 YAML 编辑区已经同步到这次生成的剧本初稿；你可以继续编辑、复制或导出当前版本。",
     });
   }, [loadedResultJobId, resultPayload]);
+
+  useEffect(() => {
+    if (!watchedFormValues) {
+      return;
+    }
+
+    const matchingPresetId = findMatchingWorkspaceSamplePresetId(watchedFormValues as WorkspaceFormValues);
+
+    setActiveSamplePresetId((currentPresetId) => {
+      return currentPresetId === matchingPresetId ? currentPresetId : matchingPresetId;
+    });
+  }, [watchedFormValues]);
 
   const stages = jobDetails?.stages?.length ? jobDetails.stages : createIdleStages();
   const resultSummary = resultPayload?.screenplay ?? null;
@@ -192,8 +209,8 @@ export function WorkspacePage() {
       downloadTextFile(`${currentJobId}.screenplay.yaml`, yamlText);
       setResultNotice({
         tone: "success",
-        title: "已下载生成初稿",
-        description: "下载内容与本次生成结果保持一致，适合留存原始版本。",
+        title: "已下载生成初稿 YAML",
+        description: "下载内容与本次生成初稿一致，适合保留系统产出的基线版本。",
       });
     } catch (error) {
       setFormError(getErrorMessage(error));
@@ -207,9 +224,16 @@ export function WorkspacePage() {
 
   function handleLoadSample(presetId: WorkspaceSamplePresetId) {
     const preset = workspaceSamplePresets.find((item) => item.id === presetId);
+    const nextValues = preset?.values ?? recommendedWorkspaceSamplePreset.values;
 
-    form.reset(cloneWorkspaceFormValues(preset?.values ?? sampleWorkspaceFormValues));
-    setActiveSamplePresetId(preset?.id ?? recommendedWorkspaceSamplePreset.id);
+    form.reset(cloneWorkspaceFormValues(nextValues));
+    setActiveSamplePresetId(presetId);
+    setFormError("");
+  }
+
+  function handleResetToBlank() {
+    form.reset(cloneWorkspaceFormValues(blankWorkspaceFormValues));
+    setActiveSamplePresetId(null);
     setFormError("");
   }
 
@@ -218,7 +242,7 @@ export function WorkspacePage() {
     setResultNotice({
       tone: "info",
       title: "已恢复生成初稿",
-      description: "当前编辑区已经放弃本地修改，并重新对齐到本次生成的初始 YAML。",
+      description: "当前编辑区已经放弃本地修改，并重新对齐到本次生成的 YAML 初稿。",
     });
   }
 
@@ -231,7 +255,7 @@ export function WorkspacePage() {
     downloadTextFile(filename, editedYamlText);
     setResultNotice({
       tone: "success",
-      title: "已导出当前版本",
+      title: "已导出当前 YAML",
       description: hasEditedChanges ? "本次导出包含你在页面中的本地修改。" : "本次导出与生成初稿一致。",
     });
   }
@@ -245,7 +269,7 @@ export function WorkspacePage() {
       await navigator.clipboard.writeText(editedYamlText);
       setResultNotice({
         tone: "success",
-        title: "已复制 YAML",
+        title: "已复制当前 YAML",
         description: hasEditedChanges ? "复制内容包含你当前的本地修改。" : "复制内容与生成初稿一致。",
       });
     } catch (error) {
@@ -270,7 +294,7 @@ export function WorkspacePage() {
           </div>
           <div className="page-intro__aside">
             <span>支持多章节小说输入与改编要求整理</span>
-            <span>内置悬疑、职场、校园运动三组示例</span>
+            <span>内置三组可覆盖示例，也可直接切到空白手工输入</span>
             <span>结果区同时保留 YAML 初稿与结构化摘要</span>
           </div>
         </div>
@@ -286,7 +310,11 @@ export function WorkspacePage() {
               </div>
               <span className="panel__badge">至少 3 章</span>
             </div>
-            <SourceForm activePresetId={activeSamplePresetId} onLoadSample={handleLoadSample} />
+            <SourceForm
+              activePresetId={activeSamplePresetId}
+              onLoadSample={handleLoadSample}
+              onResetToBlank={handleResetToBlank}
+            />
             <ChapterList />
             {formError ? <p className="inline-error">{formError}</p> : null}
             <div className="submit-panel">

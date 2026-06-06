@@ -37,7 +37,7 @@ export function ExportActions({
             hasEditedChanges ? "result-toolbar__draft-tag--edited" : "result-toolbar__draft-tag--clean"
           }`}
         >
-          {hasEditedChanges ? "当前为本地修改稿" : "当前为生成初稿"}
+          {hasEditedChanges ? "当前为本地编辑稿" : "当前为生成初稿"}
         </span>
       </div>
       <div className="result-toolbar__actions">
@@ -45,7 +45,7 @@ export function ExportActions({
           恢复生成初稿
         </button>
         <button className="secondary-button" disabled={!hasJob} onClick={onDownloadBackendRaw} type="button">
-          下载初始 YAML
+          下载生成初稿 YAML
         </button>
         <button className="secondary-button" disabled={!canExport} onClick={onCopyCurrent} type="button">
           复制当前 YAML

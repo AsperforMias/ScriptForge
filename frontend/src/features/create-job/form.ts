@@ -146,6 +146,10 @@ export function cloneWorkspaceFormValues(values: WorkspaceFormValues): Workspace
   };
 }
 
+export const blankWorkspaceFormValues: WorkspaceFormValues = cloneWorkspaceFormValues(
+  emptyWorkspaceFormValues,
+);
+
 export const defaultWorkspaceFormValues: WorkspaceFormValues = cloneWorkspaceFormValues(
   recommendedWorkspaceSamplePreset?.values ?? emptyWorkspaceFormValues,
 );
@@ -153,6 +157,33 @@ export const defaultWorkspaceFormValues: WorkspaceFormValues = cloneWorkspaceFor
 export const sampleWorkspaceFormValues: WorkspaceFormValues = cloneWorkspaceFormValues(
   workspaceSamplePresets[0]?.values ?? emptyWorkspaceFormValues,
 );
+
+function normalizeWorkspaceFormValues(values: WorkspaceFormValues) {
+  return {
+    title: values.title.trim(),
+    author: values.author.trim(),
+    style: values.style.trim(),
+    audience: values.audience.trim(),
+    notesText: values.notesText.trim(),
+    generationMode: values.generationMode,
+    chapters: values.chapters.map((chapter) => ({
+      title: chapter.title.trim(),
+      content: chapter.content.trim(),
+    })),
+  };
+}
+
+export function findMatchingWorkspaceSamplePresetId(
+  values: WorkspaceFormValues,
+): WorkspaceSamplePresetId | null {
+  const normalizedValues = JSON.stringify(normalizeWorkspaceFormValues(values));
+
+  return (
+    workspaceSamplePresets.find((preset) => {
+      return JSON.stringify(normalizeWorkspaceFormValues(preset.values)) === normalizedValues;
+    })?.id ?? null
+  );
+}
 
 export function parseNotes(notesText: string) {
   return notesText
