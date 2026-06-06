@@ -15,6 +15,12 @@ const downloadOriginalButtonLabel = "下载生成初稿 YAML";
 const exportCurrentButtonLabel = "导出 YAML";
 const blankInputButtonLabel = "切换为空白手工输入";
 const localDraftTagLabel = "当前为本地编辑稿";
+const copyCurrentButtonLabel = "复制当前 YAML";
+const regenerateButtonLabel = "重新生成当前内容";
+const successCopyNoticeLabel = "已复制当前 YAML";
+const mobileViewport = { width: 390, height: 844 };
+const desktopViewport = { width: 1440, height: 1080 };
+const expectedMobilePanelOrder = ["创作素材台", "生成进度", "YAML 初稿与结构摘要"];
 
 const manualDraft = {
   title: "潮汐尽头",
@@ -123,18 +129,21 @@ async function clearRememberedJob(page) {
   await page.reload({ waitUntil: "networkidle" });
 }
 
-async function waitForPollingToStart(page) {
-  await page.waitForFunction(() => {
+async function getRememberedJobId(page) {
+  return page.evaluate((storageKey) => window.localStorage.getItem(storageKey), "scriptforge:lastJobId");
+}
+
+async function waitForJobStatus(page, acceptedStatuses) {
+  await page.waitForFunction((statuses) => {
     const badge = document.querySelector(".status-badge");
-    return badge?.textContent?.includes("处理中") || badge?.textContent?.includes("已完成");
-  });
+    const text = badge?.textContent ?? "";
+
+    return statuses.some((status) => text.includes(status));
+  }, acceptedStatuses);
 }
 
 async function waitForResultWorkspace(page, expectedMarker) {
-  await page.waitForFunction(() => {
-    const badge = document.querySelector(".status-badge");
-    return badge?.textContent?.includes("已完成");
-  });
+  await waitForJobStatus(page, ["已完成"]);
   await page.waitForFunction((marker) => {
     const area = document.querySelector(".yaml-editor");
     return (
@@ -170,6 +179,36 @@ async function waitForFreshRun(page) {
   });
 }
 
+async function waitForFailedJobOrUnexpectedSuccess(page, expectedMarker) {
+  const outcomeHandle = await page.waitForFunction(
+    ({ marker, regenerateLabel }) => {
+      const badge = document.querySelector(".status-badge");
+      const statusText = badge?.textContent ?? "";
+      const editor = document.querySelector(".yaml-editor");
+      const hasRegenerateButton = Array.from(document.querySelectorAll("button")).some((button) =>
+        button.textContent?.includes(regenerateLabel),
+      );
+
+      if (statusText.includes("失败") && hasRegenerateButton) {
+        return "failed";
+      }
+
+      if (
+        statusText.includes("已完成") &&
+        editor instanceof HTMLTextAreaElement &&
+        editor.value.includes(marker)
+      ) {
+        return "completed";
+      }
+
+      return null;
+    },
+    { marker: expectedMarker, regenerateLabel: regenerateButtonLabel },
+  );
+
+  return outcomeHandle.jsonValue();
+}
+
 async function verifyDownload(page, buttonLabel, expectedFileSuffix) {
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -195,6 +234,23 @@ async function markLocalEdit(page, suffix) {
   }, localDraftTagLabel);
 }
 
+async function verifyCopyCurrentYaml(page) {
+  const currentYaml = await page.locator(".yaml-editor").inputValue();
+
+  await page.getByRole("button", { name: copyCurrentButtonLabel }).click();
+  await page.waitForFunction((noticeLabel) => {
+    return document.body.innerText.includes(noticeLabel);
+  }, successCopyNoticeLabel);
+
+  const clipboardText = await page.evaluate(() => {
+    return window.__codexLastCopiedText ?? "";
+  });
+
+  if (clipboardText !== currentYaml) {
+    throw new Error("clipboard content does not match the current YAML editor value");
+  }
+}
+
 async function verifyReset(page, editMarker) {
   await page.getByRole("button", { name: resetDraftButtonLabel }).click();
   await page.waitForFunction((marker) => {
@@ -210,7 +266,7 @@ async function runSamplePresetPath(page) {
 
   logStep("creating a deterministic job from the sample preset path");
   await page.getByRole("button", { name: generateButtonLabel }).click();
-  await waitForPollingToStart(page);
+  await waitForJobStatus(page, ["处理中", "已完成"]);
   await waitForResultWorkspace(page, "title: 交稿前夜");
 
   logStep("verifying sample result workspace loads YAML, summary, and original export");
@@ -220,6 +276,7 @@ async function runSamplePresetPath(page) {
     ".screenplay.yaml",
   );
   await markLocalEdit(page, "# frontend smoke sample edit");
+  await verifyCopyCurrentYaml(page);
   await verifyReset(page, "# frontend smoke sample edit");
 
   return {
@@ -256,7 +313,7 @@ async function runManualInputPath(page) {
   logStep("creating a deterministic job from the non-preset manual input path");
   await page.getByRole("button", { name: generateButtonLabel }).click();
   await waitForFreshRun(page);
-  await waitForPollingToStart(page);
+  await waitForJobStatus(page, ["处理中", "已完成"]);
   await waitForResultWorkspace(page, `title: ${manualDraft.title}`);
 
   logStep("verifying manual-input result workspace summary, export, and reset");
@@ -273,6 +330,87 @@ async function runManualInputPath(page) {
     manualSceneCount: await page.locator(".scene-card").count(),
     manualOverviewCount: await page.locator(".summary-overview__card").count(),
   };
+}
+
+async function runFailedRegeneratePath(page) {
+  logStep("triggering an llm failed-job path and verifying regenerate from the current form state");
+  const previousSucceededJobId = await getRememberedJobId(page);
+  const expectedSuccessMarker = `title: ${manualDraft.title}`;
+
+  await page.getByLabel("生成方式").selectOption("llm");
+  await page.getByRole("button", { name: generateButtonLabel }).click();
+  await waitForFreshRun(page);
+  await waitForJobStatus(page, ["处理中", "失败", "已完成"]);
+  const llmOutcome = await waitForFailedJobOrUnexpectedSuccess(page, expectedSuccessMarker);
+
+  if (llmOutcome !== "failed") {
+    throw new Error(
+      "failed-job regenerate smoke requires backend LLM_PROVIDER=disabled; current generationMode=llm submission succeeded instead of failing",
+    );
+  }
+
+  const failedJobId = await getRememberedJobId(page);
+  if (!failedJobId || failedJobId === previousSucceededJobId) {
+    throw new Error("failed llm path did not create a fresh failed job id");
+  }
+
+  await page.getByLabel("生成方式").selectOption("deterministic");
+  await page.getByRole("button", { name: regenerateButtonLabel }).click();
+  await waitForFreshRun(page);
+  await waitForJobStatus(page, ["处理中", "已完成"]);
+  await waitForResultWorkspace(page, expectedSuccessMarker);
+
+  const regeneratedJobId = await getRememberedJobId(page);
+  if (!regeneratedJobId || regeneratedJobId === failedJobId) {
+    throw new Error("regenerate did not replace the failed job with a new deterministic success job");
+  }
+
+  return {
+    failedJobId,
+    regeneratedJobId,
+  };
+}
+
+async function verifyLastJobRestore(page, expectedJobId, expectedMarker) {
+  logStep("reloading the workspace to verify lastJobId restores the latest job result");
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForFunction(
+    ({ jobId, marker }) => {
+      const editor = document.querySelector(".yaml-editor");
+      const jobLabel = document.querySelector(".result-toolbar__job strong");
+
+      return (
+        jobLabel?.textContent?.includes(jobId) &&
+        editor instanceof HTMLTextAreaElement &&
+        editor.value.includes(marker)
+      );
+    },
+    { jobId: expectedJobId, marker: expectedMarker },
+  );
+}
+
+async function verifyMobilePanelOrder(page) {
+  logStep("switching to a mobile viewport to verify Input -> Status -> Result reading order");
+  await page.setViewportSize(mobileViewport);
+  await page.waitForTimeout(250);
+
+  const orderedPanels = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll(".workspace-grid > .panel"))
+      .map((panel) => ({
+        heading: panel.querySelector("h2")?.textContent?.trim() ?? "",
+        top: panel.getBoundingClientRect().top,
+      }))
+      .sort((left, right) => left.top - right.top)
+      .map((panel) => panel.heading);
+  });
+
+  if (JSON.stringify(orderedPanels) !== JSON.stringify(expectedMobilePanelOrder)) {
+    throw new Error(
+      `unexpected mobile panel order: ${orderedPanels.join(" -> ")} (expected ${expectedMobilePanelOrder.join(" -> ")})`,
+    );
+  }
+
+  await page.setViewportSize(desktopViewport);
 }
 
 async function run() {
@@ -296,13 +434,65 @@ async function run() {
   });
 
   try {
-    const page = await browser.newPage();
+    const context = await browser.newContext({ viewport: desktopViewport });
+    await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+      origin: new URL(uiUrl).origin,
+    });
+    await context.addInitScript(() => {
+      const originalClipboard = navigator.clipboard;
+      let lastCopiedText = "";
+
+      const proxyClipboard = {
+        async writeText(text) {
+          lastCopiedText = text;
+
+          try {
+            if (originalClipboard?.writeText) {
+              await originalClipboard.writeText(text);
+            }
+          } catch {
+            // Ignore host clipboard failures; smoke-check only needs the attempted copy payload.
+          }
+        },
+        async readText() {
+          if (lastCopiedText) {
+            return lastCopiedText;
+          }
+
+          try {
+            if (originalClipboard?.readText) {
+              return await originalClipboard.readText();
+            }
+          } catch {
+            return "";
+          }
+
+          return "";
+        },
+      };
+
+      Object.defineProperty(window, "__codexLastCopiedText", {
+        configurable: true,
+        get() {
+          return lastCopiedText;
+        },
+      });
+
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: proxyClipboard,
+      });
+    });
+    const page = await context.newPage();
     page.setDefaultTimeout(timeoutMs);
 
     await clearRememberedJob(page);
 
     const sampleResults = await runSamplePresetPath(page);
     const manualResults = await runManualInputPath(page);
+    const failedRegenerateResults = await runFailedRegeneratePath(page);
+    await verifyLastJobRestore(page, failedRegenerateResults.regeneratedJobId, `title: ${manualDraft.title}`);
+    await verifyMobilePanelOrder(page);
 
     logStep("frontend workspace smoke-check passed");
     process.stdout.write(
@@ -316,7 +506,9 @@ async function run() {
         `manualEditedDownload=${manualResults.editedFilename}`,
         `manualSceneCount=${manualResults.manualSceneCount}`,
         `manualOverviewCount=${manualResults.manualOverviewCount}`,
-        "checks=sample preset create job, manual 3-chapter input create job, polling, yaml load, summary, original export, current export, local edit, reset",
+        `failedJobId=${failedRegenerateResults.failedJobId}`,
+        `regeneratedJobId=${failedRegenerateResults.regeneratedJobId}`,
+        "checks=sample preset create job, manual 3-chapter input create job, failed job regenerate, polling, yaml load, summary, original export, current export, copy current yaml, local edit, reset, lastJobId restore, mobile panel order",
         "",
       ].join("\n"),
     );

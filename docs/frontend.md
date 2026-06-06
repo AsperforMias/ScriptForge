@@ -166,7 +166,7 @@ frontend/
 - README 已补齐真实前端自检路径，覆盖 sample preset、非 preset 手工输入、job 轮询、YAML/result/export 与 failed-job regenerate 验证步骤
 - 工作台已补齐 idle / loading / succeeded / failed 四类真实状态文案，并把结果区空态与失败态对齐到真实 job/result 查询状态
 - 响应式断点已细化为桌面三栏、平板双列过渡、移动端纵向堆叠，保持 `Input -> Status -> Result` 的阅读顺序
-- `frontend/scripts/smoke-workspace.mjs` 与 `npm run smoke:workspace` 已就位，可自动验证 sample preset 主链路，以及“空白手工输入 3 章 -> create job -> polling -> YAML load -> summary -> export -> reset”的非 preset 验收链路
+- `frontend/scripts/smoke-workspace.mjs` 与 `npm run smoke:workspace` 已就位，可自动验证 sample preset 主链路、非 preset 手工 3 章链路、failed-job regenerate、`复制当前 YAML`、`lastJobId` 刷新恢复，以及移动端 `Input -> Status -> Result` 阅读顺序；其中 failed-job 分支要求后端以 `LLM_PROVIDER=disabled` 启动，脚本若发现 LLM job 成功会直接 fail-fast
 - 结果区现已统一使用“当前为生成初稿 / 当前为本地编辑稿 / 恢复生成初稿 / 下载生成初稿 YAML / 复制当前 YAML / 导出 YAML”这套文案，并为复制、恢复、导出动作提供真实反馈提示
 - 结构化摘要现已补充 overview 层，优先展示章节 / 场景 / 角色 / 校验状态，再展开角色、地点与 scene 卡片
 - 页面会在本地保存 `lastJobId`，刷新后继续查询最近一次任务
@@ -180,7 +180,7 @@ frontend/
 5. 如需验证失败态，保持后端 `LLM_PROVIDER=disabled`，将表单切到 `generationMode=llm` 提交一次，并确认失败信息与“重新生成当前内容”入口可用
 6. 将视口收窄到平板或手机宽度，确认三工作区按 `Input -> Status -> Result` 纵向阅读，不出现结果区先于状态区的错序
 7. 在成功结果上做一次本地 YAML 修改，确认结果工具条会从“当前为生成初稿”切换到“当前为本地编辑稿”，再测试 `复制当前 YAML` 与 `恢复生成初稿`
-8. 若本地已启动 Chrome / Edge，可直接运行 `npm run smoke:workspace` 验证 sample preset 与非 preset 手工输入两条真实 job 链路，以及 YAML 载入、结构摘要、导出、本地编辑与恢复动作
+8. 若本地已启动 Chrome / Edge，可直接运行 `npm run smoke:workspace` 验证 sample preset 与非 preset 手工输入两条真实 job 链路，以及 YAML 载入、结构摘要、导出、本地编辑、复制、failed regenerate、刷新恢复与移动端阅读顺序；注意 failed regenerate 分支依赖后端 `LLM_PROVIDER=disabled`，否则脚本会因 LLM job 成功而明确报错退出
 9. 额外执行一次“非 preset 自检”：点击 `切换为空白手工输入`，录入自己的 3 章内容，再走一遍 `create job -> polling -> YAML/result/export`，确认主链路不依赖仓库内置样例
 
 本地启动契约（2026-06-05）：
