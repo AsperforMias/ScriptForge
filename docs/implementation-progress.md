@@ -2,13 +2,18 @@
 
 ## 当前状态
 
-更新时间：2026-06-05
+更新时间：2026-06-06
 
 当前仓库已完成 docs-first 初始化、deterministic 主链路、任务化 API、SQLite/artifact 持久化、`llm` mode 抽象与 vendor-neutral `openai_compatible` 适配器，以及前端工作台首版真实联调落地。
-当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / product-facing polish”，当前重点转为 smoke-check、响应式可读性、结果区 polish 与产品文案收束。
-后端当前自检基线补充约束：
-- `go test ./...` 以 `backend/` 为执行目录，并使用可写 `GOCACHE`，避免本地环境差异把沙箱/平台缓存权限误判为代码失败
-- deterministic fixture 仍保留，但不再作为唯一验收对象；后续回归必须额外覆盖至少一条“非 fixture、自定义中文三章节输入”的 create -> run -> result 基本链路
+当前后端处于“Phase 5: LLM enhancement and demo hardening”阶段；前端主链路已完成并进入“Phase 4: review hardening / product-facing polish”。2026-06-06 的 `main` 自检曾暴露“验收路径过度围绕样例组织”和“deterministic 对非 fixture 输入泛化不足”两类问题；当前分支已先补齐前后端自定义输入验收链路，并把后端自检基线收紧回可信状态。
+
+2026-06-06 自检补充结论：
+- 当前产品链路并未把用户锁死在 fixture/sample preset 上；前端表单与后端 `POST /api/v1/jobs` 均支持用户直接粘贴 / 手工录入自己的 3 章以上小说文本
+- 当前真正的问题不是“不能输自己的内容”，而是“验证路径过度围绕样例组织”；本轮已同步修复 README、frontend smoke script、结果区文案与后端回归口径的漂移
+- 前端 `npm run build` 已通过，本地前后端真实联调可跑通；后端 `go test ./...` 现要求以 `backend/` 为执行目录并使用可写 `GOCACHE`，避免把平台缓存权限误判为代码失败
+- deterministic fixture 仍保留，但不再作为唯一验收对象；当前回归已额外覆盖至少一条“非 fixture、自定义中文三章节输入”的 create -> run -> result 基本链路
+- deterministic 链路仍以规则法为主，但本轮已补强真实用户输入下的人名/地点兜底、scene objective 差异化和 open question 去重，降低同题材机械重复
+- 因此，后续验收必须继续把“用户自定义章节输入”作为主路径之一，而不是把 sample preset 或 fixture 当作默认成功条件
 
 已完成：
 - 题目与赛事要求的精简总结
@@ -77,6 +82,12 @@
 - deterministic workflow 单测与 fixture 回归测试
 
 尚未完成：
+- 自定义输入验收链路 hardening
+  说明：需要把“用户手工录入自己的小说章节”补成明确自检项，并同步修复前端 smoke script、README 操作步骤与 UI 文案漂移，避免当前只对 sample preset 讲得清、验得通
+- deterministic 对非 fixture 输入的泛化补强
+  说明：当前能生成合法 YAML，但对真实用户输入仍偏模板化，需要补强角色抽取、地点/冲突推断与 scene 级差异化表达，避免 demo 以外的文本看起来过度理想化
+- 前后端验收口径重新对齐
+  说明：前端需要明确“preset 只是辅助，不是唯一入口”，后端需要明确“fixture 只是回归基线，不代表真实用户输入已经被充分覆盖”
 - 更丰富的 fixture 覆盖面
   说明：当前已具备多题材 deterministic 样例和多类 provider fixture，但仍可继续扩展更多真实 provider 返回变体与 demo 专用样例
 - demo 视频与演示稿素材
@@ -111,14 +122,17 @@
 ## 下一步优先级
 
 优先级 1：
-- 录制 demo 视频与演示稿素材，沿用当前默认 `职场` 样例和已固化的讲解顺序
+- 修复“自定义输入优先”的验收链路：同步更新 README、frontend smoke-check、结果区文案与相关 docs，使 `main` 分支重新具备稳定自检能力
+- 补一条非 preset 的真实用户输入自检路径，至少覆盖“清空默认样例 -> 手工录入 3 章 -> create job -> polling -> YAML/result/export”
 
 优先级 2：
+- 补强 deterministic 对非 fixture / 非样例输入的泛化能力，降低单主角、单模板输出在真实用户输入下的违和感
 - 扩展 deterministic 与 llm 的 fixture 覆盖面
 - 继续扩展真实 provider 返回变体回归
 - 视演示需要补充更多题材样例输入输出
 
 优先级 3：
+- 录制 demo 视频与演示稿素材，沿用当前默认 `职场` 样例和已固化的讲解顺序
 - 若演示时间允许，可继续增强 smoke-check 对结果区 polish 的覆盖面
 - 视时间决定是否提供公网演示环境
 
