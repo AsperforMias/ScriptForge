@@ -16,14 +16,14 @@ It is not a single chat box. The current deliverable already includes:
 ## Real Sample
 
 Primary real-input regression sample:
-- source text: [`test/fog-harbor-echo.md`](test/fog-harbor-echo.md)
+- source text: [`test/da-feng-da-geng-ren.md`](test/da-feng-da-geng-ren.md)
 - input path: switch to blank manual input, then paste the real 3 chapters from that file
 - real run mode: `generation.mode=llm`
 - current observed output shape: a completed result page with editable YAML draft, scene cards, character/location summary, and export actions in the same workspace
 
-Real workspace capture from the current local app, using manual input for the real `《雾港回声》` sample above and showing the completed result state rather than a short canned preset:
+Real workspace capture from the current local app, using manual input for the real `《大奉打更人》` sample above and showing the completed result state rather than a short canned preset:
 
-![Fog Harbor Workspace From Real Manual Input](docs/images/fog-harbor-workspace.png)
+![Da Feng Workspace From Real Manual Input](docs/images/fog-harbor-workspace.png)
 
 Public internet deployment is not currently treated as a hard requirement for this contest. The latest organizer brief requires a publicly accessible repository, a demo video, and a clear README; deployment style is unrestricted. This repo therefore prioritizes reproducible local startup plus demo clarity first, with public hosting remaining optional.
 
