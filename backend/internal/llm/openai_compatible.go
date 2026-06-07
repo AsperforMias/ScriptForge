@@ -69,6 +69,8 @@ var (
 	genericLocationNames     = []string{"房间", "地点", "现场", "室内", "室外", "家里", "屋里"}
 	suspiciousCharacterNames = []string{"像是", "没有立刻", "不是", "什么", "这里", "那里"}
 	validCharacterRoles      = []string{"protagonist", "supporting", "antagonist", "narrator", "other"}
+	commonSingleSurnames     = "赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳酆鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐丘骆高夏蔡田樊胡凌霍虞万支柯昝管卢莫房裘缪干解应宗丁宣贲邓郁单杭洪包诸左石崔吉龚程邢滑裴陆荣翁荀羊於惠甄曲家封芮羿储靳汲邴糜松井段富巫乌焦巴弓牧隗山谷车侯伊宁仇武符刘景詹束龙叶幸司韶郜黎蓟薄印宿白怀蒲台从鄂索籍赖卓蔺屠蒙池乔阴郁胥能苍双闻莘党翟谭贡劳逄姬申扶堵冉宰郦雍璩桑桂濮牛寿通边扈燕冀郏浦尚农温别庄晏柴瞿阎充慕连茹习宦艾鱼容向古易慎戈廖庾终暨居衡步都耿满弘匡国文寇广禄阙东欧殳沃利蔚越夔隆师巩厍聂晁勾敖融冷訾辛阚那简饶空曾沙乜养鞠须丰巢关蒯相查后荆红游竺权逯盖益桓公"
+	commonCompoundSurnames   = []string{"欧阳", "司马", "上官", "东方", "独孤", "南宫", "夏侯", "诸葛", "尉迟", "皇甫", "长孙", "宇文", "司徒", "司空", "令狐", "慕容", "公孙", "澹台", "公冶", "宗政", "濮阳", "淳于", "单于", "太叔", "申屠", "公羊", "赫连", "轩辕", "仲孙", "钟离", "闾丘", "长乐", "拓跋"}
 )
 
 func NewOpenAICompatibleGenerator(cfg ProviderConfig) Generator {
@@ -1019,24 +1021,10 @@ func buildPreferredCharacters(req GenerateRequest) []screenplay.Character {
 	sourceText := normalizeWhitespace(joinChapterContents(req.Input.Source.Chapters))
 	characters := make([]screenplay.Character, 0, len(req.Entities.Characters))
 	for _, character := range req.Entities.Characters {
-		if !isSupportedCharacterName(character.Name, sourceText) {
+		if !isSupportedPreferredCharacterName(character.Name, sourceText) {
 			continue
 		}
 		characters = append(characters, character)
-	}
-	if len(characters) == 0 {
-		for idx, name := range extractSupportedCharacterNames(req, sourceText) {
-			role := "supporting"
-			if idx == 0 {
-				role = "protagonist"
-			}
-			characters = append(characters, screenplay.Character{
-				ID:          "char_" + looseSlug(name),
-				Name:        name,
-				Role:        role,
-				Description: "Character grounded directly from the source chapters.",
-			})
-		}
 	}
 	return characters
 }
@@ -1046,9 +1034,9 @@ func sanitizeGeneratedCharacters(generated, preferred []screenplay.Character, re
 	result := make([]screenplay.Character, 0, len(generated)+len(preferred))
 	seenNames := map[string]struct{}{}
 
-	appendIfSupported := func(character screenplay.Character) {
+	appendIfSupported := func(character screenplay.Character, validator func(string, string) bool) {
 		name := strings.TrimSpace(character.Name)
-		if !isSupportedCharacterName(name, sourceText) {
+		if !validator(name, sourceText) {
 			return
 		}
 		if _, ok := seenNames[name]; ok {
@@ -1065,10 +1053,12 @@ func sanitizeGeneratedCharacters(generated, preferred []screenplay.Character, re
 	}
 
 	for _, character := range generated {
-		appendIfSupported(character)
+		appendIfSupported(character, isSupportedGeneratedCharacterName)
 	}
-	for _, character := range preferred {
-		appendIfSupported(character)
+	if len(result) == 0 {
+		for _, character := range preferred {
+			appendIfSupported(character, isSupportedPreferredCharacterName)
+		}
 	}
 	if len(result) == 0 {
 		for _, fallback := range append(append([]screenplay.Character{}, preferred...), generated...) {
@@ -1096,6 +1086,7 @@ func sanitizeGeneratedCharacters(generated, preferred []screenplay.Character, re
 func chooseSceneLocation(scene *screenplay.Scene, chapter job.ChapterBody, current screenplay.Location, sceneIndex int) screenplay.Location {
 	candidates := extractExplicitLocationCandidates(chapter.Content)
 	chapterText := normalizeWhitespace(chapter.Content)
+	current = sanitizeLocationCandidate(current)
 	if current.ID != "" &&
 		isSupportedLocationName(current.Name) &&
 		(strings.Contains(chapterText, strings.TrimSpace(current.Name)) || hasMeaningfulSourceOverlap(current.Name, chapterText)) {
@@ -1152,9 +1143,6 @@ func sanitizeSceneObjective(objective, chapterText string, review *screenplay.Re
 	if looksLikeLLMTemplateText(objective) {
 		return ""
 	}
-	if isLowConfidenceReview(review) && !hasMeaningfulSourceOverlap(objective, chapterText) {
-		return ""
-	}
 	return objective
 }
 
@@ -1166,9 +1154,6 @@ func sanitizeOpenQuestions(questions []string, chapterText string, review *scree
 			continue
 		}
 		if looksLikeLLMTemplateText(trimmed) {
-			continue
-		}
-		if isLowConfidenceReview(review) && !hasMeaningfulSourceOverlap(trimmed, chapterText) {
 			continue
 		}
 		result = append(result, trimmed)
@@ -1192,7 +1177,7 @@ func buildProviderLocationCandidates(req GenerateRequest) []string {
 func extractSupportedCharacterNames(req GenerateRequest, sourceText string) []string {
 	names := []string{}
 	for _, character := range req.Entities.Characters {
-		if isSupportedCharacterName(character.Name, sourceText) {
+		if isSupportedPreferredCharacterName(character.Name, sourceText) {
 			names = append(names, character.Name)
 		}
 	}
@@ -1502,7 +1487,7 @@ func isLowConfidenceReview(review *screenplay.Review) bool {
 	return review != nil && strings.TrimSpace(strings.ToLower(review.Confidence)) == "low"
 }
 
-func isSupportedCharacterName(name, sourceText string) bool {
+func isSupportedGeneratedCharacterName(name, sourceText string) bool {
 	name = strings.TrimSpace(name)
 	if name == "" || !strings.Contains(sourceText, name) {
 		return false
@@ -1519,7 +1504,73 @@ func isSupportedCharacterName(name, sourceText string) bool {
 			return false
 		}
 	}
+	if looksLikeCharacterFragment(name) {
+		return false
+	}
 	return true
+}
+
+func isSupportedPreferredCharacterName(name, sourceText string) bool {
+	if !isSupportedGeneratedCharacterName(name, sourceText) {
+		return false
+	}
+	return looksLikeChinesePersonalName(name)
+}
+
+func looksLikeCharacterFragment(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return true
+	}
+
+	if strings.Contains(name, "一个人") ||
+		strings.Contains(name, "只出现") ||
+		strings.Contains(name, "对话越") {
+		return true
+	}
+
+	if strings.HasPrefix(name, "问题") ||
+		strings.HasPrefix(name, "在") ||
+		strings.HasPrefix(name, "从") ||
+		strings.HasPrefix(name, "向") ||
+		strings.HasPrefix(name, "往") ||
+		strings.HasPrefix(name, "于") ||
+		strings.HasPrefix(name, "反而") ||
+		strings.HasPrefix(name, "而是") ||
+		strings.HasPrefix(name, "如果") ||
+		strings.HasPrefix(name, "因为") ||
+		strings.HasPrefix(name, "但是") ||
+		strings.HasPrefix(name, "而且") ||
+		strings.HasPrefix(name, "于是") ||
+		strings.HasPrefix(name, "然后") ||
+		strings.HasPrefix(name, "只是") ||
+		strings.HasPrefix(name, "对话") {
+		return true
+	}
+
+	return false
+}
+
+func looksLikeChinesePersonalName(name string) bool {
+	name = strings.TrimSpace(name)
+	runes := []rune(name)
+	if len(runes) < 2 || len(runes) > 4 {
+		return false
+	}
+	for _, r := range runes {
+		if !unicode.Is(unicode.Han, r) {
+			return false
+		}
+	}
+
+	if len(runes) >= 3 {
+		prefix := string(runes[:2])
+		if slices.Contains(commonCompoundSurnames, prefix) {
+			return true
+		}
+	}
+
+	return strings.ContainsRune(commonSingleSurnames, runes[0])
 }
 
 func isSupportedLocationName(name string) bool {
@@ -1527,7 +1578,16 @@ func isSupportedLocationName(name string) bool {
 	if name == "" {
 		return false
 	}
-	if len([]rune(name)) < 2 {
+	runes := []rune(name)
+	if len(runes) < 2 || len(runes) > 12 {
+		return false
+	}
+	for _, r := range runes {
+		if !(unicode.Is(unicode.Han, r) || unicode.IsDigit(r) || unicode.IsLetter(r)) {
+			return false
+		}
+	}
+	if looksLikeNarrativeLocationText(name) {
 		return false
 	}
 	return true
@@ -1539,7 +1599,7 @@ func isGenericLocationName(name string) bool {
 
 func normalizeLocationCandidate(input string) string {
 	input = strings.TrimSpace(input)
-	suffixes := []string{"报刊亭", "报亭", "医院", "病房", "地下室", "老房子", "楼道", "客厅", "楼梯口", "走廊", "车站", "茶馆", "操场", "教室", "会议室", "公寓", "花坛", "藏书馆", "议事厅", "账房", "庄园", "公国", "码头", "仓库", "跑道", "便利店", "十字路口", "门口"}
+	suffixes := []string{"报刊亭", "报亭", "医院", "病房", "地下室", "老房子", "楼道", "客厅", "楼梯口", "走廊", "车站", "茶馆", "操场", "教室", "会议室", "公寓", "房间", "花坛", "藏书馆", "议事厅", "账房", "庄园", "公国", "码头", "仓库", "跑道", "便利店", "十字路口", "门口"}
 	for _, suffix := range suffixes {
 		if idx := strings.Index(input, suffix); idx >= 0 {
 			start := idx
@@ -1557,7 +1617,7 @@ func normalizeLocationCandidate(input string) string {
 			break
 		}
 	}
-	trimPrefixes := []string{"站在", "走到", "回到", "来到", "先去", "别信", "刚走到", "看到", "看见", "回头看", "在", "到"}
+	trimPrefixes := []string{"站在", "走到", "回到", "来到", "先去", "别信", "刚走到", "看到", "看见", "回头看", "她在", "他在", "在", "到"}
 	for _, prefix := range trimPrefixes {
 		input = strings.TrimPrefix(input, prefix)
 	}
@@ -1576,7 +1636,7 @@ func normalizeLocationCandidate(input string) string {
 func bestLocationCore(input string) string {
 	best := ""
 	bestScore := -1
-	for _, suffix := range []string{"报刊亭", "报亭", "医院", "病房", "地下室", "老房子", "楼道", "客厅", "楼梯口", "走廊", "公寓", "便利店", "十字路口", "门口"} {
+	for _, suffix := range []string{"报刊亭", "报亭", "医院", "病房", "地下室", "老房子", "楼道", "客厅", "楼梯口", "走廊", "公寓", "房间", "便利店", "十字路口", "门口"} {
 		searchFrom := 0
 		for {
 			idx := strings.Index(input[searchFrom:], suffix)
@@ -1617,7 +1677,7 @@ func bestLocationCore(input string) string {
 
 func trimNarrativeLocationCandidate(candidate, suffix string) string {
 	candidate = strings.TrimSpace(candidate)
-	narrativeFragments := []string{"回到", "走到", "刚走到", "来到", "站在", "停在", "看见", "看到", "见过", "整理", "送来", "找到", "传来", "想起"}
+	narrativeFragments := []string{"回到", "走到", "刚走到", "来到", "站在", "停在", "看见", "看到", "见过", "整理", "送来", "找到", "传来", "想起", "意识到", "发现", "进入", "检查", "观察", "收到", "拿起", "打开", "决定", "试图", "顺着", "带着"}
 	for _, fragment := range narrativeFragments {
 		if idx := strings.LastIndex(candidate, fragment); idx >= 0 {
 			candidate = strings.TrimSpace(candidate[idx+len(fragment):])
@@ -1625,6 +1685,12 @@ func trimNarrativeLocationCandidate(candidate, suffix string) string {
 	}
 	if idx := strings.LastIndex(candidate, "的"); idx >= 0 && idx < len(candidate)-len("的") {
 		candidate = strings.TrimSpace(candidate[idx+len("的"):])
+	}
+	if strings.HasSuffix(candidate, suffix) {
+		prefix := strings.TrimSpace(strings.TrimSuffix(candidate, suffix))
+		if prefix != "" && allRunesInSet(prefix, "过了着在到进出入") {
+			candidate = suffix
+		}
 	}
 	prefix := strings.TrimSuffix(candidate, suffix)
 	switch strings.TrimSpace(prefix) {
@@ -1635,6 +1701,47 @@ func trimNarrativeLocationCandidate(candidate, suffix string) string {
 		return suffix
 	}
 	return candidate
+}
+
+func allRunesInSet(input, allowed string) bool {
+	for _, r := range input {
+		if !strings.ContainsRune(allowed, r) {
+			return false
+		}
+	}
+	return input != ""
+}
+
+func sanitizeLocationCandidate(location screenplay.Location) screenplay.Location {
+	name := normalizeLocationCandidate(location.Name)
+	if !isSupportedLocationName(name) {
+		return screenplay.Location{}
+	}
+	location.Name = name
+	location.ID = "loc_" + looseSlug(name)
+	return location
+}
+
+func looksLikeNarrativeLocationText(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return true
+	}
+
+	if containsAny(name,
+		"意识到", "发现", "确认", "决定", "试图", "观察", "检查", "看到", "看见",
+		"进入", "回到", "来到", "走到", "走向", "站在", "停在", "留在", "找到",
+		"拿起", "打开", "收到", "提醒", "警告", "带着", "顺着", "有人", "别睡",
+	) {
+		return true
+	}
+
+	if strings.HasPrefix(name, "她") ||
+		strings.HasPrefix(name, "他") {
+		return true
+	}
+
+	return false
 }
 
 func locationCandidateScore(name string) int {
