@@ -2,6 +2,10 @@
 
 Turn a real 3-chapter novel into an editable screenplay YAML draft through a job-based Go pipeline and a lightweight review workspace.
 
+## Demo video:
+
+ScriptForge-轻量易用的小说转yaml剧本 AI工具: https://www.bilibili.com/video/BV1LHEb64E6s
+
 ## Judge Snapshot
 
 ScriptForge is a 72-hour MVP for the contest prompt "AI 小说转剧本工具".
