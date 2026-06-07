@@ -28,6 +28,9 @@
 - 真实 `llm` 主链路已经可运行，并能稳定完成 `screenplay_generation -> validation -> persistence`
 - 《雾港回声》真实输入已可回到 canonical parse，不再依赖 deterministic fallback 才能出结果
 - 伪角色、整章 `房间` 级地点误判、scene_001 的 `INT/EXT` 回退等早期硬伤已明显缓解
+- 角色后处理已进一步收缩：当 provider 已给出有效角色表时，本地不再把弱 `preferred characters` 候选回灌到最终结果
+- 地点后处理已进一步收缩：句子式地点名会先做本地归一和验收，不再直接以 `林琪意识到有人提前进入过房间` 这类整句形式落进最终 YAML
+- `objective / open_questions` 的低置信清空策略已减弱：当前仅清理明显模板话，不再因为 `review=low` 就默认把非模板文本打成空值
 - 当前前端实测已确认“切换为空白手工输入 -> 录入《雾港回声》三章 -> 提交生成 -> 自动载入 YAML 初稿”这条主验收路径可以直接跑通
 - provider 返回 malformed YAML 时，主链路现在会先要求 `llm` 基于错误反馈最多重试到第 3 次，再决定是否回退 deterministic
 - fallback 路径现在会保留 provider 原始输出、重试报错与解析失败信息，便于定位“为什么这次不是实际 LLM 成果”
@@ -47,6 +50,7 @@
   - objective / dialogue / open_questions 仍偶发模板痕迹
   - action beat 有时仍更像“截断摘要”而不是可拍场景片段
   - 低证据场景的 review / validation 诚实度还需要继续收紧
+  - 角色“位置标签 vs 真实人物”的边界仍未完全收住，例如 `第二棒` 这类指代仍可能被 provider 升格成角色
   - 虽然 validation 已更诚实，但生成主链路仍未稳定达到“高一致性、可信的初步可编辑 YAML 初稿”门槛
 
 这些问题说明：
@@ -94,18 +98,20 @@
 - `openai_compatible` 已补入 malformed-YAML 三次容错链路：首次输出若无法解析，会把格式错误反馈给 provider 并继续重试，第三次仍失败才回退 deterministic
 - fallback 调试产物现已补齐，便于复盘 provider 原始响应、每次重试失败点与最终回退原因
 - 前端结果页视觉已收束到“全圆角 + 色块层级 + 顶部进度 + 结果区主导”的形态，README 与前端文档已同步到这套当前界面
+- `openai_compatible` 后处理已继续减重：本地角色补位仅在 provider 角色表为空时兜底，不再常规改写已生成的 canonical 角色结果
+- `openai_compatible` 地点修复已继续去句式污染：provider 返回的叙事句地点会先做归一与过滤，再决定是否保留或回退到章节级候选
+- 结构化摘要顶部复核说明已收束为紧凑版“短提示 + 动态 warning”，不再保留一整块重复固定 checklist
 
 ## 尚未完成
 
 ### P0：主链路质量纠偏
 
-- 收紧 `openai_compatible` 输入上下文，避免把 deterministic 伪角色、错地点、模板 objective、规则摘要继续灌给 LLM
 - 把真实中文三章节样本纳入主回归集，而不是只在 fixture 上看起来稳定
 - 保留 deterministic，但仅作为 fallback / smoke baseline
 
 ### P1：真实输入可信度
 
-- 收紧真实三章节输入下的人物抽取错误
+- 收紧真实三章节输入下的人物抽取错误，尤其是“位置标签 / 泛称”被误升格成角色
 - 降低模板化 objective / open_questions / dialogue
 - 让 beat 更接近可拍动作，而不是截断摘要
 - 收敛真实 provider 在 scene 切分上的波动：同一《雾港回声》样本当前仍可能在 3 scene / 6 scene 之间摆动
@@ -119,7 +125,7 @@
 
 优先级 1：
 - 继续完成 `openai_compatible` Prompt / context 去污染，减少 LLM 继承 deterministic 错误先验，并观察上游 LLM 耗时波动
-- 优先削减 provider context 里的规则摘要和重复候选，尽量让原始章节文本成为唯一高权重输入
+- 在不增加额外 provider 往返的前提下，继续收紧“角色称谓 / 位置标签 / 泛称”这类本地验收规则
 
 优先级 2：
 - 把真实《雾港回声》样本继续作为主回归集，围绕角色 / scene 切分 / objective / open_questions 质量收敛
