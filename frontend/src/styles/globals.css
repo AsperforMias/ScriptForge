@@ -1098,20 +1098,55 @@ button {
   box-shadow: var(--shadow-card), var(--shadow-inset);
 }
 
+.quality-guard--compact {
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.quality-guard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.quality-guard__header strong {
+  font-size: 1.02rem;
+}
+
+.quality-guard__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.8rem;
+  padding: 0.38rem 0.78rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.quality-guard__badge--passed {
+  color: var(--success);
+  background: rgba(61, 107, 79, 0.1);
+}
+
+.quality-guard__badge--failed {
+  color: var(--warning);
+  background: rgba(160, 106, 28, 0.12);
+}
+
 .quality-guard p {
   margin: 0;
   color: var(--text-secondary);
   line-height: 1.65;
 }
 
-.quality-guard__list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.quality-guard__summary {
+  font-size: 0.94rem;
 }
 
 .quality-guard__warnings {
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
 
 .summary-overview {

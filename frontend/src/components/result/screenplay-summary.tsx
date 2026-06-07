@@ -86,12 +86,13 @@ export function ScreenplaySummary({
 
   const validationWarnings = screenplay.validation.warnings ?? [];
   const validationLabel = screenplay.validation.status === "passed" ? "已通过" : "待修订";
-  const reviewFocusItems = [
-    "角色名是否完整、稳定，避免碎词或错指。",
-    "场景目标是否紧贴当前章节证据，而不是套用空泛说法。",
-    "场景片段是否像可拍内容，而不是被截断的章节概述。",
-    "后续悬念是否具体、可继续打磨，而不是笼统占位。",
-  ];
+  const primarySummary =
+    screenplay.validation.status === "passed"
+      ? "结构已通过，接下来重点看人物命名、场景目标和片段是否可信。"
+      : "结构仍有待修订，建议先处理提醒，再继续判断内容质量。";
+  const warningSummary = validationWarnings.length
+    ? `本次有 ${validationWarnings.length} 条内容提醒。`
+    : "当前没有额外结构提醒。";
   const locationsById = new Map(screenplay.locations.map((location) => [location.id, location]));
   const seenCharacterDescriptions = new Set<string>();
   const summarizedCharacters = screenplay.characters.map((character) => {
@@ -186,33 +187,24 @@ export function ScreenplaySummary({
         <span className="section-tag">概览</span>
       </div>
 
-      <div className="quality-guard" role="note" aria-label="结果复核提示">
-        <strong>这是可继续编辑的 YAML 剧本初稿，不是质量已确认的最终剧本。</strong>
-        <p>
-          {screenplay.validation.status === "passed"
-            ? "当前结果已通过结构检查，但这不代表人物命名、场景目标、场景片段或后续悬念已经可靠。"
-            : "当前结果连结构检查也未完全通过，需要先结合提醒修订，再继续判断内容质量。"}
-        </p>
-        <ul className="notice-list quality-guard__list">
-          {reviewFocusItems.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
+      <div className="quality-guard quality-guard--compact" role="note" aria-label="结果复核提示">
+        <div className="quality-guard__header">
+          <strong>可编辑初稿，仍需人工复核</strong>
+          <span className={`quality-guard__badge quality-guard__badge--${screenplay.validation.status}`}>
+            {validationLabel}
+          </span>
+        </div>
+        <p>{primarySummary}</p>
+        <p className="quality-guard__summary">{warningSummary}</p>
         {validationWarnings.length ? (
           <div className="quality-guard__warnings status-notice status-notice--warning">
-            <strong>需要重点复核的地方</strong>
             <ul className="notice-list">
-              {validationWarnings.map((warning) => (
+              {validationWarnings.slice(0, 3).map((warning) => (
                 <li key={warning}>{formatUserFacingWarning(warning)}</li>
               ))}
             </ul>
           </div>
-        ) : (
-          <div className="quality-guard__warnings status-notice status-notice--neutral">
-            <strong>当前没有额外结构提醒</strong>
-            <p>这只表示系统暂未给出额外提醒，不代表内容质量、题材贴合度或可拍摄性已经没有问题。</p>
-          </div>
-        )}
+        ) : null}
       </div>
 
       <div className="summary-overview">
