@@ -620,8 +620,8 @@ func TestOpenAICompatibleGeneratorBackfillsMissingLooseSceneFields(t *testing.T)
 	if err != nil {
 		t.Fatalf("unexpected generator error: %v", err)
 	}
-	if result.Document.Scenes[0].Slugline.LocationID != "loc_chapter_01" {
-		t.Fatalf("expected fallback planned location id loc_chapter_01, got %s", result.Document.Scenes[0].Slugline.LocationID)
+	if result.Document.Scenes[0].Slugline.LocationID != "loc_公寓" {
+		t.Fatalf("expected repaired planned location id loc_公寓, got %s", result.Document.Scenes[0].Slugline.LocationID)
 	}
 	if result.Document.Scenes[0].Slugline.Time != "NIGHT" {
 		t.Fatalf("expected fallback planned time NIGHT, got %s", result.Document.Scenes[0].Slugline.Time)
@@ -1310,6 +1310,184 @@ func TestOpenAICompatibleGeneratorSurfacesProviderErrorField(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "provider internal failure") {
 		t.Fatalf("expected provider message in error, got %v", err)
+	}
+}
+
+func TestSanitizeGeneratedCharactersPrefersCanonicalLLMCharactersOverWeakPreferredFragments(t *testing.T) {
+	req := validOpenAICompatibleCreateJobRequest()
+	req.Source.Title = "交稿前夜"
+	req.Source.Author = "示例作者"
+	req.Source.Chapters[0].Title = "第一章 数据被换"
+	req.Source.Chapters[0].Content = "晚上十点半，苏栀一个人留在办公室复核提案。她翻出本地备份后确认，问题只出现在共享盘上的最终文件。"
+	req.Source.Chapters[1].Title = "第二章 咖啡馆对质"
+	req.Source.Chapters[1].Content = "第二天下午，苏栀把顾屿约到咖啡馆。顾屿没有正面回答，反而质问她这几天为什么一直单独和客户助理沟通。对话越说越僵。"
+	req.Source.Chapters[2].Title = "第三章 会议室摊牌"
+	req.Source.Chapters[2].Content = "清晨，苏栀提前到会议室，项目负责人已经在场。"
+
+	source := ingest.Normalize(req)
+	generated := []screenplay.Character{
+		{ID: "char_suzhi", Name: "苏栀", Role: "protagonist"},
+		{ID: "char_guyu", Name: "顾屿", Role: "supporting"},
+		{ID: "char_project_lead", Name: "项目负责人", Role: "supporting"},
+	}
+	preferred := []screenplay.Character{
+		{ID: "char_frag_1", Name: "苏栀一个人", Role: "protagonist"},
+		{ID: "char_frag_2", Name: "问题只出现", Role: "supporting"},
+		{ID: "char_frag_3", Name: "反而", Role: "supporting"},
+		{ID: "char_frag_4", Name: "对话越", Role: "supporting"},
+	}
+
+	got := sanitizeGeneratedCharacters(generated, preferred, GenerateRequest{
+		Input:  req,
+		Source: source,
+	})
+
+	if len(got) != 3 {
+		t.Fatalf("expected only canonical generated characters to remain, got %#v", got)
+	}
+	for _, forbidden := range []string{"苏栀一个人", "问题只出现", "反而", "对话越"} {
+		for _, character := range got {
+			if character.Name == forbidden {
+				t.Fatalf("expected fragment-like preferred character %s to be removed, got %#v", forbidden, got)
+			}
+		}
+	}
+}
+
+func TestCharacterNameValidatorsRejectFragmentLikeChinesePhrases(t *testing.T) {
+	sourceText := normalizeWhitespace("晚上十点半，苏栀一个人留在办公室。问题只出现在共享盘。顾屿没有正面回答，反而质问她。对话越说越僵。她检查卧室时，在抽屉底层发现字条，而是没有立刻报警。")
+
+	for _, bad := range []string{"苏栀一个人", "问题只出现", "反而", "对话越", "在抽屉底层", "而是"} {
+		if isSupportedGeneratedCharacterName(bad, sourceText) {
+			t.Fatalf("expected fragment-like phrase %s to be rejected as a generated character name", bad)
+		}
+		if isSupportedPreferredCharacterName(bad, sourceText) {
+			t.Fatalf("expected fragment-like phrase %s to be rejected as a preferred character name", bad)
+		}
+	}
+
+	for _, good := range []string{"苏栀", "顾屿"} {
+		if !isSupportedGeneratedCharacterName(good, sourceText) {
+			t.Fatalf("expected normal character name %s to stay supported for generated characters", good)
+		}
+		if !isSupportedPreferredCharacterName(good, sourceText) {
+			t.Fatalf("expected normal character name %s to stay supported for preferred characters", good)
+		}
+	}
+}
+
+func TestSanitizeGeneratedCharactersKeepsSingleValidLLMCharacterWithoutPreferredBackfill(t *testing.T) {
+	req := validOpenAICompatibleCreateJobRequest()
+	req.Source.Chapters[0].Title = "第一章 夜雨"
+	req.Source.Chapters[0].Content = "林琬回到旧公寓，在抽屉底层发现一张写着地址的纸条。"
+	req.Source.Chapters[1].Title = "第二章 旧友"
+	req.Source.Chapters[1].Content = "她联系苏雯确认纸条来历，但苏雯只是让她先别报警。"
+	req.Source.Chapters[2].Title = "第三章 追查"
+	req.Source.Chapters[2].Content = "林琬决定先去纸条上的地址看看。"
+
+	source := ingest.Normalize(req)
+	generated := []screenplay.Character{
+		{ID: "char_linwan", Name: "林琬", Role: "protagonist"},
+	}
+	preferred := []screenplay.Character{
+		{ID: "char_frag_1", Name: "在抽屉底层", Role: "supporting"},
+		{ID: "char_frag_2", Name: "而是", Role: "supporting"},
+	}
+
+	got := sanitizeGeneratedCharacters(generated, preferred, GenerateRequest{
+		Input:  req,
+		Source: source,
+	})
+
+	if len(got) != 1 || got[0].Name != "林琬" {
+		t.Fatalf("expected single llm character to stay untouched, got %#v", got)
+	}
+}
+
+func TestIsSupportedPreferredCharacterNameRequiresHumanLikeChineseNames(t *testing.T) {
+	sourceText := normalizeWhitespace("林琬在卧室抽屉发现字条。项目负责人准备开始彩排。苏雯站在门口。")
+
+	if !isSupportedPreferredCharacterName("林琬", sourceText) {
+		t.Fatal("expected 林琬 to be accepted as a preferred character name")
+	}
+	if !isSupportedPreferredCharacterName("苏雯", sourceText) {
+		t.Fatal("expected 苏雯 to be accepted as a preferred character name")
+	}
+	if isSupportedPreferredCharacterName("项目负责人", sourceText) {
+		t.Fatal("expected role-like title 项目负责人 to stay out of preferred character candidates")
+	}
+	if !isSupportedGeneratedCharacterName("项目负责人", sourceText) {
+		t.Fatal("expected generated role-like title 项目负责人 to remain allowed")
+	}
+}
+
+func TestSanitizeSceneObjectiveKeepsNonTemplateTextEvenWhenReviewIsLowConfidence(t *testing.T) {
+	objective := "迫使项目组承认数据被调包"
+	chapterText := normalizeWhitespace("周宁在操场热身，教练提醒她注意接力棒交接。")
+	review := &screenplay.Review{Confidence: "low"}
+
+	got := sanitizeSceneObjective(objective, chapterText, review)
+	if got != objective {
+		t.Fatalf("expected low-confidence objective to be preserved when it is not obvious template text, got %q", got)
+	}
+}
+
+func TestSanitizeOpenQuestionsKeepsNonTemplateTextEvenWhenReviewIsLowConfidence(t *testing.T) {
+	questions := []string{
+		"是谁提前改了签到表？",
+		"接下来会发生什么？",
+	}
+	chapterText := normalizeWhitespace("周宁在操场边和教练交谈，准备开始接力训练。")
+	review := &screenplay.Review{Confidence: "low"}
+
+	got := sanitizeOpenQuestions(questions, chapterText, review)
+	if len(got) != 1 || got[0] != "是谁提前改了签到表？" {
+		t.Fatalf("expected non-template open question to stay while template filler is removed, got %#v", got)
+	}
+}
+
+func TestIsSupportedLocationNameRejectsNarrativeSentenceLikeText(t *testing.T) {
+	for _, bad := range []string{
+		"林琪意识到有人提前进入过房间",
+		"她在房间里找到一张陌生字条",
+		"回到旧公寓",
+	} {
+		if isSupportedLocationName(bad) {
+			t.Fatalf("expected narrative-like location candidate %q to be rejected", bad)
+		}
+	}
+
+	for _, good := range []string{
+		"旧公寓",
+		"市立第三医院",
+		"旧城区十字路口",
+		"车站",
+	} {
+		if !isSupportedLocationName(good) {
+			t.Fatalf("expected normal location candidate %q to stay supported", good)
+		}
+	}
+}
+
+func TestChooseSceneLocationRejectsSentenceLikeGeneratedLocation(t *testing.T) {
+	scene := &screenplay.Scene{
+		Title:   "陌生字条",
+		Summary: "林琪在房间内发现字条，意识到有人提前进入过房间。",
+	}
+	chapter := job.ChapterBody{
+		Index:   2,
+		Title:   "第二章 陌生字条",
+		Content: "她在房间里找到一张陌生字条，上面只写着今晚别睡。林琪意识到有人提前进入过房间。",
+	}
+	current := screenplay.Location{
+		ID:          "loc_bad_sentence",
+		Name:        "林琪意识到有人提前进入过房间",
+		Description: "bad generated location",
+	}
+
+	got := chooseSceneLocation(scene, chapter, current, 1)
+	if got.Name != "房间" {
+		t.Fatalf("expected sentence-like generated location to fall back to source-grounded 房间, got %#v", got)
 	}
 }
 
